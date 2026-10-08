@@ -62,3 +62,24 @@ The existing GL Compatibility/GLES3 renderer does not support the project 2D MSA
 Camera panning with an empty-space left drag or middle drag is direct, without interpolation. `restrict_camera=false` now allows unlimited navigation beyond the scattered board, while `camera_outer_margin` controls the added space (in larger piece dimensions) if restrictions are enabled. Initial auto-fit uses actual content bounds, *not* the extra camera margin.
 
 The inspector export annotations now explain impact and apply timing. Godot runtime verification remains required, especially the fullscreen CanvasItem polygon triangulation, visual comparisons at different filter modes and camera behavior on successive clicks.
+
+
+## Iteration 6 — Gameplay, visual references and styles (experimental)
+
+- `game_mode=FREE`: existing logical neighbor snapping and group-union behavior remains intact. Neighbor group connections emit `pieces_connected` and tint feedback.
+- `game_mode=MOSAIC`: release a piece within the configured snap distance of its canonical `home` position to lock that piece to its slot; emits `piece_placed`. Mosaic does *not* require a piece-group union. Completion is determined by the number of locked pieces.
+- `show_ghost_board` creates a non-interactive `Sprite2D` beneath all pieces at the exact source-image size, using configurable alpha; Mosaic enables it by default.
+- `preview_key` toggles a camera-independent fullscreen `CanvasLayer` with the entire source texture. The preview does not steal pointer input but the board suspends gameplay input while it is open. `set_preview_visible(bool)` provides programmatic control.
+- `shuffle_mode` switches between surrounding, centered and lower tray candidate areas. `distribution_mode` chooses deterministic random slot assignment or radial order, with unique grid slots and margin for tab extents.
+- `visual_style` changes edge weight; `animation_style` changes short tint tweens on pickup and successful joins. Neither modifies geometric transforms or snapping.
+- These modes reuse the same geometry, image texture and solved-space grid. Gameplay and visual effects are opt-in settings rather than separate hardwired generators.
+
+**Runtime QA outstanding** (Godot executable is not installed here):
+1. Confirm P overlay fits the viewport and closes without stealing drag state. Verify `show_ghost_board` while camera pans and zooms.
+2. In Free mode, connect two pairs independently and merge groups; ensure completion emitted only once.
+3. In Mosaic mode, place an incorrect piece near another socket (must not lock), then place it on its own socket (must lock), and complete a small board.
+4. Try all shuffle modes at 5×4 and 20×15: no inter-piece overlaps, and bottom-only candidates remain beneath the solved board.
+5. Rebuild multiple times and ensure old overlay nodes, texture resources and animations do not leak. Inspect signal counts and inspector property descriptions.
+6. Compare Clean/Cardboard/High Contrast and None/Subtle/Playful modes, including low-resolution and transparent source images.
+
+Known future work: configurable full-screen preview UI, input remapping/action maps, sound/particles, rotation-aware Mosaic, accessibility, optional tray panel, richer zoom-in help and performance profiling.
