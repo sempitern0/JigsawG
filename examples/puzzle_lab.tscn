@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/jigsawg/src/jigsaw_board.gd" id="1"]
+
+[node name="PuzzleLab" type="Node2D"]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+enabled = true
+
+[node name="JigsawBoard" type="Node2D" parent="."]
+script = ExtResource("1")
+columns = 5
+rows = 4
+silhouette_variants = 3
