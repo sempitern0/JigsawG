@@ -20,9 +20,10 @@ const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 @export var auto_fit_camera := true
 @export var drag_smoothing := 22.0
 
-var _pieces: Array[Node2D] = []
+var _pieces: Array[JigsawPiece] = []
 var _parents: Array[int] = []
 var _members: Dictionary = {}
+var _finished := false
 var _drag_root := -1
 var _dragged_piece := -1
 var _pointer_offset := Vector2.ZERO
@@ -46,6 +47,7 @@ func rebuild() -> void:
 	_members.clear()
 	_drag_root = -1
 	_dragged_piece = -1
+	_finished = false
 	var source: Image
 	if puzzle_texture != null:
 		source = puzzle_texture.get_image()
@@ -79,7 +81,7 @@ func rebuild() -> void:
 				-_edge_sign(vertical.get(Vector2i(c - 1, r), Vector2i.ZERO)) if c > 0 else Vector2i.ZERO
 			]
 			var polygon := _make_outline(sides)
-			var piece: Node2D = PieceScript.new()
+			var piece: JigsawPiece = PieceScript.new()
 			piece.name = "Piece_%d_%d" % [c, r]
 			add_child(piece)
 			piece.configure(piece_id, home, polygon, source, Vector2i(floori(home.x), floori(home.y)))
@@ -209,7 +211,8 @@ func _connect_adjacent_groups() -> bool:
 				break
 			if still_connecting:
 				break
-	if _members.size() == 1:
+	if _members.size() == 1 and not _finished:
+		_finished = true
 		puzzle_completed.emit()
 	return any_connection
 
