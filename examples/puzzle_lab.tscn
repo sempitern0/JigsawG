@@ -1,14 +1,17 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://l4glowfkua03"]
 
-[ext_resource type="Script" path="res://addons/jigsawg/src/jigsaw_board.gd" id="1"]
+[ext_resource type="Script" uid="uid://dg252a3yj7sqv" path="res://addons/jigsawg/src/jigsaw_board.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://6utvaa7cbx0m" path="res://examples/images/wallpaperflare.com_wallpaper.jpg" id="2_cukyi"]
 
-[node name="PuzzleLab" type="Node2D"]
+[node name="PuzzleLab" type="Node2D" unique_id=1238527851]
 
-[node name="Camera2D" type="Camera2D" parent="."]
-enabled = true
+[node name="Camera2D" type="Camera2D" parent="." unique_id=274111735]
 
-[node name="JigsawBoard" type="Node2D" parent="."]
+[node name="JigsawBoard" type="Node2D" parent="." unique_id=659092595]
 script = ExtResource("1")
-columns = 5
-rows = 4
-silhouette_variants = 3
+puzzle_texture = ExtResource("2_cukyi")
+columns = 10
+rows = 8
+shuffle_mode = 2
+show_ghost_board = true
+connect_animation_duration = 0.31
