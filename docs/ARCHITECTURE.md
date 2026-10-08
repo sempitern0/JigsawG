@@ -13,3 +13,18 @@ Create a 2D scene containing Camera2D (enabled) and JigsawBoard; enable the plug
 
 ## Production roadmap
 This is untested against a running Godot editor in the present environment. The CPU-side per-pixel masking should be replaced with a cached GPU masking pipeline for high counts or large source images. Profiles currently vary tab amplitude, not the whole silhouette contour. Add multi-profile presets, camera pan/zoom, dynamic fit, touch input, animation/tween and particles/audio, save/load, performance tests and automated group-merge tests. Test exact geometry and clipping across non-integral source dimensions.
+
+
+## Iteration 2: shared seam geometry
+The previous prototype inverted the edge polarity when assigning upper/left neighbors, accidentally allowing a pair of tabs or a pair of slots to face one another. The new `jigsaw_geometry.gd` module generates one canonical edge profile per seam and walks it in reverse for the adjoining piece. Tabs now use piecewise cubic Bézier shoulders, neck, undercut head and depth/profile variations, rather than a raised sine curve. A single descriptor is shared on both sides, so geometry is identical in solved-space coordinates. The next major improvement should be cached antialiased GPU masks: the original Barebone shader/mask design is valuable for rendering, but its 81 pre-rendered PNG masks impose fixed silhouette combinations.
+
+Regression entry point (requires Godot 4.7): `godot --headless --path . --script res://tests/test_geometry.gd`. The test checks matching vertical seams across 8 profiles and both polarities. It has not been run in the current environment.
+
+## Returning legacy features in order
+1. **Foundation:** exact complementary geometry, alpha/visual edges, deterministic snap, and robust group merging. Confirm regression tests and a real editor run before widening scope.
+2. **PuzzleMode:** `Free` (group-based puzzle assembly) and `Mosaic` (pieces placed in their matching board sockets with configurable reference-opacity).
+3. **ShuffleMode:** `AroundTheViewport`, `Center`, `Bottom`, preserving seed, safe margins and piece non-overlap where possible.
+4. **SpawnDistributionMode:** `Random` and `Radial`, designed as placement strategies independent of the puzzle's logical graph.
+5. **Juice:** distinct VFX/audio for pickup, hover, release, missed join, single-piece join, group merge and completion, using existing signals without hardwiring effects to mechanics.
+
+Do not conflate difficulty with piece count: profile family count, rotation, reference-image visibility, false-positive decoy profiles, available tray area and snap tolerance are separate settings. Keep default behavior deterministic and guarantee physically matching seams even with maximum profile diversity.
