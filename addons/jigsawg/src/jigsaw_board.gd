@@ -21,6 +21,11 @@ const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 @export var auto_fit_camera := true
 @export var drag_smoothing := 22.0
 @export var enable_camera_navigation := true
+@export var invert_background_pan := false
+@export var smooth_zoom := true
+@export_range(1.0, 30.0, 0.5) var zoom_smoothing := 12.0
+@export_range(4, 16, 1) var bezier_detail := 8
+@export_range(0.02, 0.35, 0.01) var shuffle_spacing := 0.14
 @export_range(1.05, 2.0, 0.05) var wheel_zoom_factor := 1.15
 @export_range(0.05, 10.0, 0.05) var min_zoom := 0.15
 @export_range(0.25, 16.0, 0.25) var max_zoom := 8.0
@@ -39,6 +44,10 @@ var _piece_size := Vector2.ZERO
 var _rng := RandomNumberGenerator.new()
 var _camera: Camera2D
 var _camera_pan := false
+var _zoom_goal := 1.0
+var _zoom_anchor := Vector2.ZERO
+var _zoom_anchor_valid := false
+var _scatter_bounds := Rect2()
 var _pan_last_mouse := Vector2.ZERO
 var _pan_bounds := Rect2()
 
@@ -93,25 +102,23 @@ func rebuild() -> void:
 				horizontal.get(Vector2i(c, r), Vector2i.ZERO) if r < rows - 1 else Vector2i.ZERO,
 				vertical.get(Vector2i(c - 1, r), Vector2i.ZERO) if c > 0 else Vector2i.ZERO
 			]
-			var polygon: PackedVector2Array = Geometry.make_outline(_piece_size, sides[0], sides[1], sides[2], sides[3])
+			var polygon: PackedVector2Array = Geometry.make_outline(_piece_size, sides[0], sides[1], sides[2], sides[3], bezier_detail)
 			var piece: JigsawPiece = PieceScript.new()
 			piece.name = "Piece_%d_%d" % [c, r]
 			add_child(piece)
 			piece.configure(piece_id, home, polygon, shared_texture)
-			if initial_scatter:
-				var radius := maxf(columns * _piece_size.x, rows * _piece_size.y) * 0.7
-				var angle := _rng.randf_range(0, TAU)
-				piece.position = home + Vector2(cos(angle), sin(angle)) * _rng.randf_range(radius * 0.45, radius)
-			else:
-				piece.position = home
+			piece.position = home
 			_pieces.append(piece)
 			_parents.append(piece_id)
 			_members[piece_id] = [piece_id]
+	if initial_scatter:
+		_scatter_non_overlapping()
 	_camera = get_viewport().get_camera_2d()
 	if _camera:
 		_update_camera_bounds()
 		if auto_fit_camera:
 			_fit_camera()
+		_zoom_goal = _camera.zoom.x
 	puzzle_generated.emit(_pieces.size())
 
 func _random_edge() -> Vector2i:
@@ -138,6 +145,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_zoom_at_cursor(1.0 / wheel_zoom_factor)
 				get_viewport().set_input_as_handled()
 				return
+			if event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and _camera_pan:
+				_camera_pan = false
+				get_viewport().set_input_as_handled()
+				return
 			if event.button_index == MOUSE_BUTTON_MIDDLE:
 				_camera_pan = event.pressed
 				_pan_last_mouse = get_viewport().get_mouse_position()
@@ -145,7 +156,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 		if event is InputEventMouseMotion and _camera_pan:
 			var current_mouse := get_viewport().get_mouse_position()
-			_camera.global_position -= (current_mouse - _pan_last_mouse) / _camera.zoom.x
+			_camera.global_position += (current_mouse - _pan_last_mouse) / _camera.zoom.x * (1.0 if invert_background_pan else -1.0)
 			_pan_last_mouse = current_mouse
 			_limit_camera()
 			get_viewport().set_input_as_handled()
@@ -166,6 +177,10 @@ func _unhandled_input(event: InputEvent) -> void:
 					piece_picked.emit(i)
 					get_viewport().set_input_as_handled()
 					break
+			if _drag_root == -1 and enable_camera_navigation and _camera:
+				_camera_pan = true
+				_pan_last_mouse = get_viewport().get_mouse_position()
+				get_viewport().set_input_as_handled()
 		elif not event.pressed and _drag_root != -1:
 			# Commit the intended pointer position, not the last smoothed visual position.
 			_move_group(_desired_position - _pieces[_dragged_piece].global_position)
@@ -182,6 +197,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
+	if enable_camera_navigation and _camera and smooth_zoom:
+		_update_smooth_zoom(delta)
 	if _drag_root == -1 or _dragged_piece == -1:
 		return
 	if enable_camera_navigation and _camera:
@@ -250,12 +267,26 @@ func _fit_camera() -> void:
 	_camera.zoom = Vector2.ONE * clampf(zoom, min_zoom, max_zoom)
 
 func _zoom_at_cursor(multiplier: float) -> void:
-	var cursor_before := get_global_mouse_position()
-	var zoom := clampf(_camera.zoom.x * multiplier, min_zoom, max_zoom)
+	_zoom_goal = clampf(_zoom_goal * multiplier, min_zoom, max_zoom)
+	if smooth_zoom:
+		_zoom_anchor = get_viewport().get_mouse_position()
+		_zoom_anchor_valid = true
+	else:
+		_apply_zoom(_zoom_goal, get_viewport().get_mouse_position())
+
+func _update_smooth_zoom(delta: float) -> void:
+	if absf(_camera.zoom.x - _zoom_goal) < 0.0001:
+		return
+	var factor := 1.0 - exp(-zoom_smoothing * delta)
+	var zoom := lerpf(_camera.zoom.x, _zoom_goal, factor)
+	_apply_zoom(zoom, _zoom_anchor if _zoom_anchor_valid else get_viewport_rect().size * 0.5)
+
+func _apply_zoom(zoom: float, screen_anchor: Vector2) -> void:
+	var world_before := _camera.get_canvas_transform().affine_inverse() * screen_anchor
 	_camera.zoom = Vector2.ONE * zoom
 	_camera.force_update_scroll()
-	var cursor_after := get_global_mouse_position()
-	_camera.global_position += cursor_before - cursor_after
+	var world_after := _camera.get_canvas_transform().affine_inverse() * screen_anchor
+	_camera.global_position += world_before - world_after
 	_limit_camera()
 
 func _edge_pan_camera(delta: float) -> void:
@@ -289,3 +320,26 @@ func _limit_camera() -> void:
 		else:
 			center[axis] = clampf(center[axis], limits.position[axis] + half_screen[axis], limits.end[axis] - half_screen[axis])
 	_camera.global_position = center
+
+func _scatter_non_overlapping() -> void:
+	# Conservative rectangular footprints include maximum Bézier protrusions.
+	# Unique grid slots prohibit overlaps even for large puzzles.
+	var stride := _piece_size * (1.0 + 0.65 + shuffle_spacing)
+	var count := _pieces.size()
+	var grid_columns := maxi(columns + 4, ceili(sqrt(float(count) * 1.8)))
+	var grid_rows := ceili(float(count + columns * rows) / float(grid_columns)) + 2
+	var slots: Array[Vector2] = []
+	var board_rect := Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows)).grow_individual(stride.x, stride.y, stride.x, stride.y)
+	for y in range(-grid_rows, grid_rows + 1):
+		for x in range(-grid_columns, grid_columns + 1):
+			var slot := Vector2(x * stride.x, y * stride.y)
+			var footprint := Rect2(slot - _piece_size * 0.33, _piece_size * 1.66)
+			if not board_rect.intersects(footprint):
+				slots.append(slot)
+	for i in range(slots.size() - 1, 0, -1):
+		var j := _rng.randi_range(0, i)
+		var temp := slots[i]
+		slots[i] = slots[j]
+		slots[j] = temp
+	for i in range(mini(count, slots.size())):
+		_pieces[i].position = slots[i]
