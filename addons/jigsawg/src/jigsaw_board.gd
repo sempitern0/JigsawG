@@ -27,7 +27,7 @@ const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 @export_range(4, 16, 1) var bezier_detail := 8
 @export_range(0.02, 0.35, 0.01) var shuffle_spacing := 0.14
 @export_range(1.05, 2.0, 0.05) var wheel_zoom_factor := 1.15
-@export_range(0.05, 10.0, 0.05) var min_zoom := 0.15
+@export_range(0.05, 10.0, 0.05) var min_zoom := 0.025
 @export_range(0.25, 16.0, 0.25) var max_zoom := 8.0
 @export_range(8.0, 128.0, 1.0) var edge_scroll_zone := 64.0
 @export_range(100.0, 2500.0, 25.0) var edge_scroll_speed := 900.0
@@ -336,6 +336,11 @@ func _scatter_non_overlapping() -> void:
 			var footprint := Rect2(slot - _piece_size * 0.33, _piece_size * 1.66)
 			if not board_rect.intersects(footprint):
 				slots.append(slot)
+	# Keep the closest ring of slots: avoid scattering pieces kilometers away.
+	var center := board_rect.get_center()
+	slots.sort_custom(func(a: Vector2, b: Vector2) -> bool:
+		return a.distance_squared_to(center) < b.distance_squared_to(center))
+	slots.resize(mini(slots.size(), count))
 	for i in range(slots.size() - 1, 0, -1):
 		var j := _rng.randi_range(0, i)
 		var temp := slots[i]
