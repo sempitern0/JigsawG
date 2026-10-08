@@ -9,6 +9,7 @@ signal piece_released(piece_id: int, connected: bool)
 signal connection_failed(piece_id: int)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
+const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 
 @export var puzzle_texture: Texture2D
 @export_range(2, 40, 1) var columns := 5
@@ -75,12 +76,12 @@ func rebuild() -> void:
 			var piece_id := r * columns + c
 			var home := Vector2(c, r) * _piece_size
 			var sides := [
-				-_edge_sign(horizontal.get(Vector2i(c, r - 1), Vector2i.ZERO)) if r > 0 else Vector2i.ZERO,
+				horizontal.get(Vector2i(c, r - 1), Vector2i.ZERO) if r > 0 else Vector2i.ZERO,
 				vertical.get(Vector2i(c, r), Vector2i.ZERO) if c < columns - 1 else Vector2i.ZERO,
 				horizontal.get(Vector2i(c, r), Vector2i.ZERO) if r < rows - 1 else Vector2i.ZERO,
-				-_edge_sign(vertical.get(Vector2i(c - 1, r), Vector2i.ZERO)) if c > 0 else Vector2i.ZERO
+				vertical.get(Vector2i(c - 1, r), Vector2i.ZERO) if c > 0 else Vector2i.ZERO
 			]
-			var polygon := _make_outline(sides)
+			var polygon: PackedVector2Array = Geometry.make_outline(_piece_size, sides[0], sides[1], sides[2], sides[3])
 			var piece: JigsawPiece = PieceScript.new()
 			piece.name = "Piece_%d_%d" % [c, r]
 			add_child(piece)
@@ -99,32 +100,8 @@ func rebuild() -> void:
 		_fit_camera()
 	puzzle_generated.emit(_pieces.size())
 
-func _edge_sign(data: Vector2i) -> Vector2i:
-	return Vector2i(-data.x, data.y)
-
 func _random_edge() -> Vector2i:
 	return Vector2i(1 if _rng.randi_range(0, 1) == 0 else -1, _rng.randi_range(0, silhouette_variants - 1))
-
-func _make_outline(sides: Array) -> PackedVector2Array:
-	var result := PackedVector2Array()
-	var w := _piece_size.x
-	var h := _piece_size.y
-	# Clockwise segments: top, right, bottom, left. Neighbour reversal flips the normal.
-	var corners := [Vector2.ZERO, Vector2(w, 0), Vector2(w, h), Vector2(0, h), Vector2.ZERO]
-	var normals := [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT]
-	for side in range(4):
-		var a: Vector2 = corners[side]
-		var b: Vector2 = corners[side + 1]
-		var edge: Vector2i = sides[side]
-		var amount := minf(w, h) * (0.16 + 0.015 * edge.y) * edge.x
-		for step in range(33):
-			var t := step / 32.0
-			var displacement := 0.0
-			if t >= 0.27 and t <= 0.73 and edge.x != 0:
-				var wave := (t - 0.27) / 0.46
-				displacement = pow(sin(wave * PI), 2.0) * amount
-			result.append(a.lerp(b, t) + normals[side] * displacement)
-	return result
 
 func _make_demo_image() -> Image:
 	var image := Image.create(640, 480, false, Image.FORMAT_RGBA8)
@@ -188,7 +165,7 @@ func _connect_adjacent_groups() -> bool:
 		still_connecting = false
 		var active_members: Array = _members[_parents[_dragged_piece]].duplicate()
 		for index in active_members:
-			var r: int = index / columns
+			var r: int = floori(float(index) / float(columns))
 			var c: int = index % columns
 			for neighbor in [index - columns if r > 0 else -1, index + 1 if c < columns - 1 else -1, index + columns if r < rows - 1 else -1, index - 1 if c > 0 else -1]:
 				if neighbor == -1 or _parents[index] == _parents[neighbor]:
