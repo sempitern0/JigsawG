@@ -98,8 +98,6 @@ enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 @export var animation_style: AnimationStyle = AnimationStyle.SUBTLE
 ## Duration of connect animation in seconds; live.
 @export_range(0.04, 0.6, 0.01) var connect_animation_duration := 0.16
-## Hover scale while a piece/group is grabbed; live.
-@export_range(1.0, 1.12, 0.01) var pickup_scale := 1.035
 
 signal preview_toggled(visible: bool)
 signal piece_placed(piece_id: int)
@@ -123,7 +121,6 @@ var _camera_pan := false
 var _zoom_goal := 1.0
 var _zoom_anchor := Vector2.ZERO
 var _zoom_anchor_valid := false
-var _scatter_bounds := Rect2()
 var _pan_last_mouse := Vector2.ZERO
 var _pan_bounds := Rect2()
 var _fit_bounds := Rect2()
@@ -349,6 +346,7 @@ func _connect_adjacent_groups() -> bool:
 					_members[new_root].append(member)
 				_members.erase(old_root)
 				pieces_connected.emit(_members[new_root].size())
+				_animate_connection(_pieces[index])
 				any_connection = true
 				still_connecting = true
 				break
@@ -459,8 +457,7 @@ func _scatter_non_overlapping() -> void:
 		slots.sort_custom(func(a: Vector2, b: Vector2) -> bool:
 			return a.distance_squared_to(center) < b.distance_squared_to(center))
 	else:
-		slots.shuffle()
-		# Random retains a compact footprint rather than filling the entire world.
+		# Keep the closest slots; the seeded Fisher-Yates shuffle below assigns pieces.
 		slots.sort_custom(func(a: Vector2, b: Vector2) -> bool:
 			return a.distance_squared_to(center) < b.distance_squared_to(center))
 	if slots.size() < count:
@@ -502,18 +499,23 @@ func _place_in_mosaic() -> bool:
 	return true
 
 func _animate_pickup(members: Array, active: bool) -> void:
-	if animation_style == AnimationStyle.NONE:
-		return
-	# Visual feedback never scales collision geometry or snaps. No group-relative distortion.
+	# Tint only: scaling the nodes would change their visible seams and pointer hit test.
+	var tint := Color(1.12, 1.09, 1.02, 1.0) if active and animation_style == AnimationStyle.PLAYFUL else Color.WHITE
 	for member in members:
 		var piece := _pieces[int(member)]
-		piece.queue_redraw()
+		_tween_piece_tint(piece, tint)
 
 func _animate_connection(piece: JigsawPiece) -> void:
 	if animation_style == AnimationStyle.NONE:
 		return
-	var flash := Color.WHITE
-	var base := piece.modulate
+	var peak := Color(1.22, 1.18, 0.93, 1.0) if animation_style == AnimationStyle.PLAYFUL else Color(1.10, 1.10, 1.02, 1.0)
+	_tween_piece_tint(piece, peak)
 	var tween := create_tween()
-	tween.tween_property(piece, "modulate", flash, connect_animation_duration * 0.5)
-	tween.tween_property(piece, "modulate", base, connect_animation_duration * 0.5)
+	tween.tween_property(piece, "modulate", Color.WHITE, connect_animation_duration)
+
+func _tween_piece_tint(piece: JigsawPiece, tint: Color) -> void:
+	if animation_style == AnimationStyle.NONE:
+		piece.modulate = Color.WHITE
+		return
+	var tween := create_tween()
+	tween.tween_property(piece, "modulate", tint, connect_animation_duration * 0.5)
