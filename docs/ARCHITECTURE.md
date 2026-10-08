@@ -51,3 +51,14 @@ Camera controls:
 Scatter uses deterministic Fisher-Yates shuffling of unique candidate cells outside the assembly area. Cell stride includes tab protrusion and a configurable `shuffle_spacing` gap. It chooses the nearest slots before randomizing, keeping the initial camera more usable on large boards. Non-overlap is based on conservative rectangular footprints rather than expensive shape intersection checks.
 
 Pending Godot verification: texture UV behavior with negative tab extents, polygon triangulation on irregular silhouettes, camera anchor during repeated wheel events and zoom limits, mixed middle/left-button release order, group movement during edge pan, and shuffle for 20x15 / 40x40 grids. No Godot executable available here; do not merge without runtime checks.
+
+
+## Iteration 5: image crispness, inspector, camera limits and GLES3
+
+An increased `bezier_detail` samples more points along each geometric cubic; **it cannot add image resolution**. The previous renderer added a permanently visible bevel to every polygon edge, which made zoomed outlines appear fuzzy. The bevel is now off by default and the optional edge opacity/width are exposed. `texture_sampling` offers Linear (default, sharper at native scale), Nearest (pixelated), or Mipmaps (useful far away but can soften detail). All options use the original shared image texture. Changes to piece appearance or generation settings require `rebuild()`.
+
+The existing GL Compatibility/GLES3 renderer does not support the project 2D MSAA setting; `msaa_2d=0` removes the warning. Thin AA outlines are optional; future rendering experimentation should be undertaken under a compatible renderer, not by setting unsupported GLES3 MSAA.
+
+Camera panning with an empty-space left drag or middle drag is direct, without interpolation. `restrict_camera=false` now allows unlimited navigation beyond the scattered board, while `camera_outer_margin` controls the added space (in larger piece dimensions) if restrictions are enabled. Initial auto-fit uses actual content bounds, *not* the extra camera margin.
+
+The inspector export annotations now explain impact and apply timing. Godot runtime verification remains required, especially the fullscreen CanvasItem polygon triangulation, visual comparisons at different filter modes and camera behavior on successive clicks.
