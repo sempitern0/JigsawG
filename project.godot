@@ -14,8 +14,10 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="godot-plugin-template"
-config/description="My personal template to create new plugins with placeholders to replace"
+run/main_scene="res://examples/puzzle_lab.tscn"
+
+config/name="JigsawG"
+config/description="Procedural 2D jigsaw puzzle plugin sandbox"
 config/version="1.0.0"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
@@ -24,3 +26,7 @@ config/icon="res://icon.svg"
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/jigsawg/plugin.cfg")
