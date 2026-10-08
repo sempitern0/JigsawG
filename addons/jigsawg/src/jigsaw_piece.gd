@@ -1,3 +1,4 @@
+class_name JigsawPiece
 extends Node2D
 ## Visual and hit-test representation of a single generated jigsaw piece.
 var id: int
