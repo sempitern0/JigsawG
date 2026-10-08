@@ -558,12 +558,18 @@ func _tween_piece_tint(piece: JigsawPiece, tint: Color) -> void:
 func _apply_resource_presets() -> void:
 	if gameplay_settings != null:
 		var s := gameplay_settings
-		game_mode = s.game_mode
+		game_mode = GameMode.FREE if s.game_mode == JigsawGameplaySettings.Mode.FREE else GameMode.MOSAIC
 		snap_tolerance = s.snap_tolerance
 		allow_piece_rotation = s.allow_piece_rotation
 		random_rotation_on_shuffle = s.random_rotation_on_shuffle
-		shuffle_mode = s.shuffle_mode
-		distribution_mode = s.distribution_mode
+		match s.shuffle_mode:
+			JigsawGameplaySettings.Shuffle.CENTER:
+				shuffle_mode = ShuffleMode.CENTER
+			JigsawGameplaySettings.Shuffle.BOTTOM:
+				shuffle_mode = ShuffleMode.BOTTOM
+			_:
+				shuffle_mode = ShuffleMode.AROUND_BOARD
+		distribution_mode = DistributionMode.RADIAL if s.distribution_mode == JigsawGameplaySettings.Distribution.RADIAL else DistributionMode.RANDOM
 		initial_scatter = s.initial_scatter
 		shuffle_spacing = s.shuffle_spacing
 		generation_seed = s.generation_seed
@@ -573,12 +579,24 @@ func _apply_resource_presets() -> void:
 		preview_key = s.preview_key
 	if appearance_settings != null:
 		var a := appearance_settings
-		visual_style = a.visual_style
+		match a.visual_style:
+			JigsawAppearanceSettings.VisualStyle.CARDBOARD:
+				visual_style = VisualStyle.CARDBOARD
+			JigsawAppearanceSettings.VisualStyle.HIGH_CONTRAST:
+				visual_style = VisualStyle.HIGH_CONTRAST
+			_:
+				visual_style = VisualStyle.CLEAN
 		texture_sampling = a.texture_sampling
 		bezier_detail = a.bezier_detail
 		piece_edge_opacity = a.piece_edge_opacity
 		piece_edge_width = a.piece_edge_width
-		animation_style = a.animation_style
+		match a.animation_style:
+			JigsawAppearanceSettings.AnimationStyle.NONE:
+				animation_style = AnimationStyle.NONE
+			JigsawAppearanceSettings.AnimationStyle.PLAYFUL:
+				animation_style = AnimationStyle.PLAYFUL
+			_:
+				animation_style = AnimationStyle.SUBTLE
 		connect_animation_duration = a.connect_animation_duration
 
 func _set_piece_quarters(piece_index: int, quarters: int) -> void:
