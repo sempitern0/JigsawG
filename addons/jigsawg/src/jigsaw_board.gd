@@ -235,7 +235,9 @@ func rebuild() -> void:
 		_scatter_non_overlapping()
 		if allow_piece_rotation and random_rotation_on_shuffle:
 			for i in range(_pieces.size()):
+				var center_before := _pieces[i].position + _piece_size * 0.5
 				_set_piece_quarters(i, _rng.randi_range(0, 3))
+				_pieces[i].position = center_before - (_piece_size * 0.5).rotated(_pieces[i].rotation)
 	_camera = get_viewport().get_camera_2d()
 	if _camera:
 		_update_camera_bounds()
@@ -461,7 +463,9 @@ func _limit_camera() -> void:
 
 func _scatter_non_overlapping() -> void:
 	# Conservative slot footprints avoid overlap, including Bézier protrusions.
-	var stride := _piece_size * (1.65 + shuffle_spacing)
+	# Use a square footprint: a 90-degree turn swaps width and height.
+	var footprint_side := maxf(_piece_size.x, _piece_size.y)
+	var stride := Vector2.ONE * footprint_side * (1.65 + shuffle_spacing)
 	var count := _pieces.size()
 	var side_count := maxi(columns + 6, ceili(sqrt(float(count) * 3.0)))
 	var slots: Array[Vector2] = []
@@ -470,7 +474,7 @@ func _scatter_non_overlapping() -> void:
 	for y in range(-side_count, side_count + 1):
 		for x in range(-side_count, side_count + 1):
 			var slot := Vector2(x * stride.x, y * stride.y)
-			var footprint := Rect2(slot - _piece_size * 0.33, _piece_size * 1.66)
+			var footprint := Rect2(slot - Vector2.ONE * footprint_side * 0.33, Vector2.ONE * footprint_side * 1.66)
 			match shuffle_mode:
 				ShuffleMode.AROUND_BOARD:
 					if forbidden.intersects(footprint):
@@ -554,12 +558,12 @@ func _tween_piece_tint(piece: JigsawPiece, tint: Color) -> void:
 func _apply_resource_presets() -> void:
 	if gameplay_settings != null:
 		var s := gameplay_settings
-		game_mode = int(s.game_mode) as GameMode
+		game_mode = s.game_mode
 		snap_tolerance = s.snap_tolerance
 		allow_piece_rotation = s.allow_piece_rotation
 		random_rotation_on_shuffle = s.random_rotation_on_shuffle
-		shuffle_mode = int(s.shuffle_mode) as ShuffleMode
-		distribution_mode = int(s.distribution_mode) as DistributionMode
+		shuffle_mode = s.shuffle_mode
+		distribution_mode = s.distribution_mode
 		initial_scatter = s.initial_scatter
 		shuffle_spacing = s.shuffle_spacing
 		generation_seed = s.generation_seed
@@ -569,12 +573,12 @@ func _apply_resource_presets() -> void:
 		preview_key = s.preview_key
 	if appearance_settings != null:
 		var a := appearance_settings
-		visual_style = int(a.visual_style) as VisualStyle
+		visual_style = a.visual_style
 		texture_sampling = a.texture_sampling
 		bezier_detail = a.bezier_detail
 		piece_edge_opacity = a.piece_edge_opacity
 		piece_edge_width = a.piece_edge_width
-		animation_style = int(a.animation_style) as AnimationStyle
+		animation_style = a.animation_style
 		connect_animation_duration = a.connect_animation_duration
 
 func _set_piece_quarters(piece_index: int, quarters: int) -> void:
