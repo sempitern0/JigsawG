@@ -11,26 +11,57 @@ signal connection_failed(piece_id: int)
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 
+## Source image; takes effect after rebuild().
 @export var puzzle_texture: Texture2D
+## Number of piece columns; rebuild() regenerates the puzzle.
 @export_range(2, 40, 1) var columns := 5
+## Number of piece rows; rebuild() regenerates the puzzle.
 @export_range(2, 40, 1) var rows := 4
+## Distinct connector profiles; rebuild() creates new edges.
 @export_range(1, 8, 1) var silhouette_variants := 3
+## Reproducible edge and shuffle seed; applied on rebuild().
 @export var generation_seed := 4729
+## Max snap offset as a fraction of the shorter piece side; live.
 @export_range(0.05, 0.5, 0.01) var snap_tolerance := 0.24
+## Scatter at startup; rebuild() resets positions and groups.
 @export var initial_scatter := true
+## Fit generated pieces on rebuild(); does not auto-follow later.
 @export var auto_fit_camera := true
+## Piece-follow response per second; higher feels more immediate.
 @export var drag_smoothing := 22.0
+## Enable wheel, empty-space and middle-button pan, and edge scroll.
 @export var enable_camera_navigation := true
+## Reverse empty-space and middle-button drag direction; live.
 @export var invert_background_pan := false
+## Animate wheel zoom rather than jump instantly; live.
 @export var smooth_zoom := true
+## Zoom approach speed per second; higher converges faster.
 @export_range(1.0, 30.0, 0.5) var zoom_smoothing := 12.0
+## Samples per cubic connector segment; rebuild() updates outlines, not texture resolution.
 @export_range(4, 16, 1) var bezier_detail := 8
+## Extra separation between shuffled slots; rebuild() repositions pieces.
 @export_range(0.02, 0.35, 0.01) var shuffle_spacing := 0.14
+## Zoom multiplier for each wheel notch; live.
 @export_range(1.05, 2.0, 0.05) var wheel_zoom_factor := 1.15
+## Minimum camera scale; affects subsequent zooms and fitting.
 @export_range(0.05, 10.0, 0.05) var min_zoom := 0.025
+## Maximum camera scale; affects subsequent zooms and fitting.
 @export_range(0.25, 16.0, 0.25) var max_zoom := 8.0
+## Screen-edge activation width in pixels while carrying pieces.
 @export_range(8.0, 128.0, 1.0) var edge_scroll_zone := 64.0
+## Edge-pan speed in screen pixels per second; live.
 @export_range(100.0, 2500.0, 25.0) var edge_scroll_speed := 900.0
+
+## Texture filtering: Linear keeps detail, Nearest is pixelated, Mipmaps favors distant minification. Rebuild to apply.
+@export_enum("Linear", "Nearest", "Mipmaps") var texture_sampling := 0
+## Optional dark rim opacity; 0 disables the blurry-looking bevel. Rebuild to apply.
+@export_range(0.0, 1.0, 0.01) var piece_edge_opacity := 0.0
+## Rim thickness in local image pixels; rebuild to apply.
+@export_range(0.1, 3.0, 0.1) var piece_edge_width := 0.7
+## Extra camera travel outside scattered pieces, in piece widths; rebuild to update limits.
+@export_range(0.0, 20.0, 0.5) var camera_outer_margin := 5.0
+## False removes pan limits entirely; change applies immediately.
+@export var restrict_camera := false
 
 var _pieces: Array[JigsawPiece] = []
 var _parents: Array[int] = []
@@ -50,6 +81,7 @@ var _zoom_anchor_valid := false
 var _scatter_bounds := Rect2()
 var _pan_last_mouse := Vector2.ZERO
 var _pan_bounds := Rect2()
+var _fit_bounds := Rect2()
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -106,7 +138,7 @@ func rebuild() -> void:
 			var piece: JigsawPiece = PieceScript.new()
 			piece.name = "Piece_%d_%d" % [c, r]
 			add_child(piece)
-			piece.configure(piece_id, home, polygon, shared_texture)
+			piece.configure(piece_id, home, polygon, shared_texture, texture_sampling, piece_edge_opacity, piece_edge_width)
 			piece.position = home
 			_pieces.append(piece)
 			_parents.append(piece_id)
@@ -249,20 +281,20 @@ func _connect_adjacent_groups() -> bool:
 	return any_connection
 
 func _update_camera_bounds() -> void:
-	_pan_bounds = Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
+	_fit_bounds = Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
 	for piece in _pieces:
-		_pan_bounds = _pan_bounds.expand(piece.position + piece.bounds.position)
-		_pan_bounds = _pan_bounds.expand(piece.position + piece.bounds.end)
-	_pan_bounds = _pan_bounds.grow(maxf(_piece_size.x, _piece_size.y) * 2.0)
+		_fit_bounds = _fit_bounds.expand(piece.position + piece.bounds.position)
+		_fit_bounds = _fit_bounds.expand(piece.position + piece.bounds.end)
+	_pan_bounds = _fit_bounds.grow(maxf(_piece_size.x, _piece_size.y) * camera_outer_margin)
 
 func _fit_camera() -> void:
 	if _camera == null:
 		return
-	var frame := _pan_bounds.size * 1.08
+	var frame := _fit_bounds.size * 1.08
 	var screen := get_viewport_rect().size
 	if frame.x <= 0.0 or frame.y <= 0.0 or screen.x <= 0.0 or screen.y <= 0.0:
 		return
-	_camera.global_position = to_global(_pan_bounds.get_center())
+	_camera.global_position = to_global(_fit_bounds.get_center())
 	var zoom := minf(screen.x / frame.x, screen.y / frame.y)
 	_camera.zoom = Vector2.ONE * clampf(zoom, min_zoom, max_zoom)
 
@@ -309,7 +341,7 @@ func _edge_pan_camera(delta: float) -> void:
 		_camera.force_update_scroll()
 
 func _limit_camera() -> void:
-	if _camera == null:
+	if _camera == null or not restrict_camera:
 		return
 	var half_screen := get_viewport_rect().size / (_camera.zoom * 2.0)
 	var limits := Rect2(to_global(_pan_bounds.position), _pan_bounds.size)
