@@ -37,3 +37,17 @@ Do not conflate difficulty with piece count: profile family count, rotation, ref
 Camera: mouse wheel zoom around the world point under the cursor, middle-mouse drag pan, and proportional edge-pan while carrying a piece. Configurable zoom limits, wheel factor, edge activation band and pan speed. Fit uses the initial scattered-piece world bounds. Bounds deliberately leave extra space outside the board but are static during play.
 
 **Mandatory manual checks:** inspect piece geometry for transparent images; verify concave polygons triangulate without self-overlap; zoom over an off-center seam (point under cursor must remain stable); scroll to edges during drag and complete a snap; drag a previously joined group; test 5x4, 10x8 and 20x15 with a high-resolution real image. Need to run and profile inside Godot before calling this production-ready. Consider batching by group or MultiMesh-like approaches only after actual profiling.
+
+
+## Iteration 4: image feedback, navigation and shuffle
+Reference images from October 8 showed unnaturally hard shoulders, visible contour outlines, overlapping scatter and frustrating camera navigation. The curve code now uses six joined cubic Bézier sections with gentler shoulders and a rounded crown; both sides still share the same canonical seam descriptor. Increase `bezier_detail` to sample more finely (at a draw-call/triangulation cost). Further profiling and visual iteration with real images is required; the renderer currently still draws a subtle cardboard rim.
+
+Camera controls:
+- Mouse wheel sets a configurable zoom target. `smooth_zoom` and `zoom_smoothing` control exponential zoom convergence at a fixed screen-space anchor.
+- Middle mouse drag pans.
+- Left mouse drag on **empty** canvas pans, without taking a piece; `invert_background_pan` reverses the direction.
+- Left mouse drag on a piece moves its entire connected group, with edge scrolling at the viewport perimeter.
+
+Scatter uses deterministic Fisher-Yates shuffling of unique candidate cells outside the assembly area. Cell stride includes tab protrusion and a configurable `shuffle_spacing` gap. It chooses the nearest slots before randomizing, keeping the initial camera more usable on large boards. Non-overlap is based on conservative rectangular footprints rather than expensive shape intersection checks.
+
+Pending Godot verification: texture UV behavior with negative tab extents, polygon triangulation on irregular silhouettes, camera anchor during repeated wheel events and zoom limits, mixed middle/left-button release order, group movement during edge pan, and shuffle for 20x15 / 40x40 grids. No Godot executable available here; do not merge without runtime checks.
