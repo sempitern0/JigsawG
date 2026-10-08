@@ -28,3 +28,12 @@ Regression entry point (requires Godot 4.7): `godot --headless --path . --script
 5. **Juice:** distinct VFX/audio for pickup, hover, release, missed join, single-piece join, group merge and completion, using existing signals without hardwiring effects to mechanics.
 
 Do not conflate difficulty with piece count: profile family count, rotation, reference-image visibility, false-positive decoy profiles, available tray area and snap tolerance are separate settings. Keep default behavior deterministic and guarantee physically matching seams even with maximum profile diversity.
+
+
+## Iteration 3: image fidelity and large-board camera
+
+`JigsawPiece` no longer rasterizes each shape into a separate `ImageTexture` using `Geometry2D.is_point_in_polygon()`. `JigsawBoard` creates one source `ImageTexture` with mipmaps and passes it to all pieces. Each piece draws its canonical Bézier polygon with UV coordinates in full-image space. This removes per-pixel CPU masking at build time and preserves original texels for zoomed-in viewing. The sandbox enables 4x MSAA for polygon contour edges and adds understated directional rim and selected-piece shadow. Source quality cannot exceed the original image resolution; for a 300-piece puzzle, test photographs at several megapixels and profile the cost of triangles, texture memory and draw calls.
+
+Camera: mouse wheel zoom around the world point under the cursor, middle-mouse drag pan, and proportional edge-pan while carrying a piece. Configurable zoom limits, wheel factor, edge activation band and pan speed. Fit uses the initial scattered-piece world bounds. Bounds deliberately leave extra space outside the board but are static during play.
+
+**Mandatory manual checks:** inspect piece geometry for transparent images; verify concave polygons triangulate without self-overlap; zoom over an off-center seam (point under cursor must remain stable); scroll to edges during drag and complete a snap; drag a previously joined group; test 5x4, 10x8 and 20x15 with a high-resolution real image. Need to run and profile inside Godot before calling this production-ready. Consider batching by group or MultiMesh-like approaches only after actual profiling.
