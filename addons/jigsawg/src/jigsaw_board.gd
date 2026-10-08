@@ -20,6 +20,12 @@ const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 @export var initial_scatter := true
 @export var auto_fit_camera := true
 @export var drag_smoothing := 22.0
+@export var enable_camera_navigation := true
+@export_range(1.05, 2.0, 0.05) var wheel_zoom_factor := 1.15
+@export_range(0.05, 10.0, 0.05) var min_zoom := 0.15
+@export_range(0.25, 16.0, 0.25) var max_zoom := 8.0
+@export_range(8.0, 128.0, 1.0) var edge_scroll_zone := 64.0
+@export_range(100.0, 2500.0, 25.0) var edge_scroll_speed := 900.0
 
 var _pieces: Array[JigsawPiece] = []
 var _parents: Array[int] = []
@@ -32,6 +38,9 @@ var _desired_position := Vector2.ZERO
 var _piece_size := Vector2.ZERO
 var _rng := RandomNumberGenerator.new()
 var _camera: Camera2D
+var _camera_pan := false
+var _pan_last_mouse := Vector2.ZERO
+var _pan_bounds := Rect2()
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -58,6 +67,9 @@ func rebuild() -> void:
 		push_error("JigsawG: a readable source image is required.")
 		return
 	source.convert(Image.FORMAT_RGBA8)
+	if not source.has_mipmaps():
+		source.generate_mipmaps()
+	var shared_texture := ImageTexture.create_from_image(source)
 	_piece_size = Vector2(source.get_size()) / Vector2(columns, rows)
 	if _piece_size.x < 14 or _piece_size.y < 14:
 		push_warning("JigsawG: source image is too small for this many pieces.")
@@ -85,7 +97,7 @@ func rebuild() -> void:
 			var piece: JigsawPiece = PieceScript.new()
 			piece.name = "Piece_%d_%d" % [c, r]
 			add_child(piece)
-			piece.configure(piece_id, home, polygon, source, Vector2i(floori(home.x), floori(home.y)))
+			piece.configure(piece_id, home, polygon, shared_texture)
 			if initial_scatter:
 				var radius := maxf(columns * _piece_size.x, rows * _piece_size.y) * 0.7
 				var angle := _rng.randf_range(0, TAU)
@@ -96,8 +108,10 @@ func rebuild() -> void:
 			_parents.append(piece_id)
 			_members[piece_id] = [piece_id]
 	_camera = get_viewport().get_camera_2d()
-	if auto_fit_camera and _camera:
-		_fit_camera()
+	if _camera:
+		_update_camera_bounds()
+		if auto_fit_camera:
+			_fit_camera()
 	puzzle_generated.emit(_pieces.size())
 
 func _random_edge() -> Vector2i:
@@ -114,6 +128,28 @@ func _make_demo_image() -> Image:
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
+	if enable_camera_navigation and _camera:
+		if event is InputEventMouseButton:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+				_zoom_at_cursor(wheel_zoom_factor)
+				get_viewport().set_input_as_handled()
+				return
+			if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+				_zoom_at_cursor(1.0 / wheel_zoom_factor)
+				get_viewport().set_input_as_handled()
+				return
+			if event.button_index == MOUSE_BUTTON_MIDDLE:
+				_camera_pan = event.pressed
+				_pan_last_mouse = get_viewport().get_mouse_position()
+				get_viewport().set_input_as_handled()
+				return
+		if event is InputEventMouseMotion and _camera_pan:
+			var current_mouse := get_viewport().get_mouse_position()
+			_camera.global_position -= (current_mouse - _pan_last_mouse) / _camera.zoom.x
+			_pan_last_mouse = current_mouse
+			_limit_camera()
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed and _drag_root == -1:
 			var mouse_position := get_global_mouse_position()
@@ -148,6 +184,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if _drag_root == -1 or _dragged_piece == -1:
 		return
+	if enable_camera_navigation and _camera:
+		_edge_pan_camera(delta)
 	_desired_position = get_global_mouse_position() + _pointer_offset
 	var factor := 1.0 - exp(-drag_smoothing * delta)
 	_move_group((_desired_position - _pieces[_dragged_piece].global_position) * factor)
@@ -193,15 +231,61 @@ func _connect_adjacent_groups() -> bool:
 		puzzle_completed.emit()
 	return any_connection
 
-func _fit_camera() -> void:
-	var extents := Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
+func _update_camera_bounds() -> void:
+	_pan_bounds = Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
 	for piece in _pieces:
-		extents = extents.expand(piece.position + piece.bounds.position)
-		extents = extents.expand(piece.position + piece.bounds.end)
-	var viewport_size := get_viewport_rect().size
-	var frame := extents.size * 1.12
-	if frame.x <= 0 or frame.y <= 0 or viewport_size.x <= 0 or viewport_size.y <= 0:
+		_pan_bounds = _pan_bounds.expand(piece.position + piece.bounds.position)
+		_pan_bounds = _pan_bounds.expand(piece.position + piece.bounds.end)
+	_pan_bounds = _pan_bounds.grow(maxf(_piece_size.x, _piece_size.y) * 2.0)
+
+func _fit_camera() -> void:
+	if _camera == null:
 		return
-	_camera.global_position = to_global(extents.get_center())
-	var zoom := minf(viewport_size.x / frame.x, viewport_size.y / frame.y)
-	_camera.zoom = Vector2.ONE * clampf(zoom, 0.1, 4.0)
+	var frame := _pan_bounds.size * 1.08
+	var screen := get_viewport_rect().size
+	if frame.x <= 0.0 or frame.y <= 0.0 or screen.x <= 0.0 or screen.y <= 0.0:
+		return
+	_camera.global_position = to_global(_pan_bounds.get_center())
+	var zoom := minf(screen.x / frame.x, screen.y / frame.y)
+	_camera.zoom = Vector2.ONE * clampf(zoom, min_zoom, max_zoom)
+
+func _zoom_at_cursor(multiplier: float) -> void:
+	var cursor_before := get_global_mouse_position()
+	var zoom := clampf(_camera.zoom.x * multiplier, min_zoom, max_zoom)
+	_camera.zoom = Vector2.ONE * zoom
+	_camera.force_update_scroll()
+	var cursor_after := get_global_mouse_position()
+	_camera.global_position += cursor_before - cursor_after
+	_limit_camera()
+
+func _edge_pan_camera(delta: float) -> void:
+	var viewport_size := get_viewport_rect().size
+	var cursor := get_viewport().get_mouse_position()
+	if cursor.x < 0 or cursor.y < 0 or cursor.x > viewport_size.x or cursor.y > viewport_size.y:
+		return
+	var movement := Vector2.ZERO
+	if cursor.x < edge_scroll_zone:
+		movement.x = -1.0 + cursor.x / edge_scroll_zone
+	elif cursor.x > viewport_size.x - edge_scroll_zone:
+		movement.x = 1.0 - (viewport_size.x - cursor.x) / edge_scroll_zone
+	if cursor.y < edge_scroll_zone:
+		movement.y = -1.0 + cursor.y / edge_scroll_zone
+	elif cursor.y > viewport_size.y - edge_scroll_zone:
+		movement.y = 1.0 - (viewport_size.y - cursor.y) / edge_scroll_zone
+	if movement != Vector2.ZERO:
+		_camera.global_position += movement.limit_length(1.0) * edge_scroll_speed * delta / _camera.zoom.x
+		_limit_camera()
+		_camera.force_update_scroll()
+
+func _limit_camera() -> void:
+	if _camera == null:
+		return
+	var half_screen := get_viewport_rect().size / (_camera.zoom * 2.0)
+	var limits := Rect2(to_global(_pan_bounds.position), _pan_bounds.size)
+	var center := _camera.global_position
+	for axis in range(2):
+		if limits.size[axis] <= half_screen[axis] * 2.0:
+			center[axis] = limits.get_center()[axis]
+		else:
+			center[axis] = clampf(center[axis], limits.position[axis] + half_screen[axis], limits.end[axis] - half_screen[axis])
+	_camera.global_position = center
