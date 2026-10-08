@@ -10,6 +10,13 @@ signal connection_failed(piece_id: int)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
+const PreviewOverlay = preload("res://addons/jigsawg/src/jigsaw_preview_overlay.gd")
+
+enum GameMode { FREE, MOSAIC }
+enum ShuffleMode { AROUND_BOARD, CENTER, BOTTOM }
+enum DistributionMode { RANDOM, RADIAL }
+enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
+enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 
 ## Source image; takes effect after rebuild().
 @export var puzzle_texture: Texture2D
@@ -63,6 +70,44 @@ const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 ## False removes pan limits entirely; change applies immediately.
 @export var restrict_camera := false
 
+## Free joins neighbor groups; Mosaic locks each piece into its original socket on release. Rebuild to apply.
+@export var game_mode: GameMode = GameMode.FREE
+## Startup placement zone. Rebuild to apply.
+@export var shuffle_mode: ShuffleMode = ShuffleMode.AROUND_BOARD
+## Ordering of non-overlapping slots. Rebuild to apply.
+@export var distribution_mode: DistributionMode = DistributionMode.RANDOM
+## Show the completed image beneath the pieces as a translucent assembly guide; live.
+@export var show_ghost_board := false:
+	set(value):
+		show_ghost_board = value
+		_update_ghost_board()
+## Ghost guide opacity (0 is invisible); live.
+@export_range(0.0, 1.0, 0.01) var ghost_opacity := 0.25:
+	set(value):
+		ghost_opacity = value
+		_update_ghost_board()
+## Key to open the fullscreen image reference; live.
+@export var preview_key: Key = KEY_P
+## Dark overlay opacity while inspecting the reference; rebuild to apply.
+@export_range(0.0, 1.0, 0.01) var preview_dim := 0.82
+## Enable/disable fullscreen image reference; live.
+@export var enable_preview := true
+## Clean: no rim; Cardboard: thin brown rim; High Contrast: visible outline. Rebuild to apply.
+@export var visual_style: VisualStyle = VisualStyle.CLEAN
+## Animation intensity for selection and connection; live.
+@export var animation_style: AnimationStyle = AnimationStyle.SUBTLE
+## Duration of connect animation in seconds; live.
+@export_range(0.04, 0.6, 0.01) var connect_animation_duration := 0.16
+## Hover scale while a piece/group is grabbed; live.
+@export_range(1.0, 1.12, 0.01) var pickup_scale := 1.035
+
+signal preview_toggled(visible: bool)
+signal piece_placed(piece_id: int)
+signal group_placed(group_size: int)
+
+var _preview_overlay: CanvasLayer
+var _ghost_board: Sprite2D
+var _locked_pieces: Dictionary = {}
 var _pieces: Array[JigsawPiece] = []
 var _parents: Array[int] = []
 var _members: Dictionary = {}
@@ -94,6 +139,10 @@ func rebuild() -> void:
 			remove_child(piece)
 			piece.queue_free()
 	_pieces.clear()
+	_locked_pieces.clear()
+	if is_instance_valid(_ghost_board):
+		_ghost_board.queue_free()
+		_ghost_board = null
 	_parents.clear()
 	_members.clear()
 	_drag_root = -1
@@ -112,6 +161,19 @@ func rebuild() -> void:
 		source.generate_mipmaps()
 	var shared_texture := ImageTexture.create_from_image(source)
 	_piece_size = Vector2(source.get_size()) / Vector2(columns, rows)
+	if not is_instance_valid(_preview_overlay):
+		_preview_overlay = PreviewOverlay.new()
+		_preview_overlay.name = "JigsawReferencePreview"
+		add_child(_preview_overlay)
+	_preview_overlay.configure(shared_texture, preview_dim, "%s · Close preview" % OS.get_keycode_string(preview_key))
+	_preview_overlay.set_preview_visible(false)
+	_ghost_board = Sprite2D.new()
+	_ghost_board.name = "AssemblyGuide"
+	_ghost_board.texture = shared_texture
+	_ghost_board.centered = false
+	_ghost_board.z_index = -10
+	add_child(_ghost_board)
+	_update_ghost_board()
 	if _piece_size.x < 14 or _piece_size.y < 14:
 		push_warning("JigsawG: source image is too small for this many pieces.")
 		return
@@ -138,7 +200,16 @@ func rebuild() -> void:
 			var piece: JigsawPiece = PieceScript.new()
 			piece.name = "Piece_%d_%d" % [c, r]
 			add_child(piece)
-			piece.configure(piece_id, home, polygon, shared_texture, texture_sampling, piece_edge_opacity, piece_edge_width)
+			var rim_opacity := piece_edge_opacity
+			var rim_width := piece_edge_width
+			match visual_style:
+				VisualStyle.CARDBOARD:
+					rim_opacity = maxf(rim_opacity, 0.14)
+					rim_width = maxf(rim_width, 0.8)
+				VisualStyle.HIGH_CONTRAST:
+					rim_opacity = maxf(rim_opacity, 0.55)
+					rim_width = maxf(rim_width, 1.3)
+			piece.configure(piece_id, home, polygon, shared_texture, texture_sampling, rim_opacity, rim_width)
 			piece.position = home
 			_pieces.append(piece)
 			_parents.append(piece_id)
@@ -166,6 +237,12 @@ func _make_demo_image() -> Image:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
+		return
+	if event is InputEventKey and event.pressed and not event.echo and enable_preview and event.keycode == preview_key:
+		set_preview_visible(not _preview_overlay.is_preview_visible())
+		get_viewport().set_input_as_handled()
+		return
+	if is_instance_valid(_preview_overlay) and _preview_overlay.is_preview_visible():
 		return
 	if enable_camera_navigation and _camera:
 		if event is InputEventMouseButton:
@@ -197,7 +274,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.pressed and _drag_root == -1:
 			var mouse_position := get_global_mouse_position()
 			for i in range(_pieces.size() - 1, -1, -1):
-				if _pieces[i].contains(mouse_position):
+				if not _locked_pieces.has(i) and _pieces[i].contains(mouse_position):
 					_dragged_piece = i
 					_drag_root = _parents[i]
 					_pointer_offset = _pieces[i].global_position - mouse_position
@@ -206,6 +283,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						_pieces[member].selected = true
 						_pieces[member].z_index = 10
 						_pieces[member].queue_redraw()
+					_animate_pickup(_members[_drag_root], true)
 					piece_picked.emit(i)
 					get_viewport().set_input_as_handled()
 					break
@@ -216,11 +294,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif not event.pressed and _drag_root != -1:
 			# Commit the intended pointer position, not the last smoothed visual position.
 			_move_group(_desired_position - _pieces[_dragged_piece].global_position)
-			var connected := _connect_adjacent_groups()
+			var connected := _place_in_mosaic() if game_mode == GameMode.MOSAIC else _connect_adjacent_groups()
 			for member in _members[_parents[_dragged_piece]]:
 				_pieces[member].selected = false
 				_pieces[member].z_index = 0
 				_pieces[member].queue_redraw()
+			_animate_pickup(_members[_parents[_dragged_piece]], false)
 			if not connected:
 				connection_failed.emit(_dragged_piece)
 			piece_released.emit(_dragged_piece, connected)
@@ -354,29 +433,87 @@ func _limit_camera() -> void:
 	_camera.global_position = center
 
 func _scatter_non_overlapping() -> void:
-	# Conservative rectangular footprints include maximum Bézier protrusions.
-	# Unique grid slots prohibit overlaps even for large puzzles.
-	var stride := _piece_size * (1.0 + 0.65 + shuffle_spacing)
+	# Conservative slot footprints avoid overlap, including Bézier protrusions.
+	var stride := _piece_size * (1.65 + shuffle_spacing)
 	var count := _pieces.size()
-	var grid_columns := maxi(columns + 4, ceili(sqrt(float(count) * 1.8)))
-	var grid_rows := ceili(float(count + columns * rows) / float(grid_columns)) + 2
+	var side_count := maxi(columns + 6, ceili(sqrt(float(count) * 3.0)))
 	var slots: Array[Vector2] = []
-	var board_rect := Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows)).grow_individual(stride.x, stride.y, stride.x, stride.y)
-	for y in range(-grid_rows, grid_rows + 1):
-		for x in range(-grid_columns, grid_columns + 1):
+	var board_rect := Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
+	var forbidden := board_rect.grow(maxf(stride.x, stride.y))
+	for y in range(-side_count, side_count + 1):
+		for x in range(-side_count, side_count + 1):
 			var slot := Vector2(x * stride.x, y * stride.y)
 			var footprint := Rect2(slot - _piece_size * 0.33, _piece_size * 1.66)
-			if not board_rect.intersects(footprint):
-				slots.append(slot)
-	# Keep the closest ring of slots: avoid scattering pieces kilometers away.
+			match shuffle_mode:
+				ShuffleMode.AROUND_BOARD:
+					if forbidden.intersects(footprint):
+						continue
+				ShuffleMode.BOTTOM:
+					if footprint.position.y < board_rect.end.y + stride.y * 0.5:
+						continue
+				ShuffleMode.CENTER:
+					pass
+			slots.append(slot)
 	var center := board_rect.get_center()
-	slots.sort_custom(func(a: Vector2, b: Vector2) -> bool:
-		return a.distance_squared_to(center) < b.distance_squared_to(center))
-	slots.resize(mini(slots.size(), count))
-	for i in range(slots.size() - 1, 0, -1):
-		var j := _rng.randi_range(0, i)
-		var temp := slots[i]
-		slots[i] = slots[j]
-		slots[j] = temp
-	for i in range(mini(count, slots.size())):
+	if distribution_mode == DistributionMode.RADIAL:
+		slots.sort_custom(func(a: Vector2, b: Vector2) -> bool:
+			return a.distance_squared_to(center) < b.distance_squared_to(center))
+	else:
+		slots.shuffle()
+		# Random retains a compact footprint rather than filling the entire world.
+		slots.sort_custom(func(a: Vector2, b: Vector2) -> bool:
+			return a.distance_squared_to(center) < b.distance_squared_to(center))
+	if slots.size() < count:
+		push_warning("JigsawG: insufficient shuffle slots; increase available placement range.")
+		return
+	slots.resize(count)
+	if distribution_mode == DistributionMode.RANDOM:
+		for i in range(count - 1, 0, -1):
+			var j := _rng.randi_range(0, i)
+			var tmp: Vector2 = slots[i]
+			slots[i] = slots[j]
+			slots[j] = tmp
+	for i in range(count):
 		_pieces[i].position = slots[i]
+
+func _update_ghost_board() -> void:
+	if not is_instance_valid(_ghost_board):
+		return
+	_ghost_board.visible = show_ghost_board or game_mode == GameMode.MOSAIC
+	_ghost_board.modulate.a = ghost_opacity
+
+func set_preview_visible(visible: bool) -> void:
+	if not enable_preview or not is_instance_valid(_preview_overlay):
+		return
+	_preview_overlay.set_preview_visible(visible)
+	preview_toggled.emit(visible)
+
+func _place_in_mosaic() -> bool:
+	var piece := _pieces[_dragged_piece]
+	if piece.position.distance_to(piece.home) > minf(_piece_size.x, _piece_size.y) * snap_tolerance:
+		return false
+	_move_group(piece.home - piece.position)
+	_locked_pieces[_dragged_piece] = true
+	piece_placed.emit(_dragged_piece)
+	_animate_connection(piece)
+	if _locked_pieces.size() == _pieces.size() and not _finished:
+		_finished = true
+		puzzle_completed.emit()
+	return true
+
+func _animate_pickup(members: Array, active: bool) -> void:
+	if animation_style == AnimationStyle.NONE:
+		return
+	# Visual feedback never scales collision geometry or snaps. No group-relative distortion.
+	for member in members:
+		var piece := _pieces[int(member)]
+		piece.queue_redraw()
+
+func _animate_connection(piece: JigsawPiece) -> void:
+	if animation_style == AnimationStyle.NONE:
+		return
+	var flash := Color.WHITE
+	var base := piece.modulate
+	var tween := create_tween()
+	tween.tween_property(piece, "modulate", flash, connect_animation_duration * 0.5)
+	tween.tween_property(piece, "modulate", base, connect_animation_duration * 0.5)
