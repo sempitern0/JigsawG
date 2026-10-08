@@ -102,6 +102,20 @@ enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 signal preview_toggled(visible: bool)
 signal piece_placed(piece_id: int)
 signal group_placed(group_size: int)
+## Emitted after a clockwise quarter turn of a piece or connected group.
+signal group_rotated(piece_id: int, quarter_turns: int, group_size: int)
+
+@export_group("Reusable Presets")
+## Optional gameplay Resource; its settings override board defaults on rebuild().
+@export var gameplay_settings: JigsawGameplaySettings
+## Optional appearance Resource; its settings override board defaults on rebuild().
+@export var appearance_settings: JigsawAppearanceSettings
+
+@export_group("Rotation")
+## Enable right click on a piece/group to rotate it by a quarter-turn.
+@export var allow_piece_rotation := false
+## Randomize each piece's 90-degree angle during shuffle when rotation is on.
+@export var random_rotation_on_shuffle := true
 
 var _preview_overlay: CanvasLayer
 var _ghost_board: Sprite2D
@@ -124,6 +138,9 @@ var _zoom_anchor_valid := false
 var _pan_last_mouse := Vector2.ZERO
 var _pan_bounds := Rect2()
 var _fit_bounds := Rect2()
+var _rotations: Array[int] = []
+var _applied_gameplay: JigsawGameplaySettings
+var _applied_appearance: JigsawAppearanceSettings
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -131,6 +148,7 @@ func _ready() -> void:
 	rebuild()
 
 func rebuild() -> void:
+	_apply_resource_presets()
 	for piece in _pieces:
 		if is_instance_valid(piece):
 			remove_child(piece)
@@ -141,6 +159,7 @@ func rebuild() -> void:
 		_ghost_board.queue_free()
 		_ghost_board = null
 	_parents.clear()
+	_rotations.clear()
 	_members.clear()
 	_drag_root = -1
 	_dragged_piece = -1
@@ -209,10 +228,14 @@ func rebuild() -> void:
 			piece.configure(piece_id, home, polygon, shared_texture, texture_sampling, rim_opacity, rim_width)
 			piece.position = home
 			_pieces.append(piece)
+			_rotations.append(0)
 			_parents.append(piece_id)
 			_members[piece_id] = [piece_id]
 	if initial_scatter:
 		_scatter_non_overlapping()
+		if allow_piece_rotation and random_rotation_on_shuffle:
+			for i in range(_pieces.size()):
+				_set_piece_quarters(i, _rng.randi_range(0, 3))
 	_camera = get_viewport().get_camera_2d()
 	if _camera:
 		_update_camera_bounds()
@@ -265,6 +288,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_camera.global_position += (current_mouse - _pan_last_mouse) / _camera.zoom.x * (1.0 if invert_background_pan else -1.0)
 			_pan_last_mouse = current_mouse
 			_limit_camera()
+			get_viewport().set_input_as_handled()
+			return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed and allow_piece_rotation:
+		if _rotate_under_cursor():
 			get_viewport().set_input_as_handled()
 			return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -333,7 +360,9 @@ func _connect_adjacent_groups() -> bool:
 			for neighbor in [index - columns if r > 0 else -1, index + 1 if c < columns - 1 else -1, index + columns if r < rows - 1 else -1, index - 1 if c > 0 else -1]:
 				if neighbor == -1 or _parents[index] == _parents[neighbor]:
 					continue
-				var expected: Vector2 = _pieces[index].home - _pieces[neighbor].home
+				if _rotations[index] != _rotations[neighbor]:
+					continue
+				var expected: Vector2 = (_pieces[index].home - _pieces[neighbor].home).rotated(float(_rotations[index]) * PI * 0.5)
 				var actual: Vector2 = _pieces[index].global_position - _pieces[neighbor].global_position
 				if actual.distance_to(expected) > minf(_piece_size.x, _piece_size.y) * snap_tolerance:
 					continue
@@ -487,7 +516,7 @@ func set_preview_visible(visible: bool) -> void:
 
 func _place_in_mosaic() -> bool:
 	var piece := _pieces[_dragged_piece]
-	if piece.position.distance_to(piece.home) > minf(_piece_size.x, _piece_size.y) * snap_tolerance:
+	if _rotations[_dragged_piece] != 0 or piece.position.distance_to(piece.home) > minf(_piece_size.x, _piece_size.y) * snap_tolerance:
 		return false
 	_move_group(piece.home - piece.position)
 	_locked_pieces[_dragged_piece] = true
@@ -519,3 +548,72 @@ func _tween_piece_tint(piece: JigsawPiece, tint: Color) -> void:
 		return
 	var tween := create_tween()
 	tween.tween_property(piece, "modulate", tint, connect_animation_duration * 0.5)
+
+## A Resource is a shared preset. Do not mutate it while applying it:
+## assign only the board instance's properties.
+func _apply_resource_presets() -> void:
+	if gameplay_settings != null:
+		var s := gameplay_settings
+		game_mode = int(s.game_mode) as GameMode
+		snap_tolerance = s.snap_tolerance
+		allow_piece_rotation = s.allow_piece_rotation
+		random_rotation_on_shuffle = s.random_rotation_on_shuffle
+		shuffle_mode = int(s.shuffle_mode) as ShuffleMode
+		distribution_mode = int(s.distribution_mode) as DistributionMode
+		initial_scatter = s.initial_scatter
+		shuffle_spacing = s.shuffle_spacing
+		generation_seed = s.generation_seed
+		show_ghost_board = s.show_ghost_board
+		ghost_opacity = s.ghost_opacity
+		enable_preview = s.enable_preview
+		preview_key = s.preview_key
+	if appearance_settings != null:
+		var a := appearance_settings
+		visual_style = int(a.visual_style) as VisualStyle
+		texture_sampling = a.texture_sampling
+		bezier_detail = a.bezier_detail
+		piece_edge_opacity = a.piece_edge_opacity
+		piece_edge_width = a.piece_edge_width
+		animation_style = int(a.animation_style) as AnimationStyle
+		connect_animation_duration = a.connect_animation_duration
+
+func _set_piece_quarters(piece_index: int, quarters: int) -> void:
+	_rotations[piece_index] = posmod(quarters, 4)
+	_pieces[piece_index].rotation = float(_rotations[piece_index]) * PI * 0.5
+
+func _rotate_under_cursor() -> bool:
+	var hovered := -1
+	var point := get_global_mouse_position()
+	# Prefer the currently dragged group so rotation doesn't conflict with
+	# the visual order or make the pointer jump to a different piece.
+	if _dragged_piece >= 0:
+		hovered = _dragged_piece
+	else:
+		for index in range(_pieces.size() - 1, -1, -1):
+			if not _locked_pieces.has(index) and _pieces[index].contains(point):
+				hovered = index
+				break
+	if hovered < 0:
+		return false
+	rotate_piece(hovered)
+	return true
+
+## Rotate a complete connected group by 90 degrees clockwise around this
+## piece's center. Uses exact quarter-turns and never changes its UV mapping.
+func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
+	if not allow_piece_rotation or piece_index < 0 or piece_index >= _pieces.size() or _locked_pieces.has(piece_index):
+		return
+	var turn := 1 if clockwise else -1
+	var pivot := _pieces[piece_index].global_position + Vector2(_piece_size.x * 0.5, _piece_size.y * 0.5).rotated(_pieces[piece_index].global_rotation)
+	var group_id := _parents[piece_index]
+	var members: Array = _members[group_id]
+	for member in members:
+		var id: int = int(member)
+		var old_center := _pieces[id].global_position + Vector2(_piece_size.x * 0.5, _piece_size.y * 0.5).rotated(_pieces[id].global_rotation)
+		var next_center := pivot + (old_center - pivot).rotated(float(turn) * PI * 0.5)
+		_set_piece_quarters(id, _rotations[id] + turn)
+		_pieces[id].global_position = next_center - Vector2(_piece_size.x * 0.5, _piece_size.y * 0.5).rotated(_pieces[id].global_rotation)
+	if _dragged_piece >= 0 and _parents[_dragged_piece] == group_id:
+		_pointer_offset = _pieces[_dragged_piece].global_position - get_global_mouse_position()
+		_desired_position = _pieces[_dragged_piece].global_position
+	group_rotated.emit(piece_index, _rotations[piece_index], members.size())
