@@ -159,6 +159,8 @@ The addon is self-contained inside `addons/jigsawg/`. `examples/`, `tests/` and 
 | **[Resource API](docs/RESOURCE_API.md)** | Every setting, Board methods, scene integration, state and lifecycle |
 | **[Events & reactions](docs/EVENTS_AND_REACTIONS.md)** | Inspector audio/VFX recipes, animation adapters and custom event hooks |
 | **[Testing & release checklist](docs/TESTING.md)** | Regression scripts, large-puzzle benchmarks and packaging checks |
+| **[Development roadmap](docs/ROADMAP.md)** | Prioritized work on scale, accessibility, organization and release readiness |
+| **[AI agent instructions](AGENTS.md)** | Architecture invariants, working process and test matrix for coding agents |
 | **[Changelog](CHANGELOG.md)** | Version history and preview limitations |
 | **[Contributing](CONTRIBUTING.md)** · **[Security](SECURITY.md)** | Development workflow and responsible disclosure |
 

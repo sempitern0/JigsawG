@@ -7,6 +7,8 @@ Thank you for helping improve a reusable Godot jigsaw plugin.
 - For feature proposals, describe a real user scenario and the Resource/API behavior you expect.
 - Do not submit images or other assets without redistribution permission.
 
+Read [AGENTS.md](AGENTS.md) for the repository map, invariants and test selection, and [Development roadmap](docs/ROADMAP.md) for current priorities. These documents supplement the contribution workflow below.
+
 ## Development setup
 1. Fork/clone the repository and open it with **Godot 4.7**.
 2. Enable the JigsawG plugin and run `examples/puzzle_lab.tscn`.
