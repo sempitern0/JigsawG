@@ -483,9 +483,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					if not connected:
 						connection_failed.emit(released_piece_id)
 						_animate_failed_connection(_pieces[released_piece_id])
-						if game_mode == GameMode.MOSAIC:
-							_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_WRONG_POSITION_OR_ROTATION))
-						else:
+						if game_mode == GameMode.FREE:
 							_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_NO_COMPATIBLE_NEIGHBOR))
 					piece_released.emit(released_piece_id, connected)
 					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, JigsawPuzzleEvent.REASON_RELEASED))
@@ -541,33 +539,62 @@ func _process(delta: float) -> void:
 
 ## Stop an unfinished drag without snapping (e.g. when preview is opened).
 func _cancel_drag(reason: StringName = JigsawPuzzleEvent.REASON_CANCELLED) -> void:
+	_background_pan_pending = false
 	if _dragged_piece < 0:
 		_camera_pan = false
+		_camera_pan_button = 0
 		return
 	var cancelled_piece_id := _dragged_piece
-	for member in _members.get(_parents[_dragged_piece], []):
+	for member in _selected_piece_ids.keys():
 		var piece := _pieces[int(member)]
-		piece.selected = false
-		piece.z_index = 0
 		piece.modulate = Color.WHITE
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_CANCELLED, cancelled_piece_id, false, reason))
 	_drag_root = -1
 	_dragged_piece = -1
 	_camera_pan = false
+	_camera_pan_button = 0
+	_refresh_selection_visuals(false)
 
+## Translate the current multi-selection during pointer dragging.
 func _move_group(offset: Vector2) -> void:
 	if _drag_root == -1:
 		return
-	for index in _members[_drag_root]:
-		_pieces[index].global_position += offset
+	for piece_id in _selected_piece_ids.keys():
+		var id := int(piece_id)
+		if not _locked_pieces.has(id):
+			_pieces[id].global_position += offset
 
-func _connect_adjacent_groups() -> bool:
+func _move_root(root: int, offset: Vector2) -> void:
+	for member in _members.get(root, []):
+		_pieces[int(member)].global_position += offset
+
+func _connect_selected_groups() -> bool:
+	var any_connection := false
+	var seen_roots: Dictionary = {}
+	var selected_snapshot: Array = _selected_piece_ids.keys()
+	selected_snapshot.sort()
+	for piece_variant in selected_snapshot:
+		var piece_id := int(piece_variant)
+		if piece_id < 0 or piece_id >= _parents.size():
+			continue
+		var root := _parents[piece_id]
+		if seen_roots.has(root):
+			continue
+		seen_roots[root] = true
+		if _connect_group_from(piece_id):
+			any_connection = true
+	_refresh_selection_visuals(false)
+	return any_connection
+
+func _connect_group_from(anchor_piece_id: int) -> bool:
 	var any_connection := false
 	var still_connecting := true
 	while still_connecting:
 		still_connecting = false
-		var active_members: Array = _members[_parents[_dragged_piece]].duplicate()
-		for index in active_members:
+		var anchor_root := _parents[anchor_piece_id]
+		var active_members: Array = _members[anchor_root].duplicate()
+		for index_variant in active_members:
+			var index := int(index_variant)
 			var r: int = floori(float(index) / float(columns))
 			var c: int = index % columns
 			for neighbor in [index - columns if r > 0 else -1, index + 1 if c < columns - 1 else -1, index + columns if r < rows - 1 else -1, index - 1 if c > 0 else -1]:
@@ -579,14 +606,20 @@ func _connect_adjacent_groups() -> bool:
 				var actual: Vector2 = _pieces[index].global_position - _pieces[neighbor].global_position
 				if actual.distance_to(expected) > minf(_piece_size.x, _piece_size.y) * snap_tolerance:
 					continue
+
+				var new_root := _parents[anchor_piece_id]
+				var old_root := _parents[neighbor]
 				var shift := expected - actual
-				_move_group(shift)
-				var old_root: int = _parents[neighbor]
-				var new_root: int = _parents[_dragged_piece]
-				for member in _members[old_root]:
+				_move_root(new_root, shift)
+
+				var joined_members: Array = _members[old_root].duplicate()
+				for member_variant in joined_members:
+					var member := int(member_variant)
 					_parents[member] = new_root
 					_members[new_root].append(member)
+					_selected_piece_ids[member] = true
 				_members.erase(old_root)
+
 				pieces_connected.emit(_members[new_root].size())
 				_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTED, index, true, JigsawPuzzleEvent.REASON_NEIGHBOR_SNAP, {
 					"neighbor_piece_id": neighbor,
@@ -784,18 +817,32 @@ func set_preview_visible(visible: bool) -> void:
 		"visible": visible
 	}))
 
-func _place_in_mosaic() -> bool:
-	var piece := _pieces[_dragged_piece]
-	if _rotations[_dragged_piece] != 0 or piece.position.distance_to(piece.home) > minf(_piece_size.x, _piece_size.y) * snap_tolerance:
-		return false
-	_move_group(piece.home - piece.position)
-	_locked_pieces[_dragged_piece] = true
-	piece_placed.emit(_dragged_piece)
-	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACED, _dragged_piece, true, JigsawPuzzleEvent.REASON_MOSAIC_SLOT))
-	_animate_connection(piece)
+func _place_selected_in_mosaic() -> bool:
+	var any_success := false
+	var selected_snapshot: Array = _selected_piece_ids.keys()
+	for piece_variant in selected_snapshot:
+		var piece_id := int(piece_variant)
+		if _locked_pieces.has(piece_id):
+			continue
+		var piece := _pieces[piece_id]
+		var valid := _rotations[piece_id] == 0 and piece.position.distance_to(piece.home) <= minf(_piece_size.x, _piece_size.y) * snap_tolerance
+		if not valid:
+			_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED, piece_id, false, JigsawPuzzleEvent.REASON_WRONG_POSITION_OR_ROTATION))
+			_animate_failed_connection(piece)
+			continue
+
+		piece.position = piece.home
+		_locked_pieces[piece_id] = true
+		_selected_piece_ids.erase(piece_id)
+		piece_placed.emit(piece_id)
+		_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACED, piece_id, true, JigsawPuzzleEvent.REASON_MOSAIC_SLOT))
+		_animate_connection(piece)
+		any_success = true
+
 	if _locked_pieces.size() == _pieces.size():
 		_finish_puzzle()
-	return true
+	_refresh_selection_visuals(false)
+	return any_success
 
 func _animate_pickup(members: Array, active: bool) -> void:
 	# Tint only: scaling the nodes would change their visible seams and pointer hit test.
