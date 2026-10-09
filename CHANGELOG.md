@@ -7,6 +7,8 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 ## 0.3.0-dev
 
 ### Added
+- Configurable smooth camera pan with target interpolation and eased edge-scroll acceleration/deceleration.
+- `JigsawSpawnSceneReaction` Primary Piece parenting and optional automatic cleanup for no-code drag/VFX workflows.
 - Resource-first `JigsawPuzzleConfig` API with Gameplay, Appearance, Camera and Feedback subresources.
 - Procedural complementary Bézier puzzle-piece geometry.
 - Free and Mosaic gameplay modes.
@@ -22,6 +24,8 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 - Headless smoke tests for geometry, icon UID loading, event data and board event contract.
 
 ### Changed
+- Public documentation now focuses on installation, Resources, events/reactions and release validation; internal engineering/architecture notes were removed.
+- No-code reaction documentation includes step-by-step Inspector recipes.
 - `JigsawBoard` exposes only `puzzle_config` in the Inspector.
 - Plugin icon is bundled inside the addon and resolved through Godot's native UID/import mechanism.
 - Interaction animations and custom reactions are separated from core puzzle mechanics.
