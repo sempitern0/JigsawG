@@ -413,16 +413,19 @@ func _make_demo_image() -> Image:
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
+
 	if event is InputEventKey and event.pressed and not event.echo and enable_preview and event.keycode == preview_key:
 		set_preview_visible(not _preview_overlay.is_preview_visible())
 		get_viewport().set_input_as_handled()
 		return
+
 	if is_instance_valid(_preview_overlay) and _preview_overlay.is_preview_visible():
 		if event is InputEventMouseButton and not event.pressed:
 			_cancel_drag()
 		return
-	if enable_camera_navigation and _camera:
-		if event is InputEventMouseButton:
+
+	if event is InputEventMouseButton:
+		if enable_camera_navigation and _camera:
 			if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 				_zoom_at_cursor(wheel_zoom_factor)
 				get_viewport().set_input_as_handled()
@@ -431,70 +434,98 @@ func _unhandled_input(event: InputEvent) -> void:
 				_zoom_at_cursor(1.0 / wheel_zoom_factor)
 				get_viewport().set_input_as_handled()
 				return
-			if event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and _camera_pan:
-				_camera_pan = false
-				get_viewport().set_input_as_handled()
-				return
 			if event.button_index == MOUSE_BUTTON_MIDDLE:
+				_background_pan_pending = false
 				_camera_pan = event.pressed
+				_camera_pan_button = MOUSE_BUTTON_MIDDLE if event.pressed else 0
 				_pan_last_mouse = get_viewport().get_mouse_position()
 				get_viewport().set_input_as_handled()
 				return
-		if event is InputEventMouseMotion and _camera_pan:
-			var current_mouse := get_viewport().get_mouse_position()
+
+		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed and allow_piece_rotation:
+			if _rotate_under_cursor():
+				get_viewport().set_input_as_handled()
+				return
+
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed and _drag_root == -1:
+				var mouse_world := get_global_mouse_position()
+				var hit_piece := _find_piece_at(mouse_world)
+				if hit_piece >= 0:
+					_background_pan_pending = false
+					if enable_multi_select and event.ctrl_pressed:
+						_toggle_group_selection(hit_piece)
+						get_viewport().set_input_as_handled()
+						return
+					_begin_piece_drag(hit_piece, mouse_world)
+					get_viewport().set_input_as_handled()
+					return
+
+				if enable_camera_navigation and _camera:
+					_background_pan_pending = true
+					_background_pan_press_msec = Time.get_ticks_msec()
+					_background_pan_press_mouse = get_viewport().get_mouse_position()
+					_pan_last_mouse = _background_pan_press_mouse
+					get_viewport().set_input_as_handled()
+					return
+				if not event.ctrl_pressed:
+					clear_selection()
+				return
+
+			if not event.pressed:
+				if _drag_root != -1 and _dragged_piece != -1:
+					# Commit the intended pointer position, not only the last smoothed frame.
+					_move_group(_desired_position - _pieces[_dragged_piece].global_position)
+					var connected := _place_selected_in_mosaic() if game_mode == GameMode.MOSAIC else _connect_selected_groups()
+					_refresh_selection_visuals(false)
+					_animate_pickup(_selected_piece_ids.keys(), false)
+					var released_piece_id := _dragged_piece
+					if not connected:
+						connection_failed.emit(released_piece_id)
+						_animate_failed_connection(_pieces[released_piece_id])
+						if game_mode == GameMode.MOSAIC:
+							_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_WRONG_POSITION_OR_ROTATION))
+						else:
+							_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_NO_COMPATIBLE_NEIGHBOR))
+					piece_released.emit(released_piece_id, connected)
+					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, JigsawPuzzleEvent.REASON_RELEASED))
+					_drag_root = -1
+					_dragged_piece = -1
+					get_viewport().set_input_as_handled()
+					return
+
+				if _background_pan_pending:
+					_background_pan_pending = false
+					if not event.ctrl_pressed:
+						clear_selection()
+					get_viewport().set_input_as_handled()
+					return
+
+				if _camera_pan and _camera_pan_button == MOUSE_BUTTON_LEFT:
+					_camera_pan = false
+					_camera_pan_button = 0
+					get_viewport().set_input_as_handled()
+					return
+
+	if event is InputEventMouseMotion and enable_camera_navigation and _camera:
+		var current_mouse := get_viewport().get_mouse_position()
+		if _background_pan_pending:
+			var elapsed := Time.get_ticks_msec() - _background_pan_press_msec
+			var moved := current_mouse.distance_to(_background_pan_press_mouse)
+			if elapsed >= background_pan_delay_ms and moved >= background_pan_threshold_px:
+				_background_pan_pending = false
+				_camera_pan = true
+				_camera_pan_button = MOUSE_BUTTON_LEFT
+				_pan_last_mouse = current_mouse
+			get_viewport().set_input_as_handled()
+			return
+
+		if _camera_pan:
 			var pan_delta := (current_mouse - _pan_last_mouse) / _camera.zoom.x * (1.0 if invert_background_pan else -1.0)
 			_pan_last_mouse = current_mouse
 			_offset_camera_target(pan_delta)
 			get_viewport().set_input_as_handled()
 			return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed and allow_piece_rotation:
-		if _rotate_under_cursor():
-			get_viewport().set_input_as_handled()
-			return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed and _drag_root == -1:
-			var mouse_position := get_global_mouse_position()
-			for i in range(_pieces.size() - 1, -1, -1):
-				if not _locked_pieces.has(i) and _pieces[i].contains(mouse_position):
-					_dragged_piece = i
-					_drag_root = _parents[i]
-					_pointer_offset = _pieces[i].global_position - mouse_position
-					_desired_position = _pieces[i].global_position
-					for member in _members[_drag_root]:
-						_pieces[member].selected = true
-						_pieces[member].z_index = 10
-						_pieces[member].queue_redraw()
-					_animate_pickup(_members[_drag_root], true)
-					piece_picked.emit(i)
-					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_STARTED, i, true, JigsawPuzzleEvent.REASON_POINTER_DOWN))
-					get_viewport().set_input_as_handled()
-					break
-			if _drag_root == -1 and enable_camera_navigation and _camera:
-				_camera_pan = true
-				_pan_last_mouse = get_viewport().get_mouse_position()
-				get_viewport().set_input_as_handled()
-		elif not event.pressed and _drag_root != -1:
-			# Commit the intended pointer position, not the last smoothed visual position.
-			_move_group(_desired_position - _pieces[_dragged_piece].global_position)
-			var connected := _place_in_mosaic() if game_mode == GameMode.MOSAIC else _connect_adjacent_groups()
-			for member in _members[_parents[_dragged_piece]]:
-				_pieces[member].selected = false
-				_pieces[member].z_index = 0
-				_pieces[member].queue_redraw()
-			_animate_pickup(_members[_parents[_dragged_piece]], false)
-			var released_piece_id := _dragged_piece
-			if not connected:
-				connection_failed.emit(released_piece_id)
-				_animate_failed_connection(_pieces[released_piece_id])
-				if game_mode == GameMode.MOSAIC:
-					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_WRONG_POSITION_OR_ROTATION))
-				else:
-					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_NO_COMPATIBLE_NEIGHBOR))
-			piece_released.emit(released_piece_id, connected)
-			_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, JigsawPuzzleEvent.REASON_RELEASED))
-			_drag_root = -1
-			_dragged_piece = -1
-			get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
 	if enable_camera_navigation and _camera:
