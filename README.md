@@ -30,6 +30,7 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 | Large-puzzle navigation | Mouse-wheel zoom, background/middle-button pan and edge scrolling |
 | Visual feedback | Clean/Cardboard/High Contrast styles, configurable pickup/connection/failure tint effects |
 | Resource-first API | One `JigsawPuzzleConfig` asset on `JigsawBoard`; reuse configurations across puzzles |
+| Event/reaction API | Typed semantic events plus reusable audio/scene/custom Resource reactions |
 
 ## Installation
 
@@ -104,11 +105,41 @@ func start_beginner(image: Texture2D) -> void:
 | **JigsawGameplaySettings** | Free/Mosaic, snapping tolerance, 90° rotation, seeded shuffle, ghost mat, preview key |
 | **JigsawAppearanceSettings** | Bézier depth and detail, edge styles, border width/opacity, texture sampling |
 | **JigsawCameraSettings** | Initial framing, wheel zoom, interpolation, panning direction, optional bounds, edge scroll |
-| **JigsawFeedbackSettings** | None/Subtle/Playful animation preset, pickup/connect/failure tint and timing |
+| **JigsawFeedbackSettings** | None/Subtle/Playful built-in animation preset, pickup/connect/failure tint and timing |
+| **JigsawReaction[]** | Optional reusable host-game reactions: audio, VFX scenes or custom Resource scripts |
 
 Nested Resources can be saved as external `.tres` assets and reused between levels. `board.configure(config)`, `board.apply_configuration()` and `board.rebuild()` regenerate the puzzle **and discard the current assembly progress**. The board reads but does not intentionally modify your Resources.
 
 More detail: [Resource API and migration guide](docs/RESOURCE_API.md).
+
+## Add feedback in under a minute
+
+JigsawG separates puzzle mechanics from presentation. Open your `JigsawPuzzleConfig` and add Resources to **Reactions**:
+
+- **JigsawAudioReaction** — choose events such as Group Connected or Puzzle Completed, then assign an AudioStream.
+- **JigsawSpawnSceneReaction** — choose events and assign a PackedScene containing particles, an animation, floating score text, etc.
+- **Custom JigsawReaction** — extend one small Resource script for scoring, tutorials, achievements, analytics or game-specific behavior.
+
+No changes to `JigsawBoard` are required.
+
+Example: create a **JigsawAudioReaction**, select **Group Connected**, assign `snap.ogg`, and add it to `Puzzle Config → Reactions`. Every valid group snap now plays the sound.
+
+For code-driven games, connect either a semantic signal or the single `event_emitted` bus:
+
+```gdscript
+func _ready() -> void:
+    $JigsawBoard.group_connection_succeeded.connect(_on_group_connected)
+    $JigsawBoard.puzzle_finished.connect(_on_finished)
+
+func _on_group_connected(event: JigsawPuzzleEvent) -> void:
+    score += event.group_size * 10
+    spawn_combo_text(event.world_position, event.group_size)
+
+func _on_finished(_event: JigsawPuzzleEvent) -> void:
+    $ResultsScreen.open()
+```
+
+See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md) for the full event model, custom Resource example and extension rules.
 
 ## Inputs
 
@@ -131,39 +162,36 @@ More detail: [Resource API and migration guide](docs/RESOURCE_API.md).
 
 **Embedded mini-game / education / gallery:** host the board inside your existing scene, use a reusable preset per image, and connect JigsawBoard signals to your own HUD, score, timer, sound or achievements. The plugin intentionally does not impose a game menu or campaign system.
 
-## Integration events
+## Event-driven integration
 
-Connect signals from `JigsawBoard` rather than editing internal scripts.
+Every important interaction has a semantic `JigsawPuzzleEvent`: puzzle reset/start/completion, drag start/finish/cancel, Mosaic placement success/failure, Free group connection success/failure, group rotation and preview visibility.
 
-| Signal | When it fires |
-| --- | --- |
-| `puzzle_generated(piece_count)` | A new board has been generated |
-| `piece_picked(piece_id)` | The player starts dragging a piece |
-| `piece_released(piece_id, connected)` | A dragged piece is released |
-| `pieces_connected(group_size)` | Neighbor groups are successfully joined |
-| `piece_placed(piece_id)` | Mosaic piece locks into position |
-| `group_rotated(piece_id, quarter_turns, group_size)` | A piece or group is turned |
-| `connection_failed(piece_id)` | Release produced no valid connection |
-| `preview_toggled(visible)` | Reference-image overlay changes |
-| `puzzle_completed()` | Puzzle completion has been detected |
+Use whichever integration level matches your project:
 
-For example:
+1. Connect a specific rich signal such as `piece_placement_failed` or `group_connection_succeeded`.
+2. Connect `event_emitted(event)` once and route all puzzle behavior centrally.
+3. Add `JigsawReaction` Resources to the puzzle preset for reusable plug-and-play behavior.
+4. Existing compact signals (`piece_picked`, `pieces_connected`, `puzzle_completed`, etc.) remain for compatibility.
 
 ```gdscript
-@onready var board = $JigsawBoard
-
 func _ready() -> void:
-    board.pieces_connected.connect(_on_pieces_connected)
-    board.puzzle_completed.connect(_on_puzzle_completed)
+    $JigsawBoard.event_emitted.connect(_on_jigsaw_event)
 
-func _on_pieces_connected(group_size: int) -> void:
-    print("Connected group contains ", group_size, " pieces")
-    # Hook in your own audio or VFX here.
-
-func _on_puzzle_completed() -> void:
-    print("Puzzle complete!")
-    # Open your own results screen here.
+func _on_jigsaw_event(event: JigsawPuzzleEvent) -> void:
+    match event.type:
+        JigsawPuzzleEvent.Type.PUZZLE_STARTED:
+            timer.start()
+        JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED:
+            mistakes += 1
+        JigsawPuzzleEvent.Type.GROUP_CONNECTED:
+            combo += event.group_size
+        JigsawPuzzleEvent.Type.PUZZLE_COMPLETED:
+            save_progress()
 ```
+
+The context exposes `piece_id`, all `piece_ids` in the current group, `group_size`, `world_position`, rotation, success, a documented reason and event-specific metadata. JigsawG intentionally avoids per-frame drag events; custom trails can follow `board.get_piece_node(piece_id)` between drag-start and drag-end events.
+
+Full reference: [Events & Reactions](docs/EVENTS_AND_REACTIONS.md).
 
 ## Image quality and performance
 
@@ -178,12 +206,14 @@ func _on_puzzle_completed() -> void:
 addons/jigsawg/              # Distributable plugin: copy this directory
   icon.svg                   # Bundled node icon, imported/resolved by Godot UID
   plugin.cfg / plugin.gd
-  resources/                 # Public .tres resource types
+  resources/                 # Public .tres configuration types
+  events/                    # Public event context and reusable reactions
   src/                       # Internal puzzle runtime
 examples/                    # Development-only Godot scene and presets
 tests/                       # Geometry / behavior checks
 docs/
   RESOURCE_API.md            # Configuration reference
+  EVENTS_AND_REACTIONS.md    # VFX/audio/scoring/custom integration API
   TESTING.md                 # Release acceptance checklist
   ARCHITECTURE.md            # Design and migration notes
 ```
