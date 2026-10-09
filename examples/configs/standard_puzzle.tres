@@ -5,9 +5,9 @@
 [ext_resource type="Script" uid="uid://w6f6tiqdak2g" path="res://addons/jigsawg/resources/jigsaw_camera_settings.gd" id="3"]
 [ext_resource type="Script" uid="uid://b33ccw454ni08" path="res://addons/jigsawg/resources/jigsaw_appearance_settings.gd" id="4"]
 [ext_resource type="Script" uid="uid://daipbmwlnkyaw" path="res://addons/jigsawg/resources/jigsaw_feedback_settings.gd" id="5"]
-[ext_resource type="Script" path="res://addons/jigsawg/events/jigsaw_motion_adapter.gd" id="7"]
 [ext_resource type="Texture2D" uid="uid://dakki2nwckxx4" path="res://examples/images/383471.jpg" id="5_dqwao"]
 [ext_resource type="Script" uid="uid://cf4vc3wwnu80f" path="res://addons/jigsawg/events/jigsaw_reaction.gd" id="6_d687h"]
+[ext_resource type="Script" uid="uid://c36r1nj20upok" path="res://addons/jigsawg/events/jigsaw_motion_adapter.gd" id="7"]
 
 [sub_resource type="Resource" id="Appearance"]
 script = ExtResource("4")
@@ -22,19 +22,18 @@ script = ExtResource("3")
 
 [sub_resource type="Resource" id="Motion"]
 script = ExtResource("7")
-rotation_duration = 0.18
-arrangement_duration = 0.22
 
 [sub_resource type="Resource" id="Resource_1odl7"]
 script = ExtResource("5")
-motion_adapter = SubResource("Motion")
 animation_style = 2
 connect_animation_duration = 0.4
+motion_adapter = SubResource("Motion")
 
 [sub_resource type="Resource" id="Gameplay"]
 script = ExtResource("2")
 allow_piece_rotation = true
 shuffle_mode = 2
+generation_batch_size = 2
 show_ghost_board = true
 ghost_opacity = 0.2
 
@@ -42,9 +41,8 @@ ghost_opacity = 0.2
 script = ExtResource("1")
 puzzle_texture = ExtResource("5_dqwao")
 grid_mode = 1
-columns = 10
-rows = 5
-silhouette_variants = 4
+target_piece_count = 2000
+silhouette_variants = 6
 gameplay = SubResource("Gameplay")
 appearance = SubResource("Appearance")
 camera = SubResource("Camera")
