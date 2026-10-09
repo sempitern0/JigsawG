@@ -167,6 +167,35 @@ snap_sound.event_mask = JigsawReaction.mask_for(
 config.reactions.append(snap_sound)
 ```
 
+### JigsawPlayAnimationReaction
+
+Use an existing `AnimationPlayer` in the host scene without writing Board scripts.
+
+```text
+JigsawPlayAnimationReaction
+├── Event Mask            → Puzzle Completed ✓
+├── Animation Player Path → ../WinAnimationPlayer
+├── Animation Name        → celebrate
+├── Speed                 → 1.0
+└── Blend Time            → -1 (AnimationPlayer default)
+```
+
+The path resolves relative to the JigsawBoard. The target scene must contain an `AnimationPlayer` with that animation name. Common uses are celebratory transitions, UI animations and score flashes.
+
+### JigsawCallMethodReaction
+
+Invoke an existing method on a host-scene node. For example, show a previously hidden `Control` at puzzle completion, entirely through Resources:
+
+```text
+JigsawCallMethodReaction
+├── Event Mask  → Puzzle Completed ✓
+├── Target Path → ../ResultsPanel
+├── Method Name → show
+└── Pass Event  → false
+```
+
+Set `pass_event=true` if the receiver method accepts a single `JigsawPuzzleEvent` parameter. `target_path` is relative to the Board, not to the Resource location. Missing target nodes or methods result in warnings and are skipped. Only use developer-authored Resource configurations.
+
 ### JigsawSpawnSceneReaction
 
 Instantiates a `PackedScene` when one of its selected events occurs.
