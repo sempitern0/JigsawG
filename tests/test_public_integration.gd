@@ -40,6 +40,12 @@ func _verify(board, receiver: Node, host: Node2D) -> void:
 	assert(board.get_progress_info()["connections_needed"] == 3)
 	assert(progress_values.size() >= 1, "No initial HUD progress signal.")
 
+	var artwork := CanvasItemMaterial.new()
+	var assigned_config := board.get_configuration() as JigsawPuzzleConfig
+	assigned_config.appearance.piece_material = artwork
+	board.apply_configuration()
+	assert(board.get_piece_node(0).material == artwork, "Appearance material was not applied to the piece.")
+
 	board.set_interaction_enabled(false)
 	assert(not board.is_interaction_enabled())
 	board.set_interaction_enabled(true)
