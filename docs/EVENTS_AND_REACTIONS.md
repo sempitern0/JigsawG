@@ -226,6 +226,7 @@ Every rich event is a `JigsawPuzzleEvent` with a common context:
 | `GROUP_ROTATED` | Rotation sound or orientation UI |
 | `PREVIEW_TOGGLED` | Pause timer or update help UI |
 | `PUZZLE_COMPLETED` | Results, rewards, persistence |
+| `PUZZLE_STATE_RESTORED` | Refresh HUD/timers after a saved session is applied |
 
 JigsawG deliberately does **not** emit a per-frame drag event. High-frequency effects can follow the live piece returned by `board.get_piece_node(event.piece_id)` after **Piece Drag Started** and stop on Drag Finished/Cancelled. When multi-selection is active, drag lifecycle events also expose `event.metadata.selected_piece_ids`. This keeps the event API semantic and inexpensive.
 
@@ -299,7 +300,7 @@ Save it as `ComboReaction.tres`, place it in `JigsawPuzzleConfig.reactions`, and
 - Keep changing session state in Nodes/autoloads, not in shared Resources.
 - The Board snapshots the reaction list when a configuration is applied.
 - Resource edits during a running puzzle take effect on the next `apply_configuration()`, `configure()` or rebuild.
-- `PUZZLE_RESET` goes to the reactions of the puzzle being closed; `PUZZLE_STARTED` goes to the newly applied set.
+- `PUZZLE_RESET` goes to the reactions of the puzzle being closed; `PUZZLE_STARTED` goes to the newly applied set. When a config contains `resume_state`, `PUZZLE_STATE_RESTORED` follows `PUZZLE_STARTED`.
 - If a reaction switches puzzles, defer that transition rather than rebuilding recursively inside the current event callback.
 
 ---
