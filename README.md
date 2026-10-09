@@ -192,7 +192,7 @@ docs/
 
 This is a **preview**, not a certified stable release. Current priorities include regression tests for group merging and rotation, clean-project installation, memory/performance measurement, reconfiguration lifecycle and verifying the redistribution rights for demo assets. Input support currently focuses on mouse and keyboard; touchscreen/controller and save/load are outside the documented support scope.
 
-Found a bug? Please open an [issue](https://github.com/sempitern0/JigsawG/issues) with your Godot version, operating system, minimal reproduction scene, relevant Resource settings and engine logs. See [Testing](docs/TESTING.md) and [Contributing](CONTRIBUTING.md).
+Found a bug? Please open an [issue](https://github.com/sempitern0/JigsawG/issues) with your Godot version, operating system, minimal reproduction scene, relevant Resource settings and engine logs. See [Engineering Review](docs/ENGINEERING_REVIEW.md), [Testing](docs/TESTING.md) and [Contributing](CONTRIBUTING.md).
 
 ## License
 
