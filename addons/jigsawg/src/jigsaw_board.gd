@@ -38,6 +38,8 @@ const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 const GridResolver = preload("res://addons/jigsawg/src/jigsaw_grid_resolver.gd")
 const SelectionLayout = preload("res://addons/jigsawg/src/jigsaw_selection_layout.gd")
+const GroupModel = preload("res://addons/jigsawg/src/jigsaw_group_model.gd")
+const ConnectionResolver = preload("res://addons/jigsawg/src/jigsaw_connection_resolver.gd")
 const StateValidator = preload("res://addons/jigsawg/src/jigsaw_state_validator.gd")
 const PreviewOverlay = preload("res://addons/jigsawg/src/jigsaw_preview_overlay.gd")
 
@@ -122,8 +124,8 @@ var _preview_overlay: CanvasLayer
 var _ghost_board: Sprite2D
 var _locked_pieces: Dictionary = {}
 var _pieces: Array[JigsawPiece] = []
-var _parents: Array[int] = []
-var _members: Dictionary = {}
+## Node-independent connectivity model, not replicated by this scene controller.
+var _groups := GroupModel.new()
 var _selected_piece_ids: Dictionary = {}
 var _multi_selection_mode := false
 var _drag_visual_active := false
@@ -199,13 +201,7 @@ func get_piece_node(piece_id: int) -> Node2D:
 
 ## Current connected-group membership for a piece.
 func get_group_piece_ids(piece_id: int) -> PackedInt32Array:
-	var result := PackedInt32Array()
-	if piece_id < 0 or piece_id >= _parents.size():
-		return result
-	var root: int = _parents[piece_id]
-	for member in _members.get(root, []):
-		result.append(int(member))
-	return result
+	return _groups.members_for(piece_id)
 
 func get_piece_world_center(piece_id: int) -> Vector2:
 	if piece_id < 0 or piece_id >= _pieces.size():
@@ -271,7 +267,7 @@ func set_ghost_guide_opacity(opacity: float) -> void:
 
 ## Count connected groups in Free mode (or unjoined generated groups in Mosaic).
 func get_connected_group_count() -> int:
-	return _members.size()
+	return _groups.group_count()
 
 func get_locked_piece_count() -> int:
 	return _locked_pieces.size()
@@ -286,7 +282,7 @@ func get_progress() -> float:
 		return float(_locked_pieces.size()) / float(total)
 	if total == 1:
 		return 1.0
-	return clampf(float(total - _members.size()) / float(total - 1), 0.0, 1.0)
+	return clampf(float(total - _groups.group_count()) / float(total - 1), 0.0, 1.0)
 
 ## Useful for HUDs without reading private board state.
 func get_progress_info() -> Dictionary:
@@ -297,8 +293,8 @@ func get_progress_info() -> Dictionary:
 		"rows": rows,
 		"total_pieces": _pieces.size(),
 		"locked_pieces": _locked_pieces.size(),
-		"group_count": _members.size(),
-		"connections_made": maxi(0, _pieces.size() - _members.size()),
+		"group_count": _groups.group_count(),
+		"connections_made": maxi(0, _pieces.size() - _groups.group_count()),
 		"connections_needed": maxi(0, _pieces.size() - 1),
 		"completed": _finished
 	}
@@ -336,7 +332,9 @@ func capture_state() -> JigsawPuzzleState:
 	for i in range(_pieces.size()):
 		state.piece_positions.append(_pieces[i].position)
 		state.piece_rotations.append(_rotations[i])
-		state.piece_group_ids.append(_parents[i])
+	# Group IDs are captured atomically from the node-free model.
+
+	state.piece_group_ids = _groups.group_ids()
 
 	var locked_ids: Array = _locked_pieces.keys()
 	locked_ids.sort()
@@ -357,21 +355,22 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 		push_warning("JigsawG: cannot restore state: " + reason)
 		return false
 	var count := _pieces.size()
+	# Build a replacement graph first: no live model, drag or transforms are
+	# changed if restoring the serialized group graph is invalid.
+	var restored_groups := GroupModel.new()
+	if not restored_groups.restore(state.piece_group_ids):
+		push_warning("JigsawG: invalid group graph in saved state.")
+		return false
 
 	if _dragged_piece >= 0:
 		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
 	clear_selection()
-	_members.clear()
+	_groups = restored_groups
 	_locked_pieces.clear()
 
 	for i in range(count):
 		_pieces[i].position = state.piece_positions[i]
 		_set_piece_quarters(i, state.piece_rotations[i])
-		var group_id := state.piece_group_ids[i]
-		_parents[i] = group_id
-		if not _members.has(group_id):
-			_members[group_id] = []
-		_members[group_id].append(i)
 
 	for locked_id in state.locked_piece_ids:
 		_locked_pieces[int(locked_id)] = true
@@ -415,7 +414,7 @@ func select_piece(piece_id: int, additive: bool = false) -> void:
 	if not additive:
 		_selected_piece_ids.clear()
 	_multi_selection_mode = additive
-	for member in _members.get(_parents[piece_id], []):
+	for member in _groups.members_for(piece_id):
 		_selected_piece_ids[int(member)] = true
 	_refresh_selection_visuals()
 
@@ -426,7 +425,7 @@ func _toggle_group_selection(piece_id: int) -> void:
 	# The first Ctrl+click must add it visibly, not toggle it off.
 	if not _multi_selection_mode:
 		_selected_piece_ids.clear()
-	var members: Array = _members.get(_parents[piece_id], [])
+	var members: Array = _groups.members_for(piece_id)
 	var fully_selected := true
 	for member in members:
 		if not _selected_piece_ids.has(int(member)):
@@ -465,7 +464,7 @@ func _begin_piece_drag(piece_id: int, mouse_position: Vector2) -> void:
 	if not _selected_piece_ids.has(piece_id):
 		select_piece(piece_id, false)
 	_dragged_piece = piece_id
-	_drag_root = _parents[piece_id]
+	_drag_root = _groups.root_of(piece_id)
 	_drag_visual_active = false
 	_drag_start_screen = get_viewport().get_mouse_position()
 	_pointer_offset = _pieces[piece_id].global_position - mouse_position
@@ -493,7 +492,7 @@ func _compact_selected_groups() -> void:
 	var selected_ids: Array = _selected_piece_ids.keys()
 	selected_ids.sort()
 	for piece_variant in selected_ids:
-		var root: int = _parents[int(piece_variant)]
+		var root: int = _groups.root_of(int(piece_variant))
 		if not seen.has(root):
 			roots.append(root)
 			seen[root] = true
@@ -508,7 +507,7 @@ func _compact_selected_groups() -> void:
 		rectangles.append(_group_bounds_local(root))
 	var offsets := SelectionLayout.pack(rectangles, minf(_piece_size.x, _piece_size.y) * 0.45)
 	for i in range(roots.size()):
-		for member_variant in _members[roots[i]]:
+		for member_variant in _groups.members_of_root(roots[i]):
 			var piece_id := int(member_variant)
 			_pieces[piece_id].position += offsets[i]
 	_emit_motion(JigsawMotionContext.Kind.ARRANGEMENT, moved_ids, previous)
@@ -546,7 +545,7 @@ func _emit_motion(kind: JigsawMotionContext.Kind, piece_ids: PackedInt32Array, p
 func _group_bounds_local(root: int) -> Rect2:
 	var first_point := true
 	var rect := Rect2()
-	for piece_variant in _members[root]:
+	for piece_variant in _groups.members_of_root(root):
 		var piece: JigsawPiece = _pieces[int(piece_variant)]
 		var corners: Array[Vector2] = [
 			piece.bounds.position,
@@ -581,9 +580,8 @@ func rebuild() -> void:
 	if is_instance_valid(_ghost_board):
 		_ghost_board.queue_free()
 		_ghost_board = null
-	_parents.clear()
+	_groups.clear()
 	_rotations.clear()
-	_members.clear()
 	_selected_piece_ids.clear()
 	_multi_selection_mode = false
 	_drag_visual_active = false
@@ -633,6 +631,7 @@ func rebuild() -> void:
 	add_child(_ghost_board)
 	_update_ghost_board()
 	_rng.seed = generation_seed
+	_groups.reset(columns * rows)
 	var horizontal: Dictionary = {}
 	var vertical: Dictionary = {}
 	for r in range(rows - 1):
@@ -684,8 +683,6 @@ func rebuild() -> void:
 			piece.position = home
 			_pieces.append(piece)
 			_rotations.append(0)
-			_parents.append(piece_id)
-			_members[piece_id] = [piece_id]
 	if initial_scatter:
 		_scatter_non_overlapping()
 		if allow_piece_rotation and random_rotation_on_shuffle:
@@ -908,7 +905,7 @@ func _move_group(offset: Vector2) -> void:
 			_pieces[id].global_position += offset
 
 func _move_root(root: int, offset: Vector2) -> void:
-	for member in _members.get(root, []):
+	for member in _groups.members_of_root(root):
 		_pieces[int(member)].global_position += offset
 
 func _connect_selected_groups() -> bool:
@@ -918,9 +915,9 @@ func _connect_selected_groups() -> bool:
 	selected_snapshot.sort()
 	for piece_variant in selected_snapshot:
 		var piece_id := int(piece_variant)
-		if piece_id < 0 or piece_id >= _parents.size():
+		if piece_id < 0 or piece_id >= _groups.piece_count():
 			continue
-		var root := _parents[piece_id]
+		var root := _groups.root_of(piece_id)
 		if seen_roots.has(root):
 			continue
 		seen_roots[root] = true
@@ -930,43 +927,40 @@ func _connect_selected_groups() -> bool:
 	return any_connection
 
 func _connect_group_from(anchor_piece_id: int) -> bool:
+	if _groups.root_of(anchor_piece_id) < 0:
+		return false
 	var any_connection := false
 	var still_connecting := true
 	while still_connecting:
 		still_connecting = false
-		var anchor_root := _parents[anchor_piece_id]
-		var active_members: Array = _members[anchor_root].duplicate()
-		for index_variant in active_members:
-			var index := int(index_variant)
-			var r: int = floori(float(index) / float(columns))
-			var c: int = index % columns
-			for neighbor in [index - columns if r > 0 else -1, index + 1 if c < columns - 1 else -1, index + columns if r < rows - 1 else -1, index - 1 if c > 0 else -1]:
-				if neighbor == -1 or _parents[index] == _parents[neighbor]:
+		var active_members := _groups.members_for(anchor_piece_id)
+		for index in active_members:
+			for neighbor in ConnectionResolver.neighbor_ids(index, columns, rows):
+				if _groups.same_group(index, neighbor):
 					continue
-				if _rotations[index] != _rotations[neighbor]:
-					continue
-				var expected: Vector2 = (_pieces[index].home - _pieces[neighbor].home).rotated(float(_rotations[index]) * PI * 0.5)
-				var actual: Vector2 = _pieces[index].global_position - _pieces[neighbor].global_position
-				if actual.distance_to(expected) > minf(_piece_size.x, _piece_size.y) * snap_tolerance:
+				var shift: Vector2 = ConnectionResolver.snap_offset(
+					_pieces[index].home,
+					_pieces[neighbor].home,
+					_pieces[index].global_position,
+					_pieces[neighbor].global_position,
+					_rotations[index],
+					_rotations[neighbor],
+					minf(_piece_size.x, _piece_size.y) * snap_tolerance
+				)
+				if not shift.is_finite():
 					continue
 
-				var new_root := _parents[anchor_piece_id]
-				var old_root := _parents[neighbor]
-				var shift := expected - actual
-				_move_root(new_root, shift)
-
-				var joined_members: Array = _members[old_root].duplicate()
-				for member_variant in joined_members:
-					var member := int(member_variant)
-					_parents[member] = new_root
-					_members[new_root].append(member)
+				var anchor_root := _groups.root_of(anchor_piece_id)
+				_move_root(anchor_root, shift)
+				var joined_members := _groups.merge(anchor_piece_id, neighbor)
+				for member in joined_members:
 					_selected_piece_ids[member] = true
-				_members.erase(old_root)
 
-				pieces_connected.emit(_members[new_root].size())
+				var group_size := _groups.members_for(anchor_piece_id).size()
+				pieces_connected.emit(group_size)
 				_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTED, index, true, JigsawPuzzleEvent.REASON_NEIGHBOR_SNAP, {
 					"neighbor_piece_id": neighbor,
-					"group_size": _members[new_root].size()
+					"group_size": group_size
 				}))
 				_animate_connection(_pieces[index])
 				any_connection = true
@@ -976,7 +970,7 @@ func _connect_group_from(anchor_piece_id: int) -> bool:
 				break
 	if any_connection:
 		_emit_progress_changed()
-	if _members.size() == 1:
+	if _groups.group_count() == 1:
 		_finish_puzzle()
 	return any_connection
 
@@ -1417,8 +1411,8 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 		return
 	var turn := 1 if clockwise else -1
 	var pivot := _pieces[piece_index].global_position + Vector2(_piece_size.x * 0.5, _piece_size.y * 0.5).rotated(_pieces[piece_index].global_rotation)
-	var group_id := _parents[piece_index]
-	var members: Array = _members[group_id]
+	var group_id := _groups.root_of(piece_index)
+	var members := _groups.members_for(piece_index)
 	var motion_ids := PackedInt32Array()
 	for member in members:
 		motion_ids.append(int(member))
@@ -1429,7 +1423,7 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 		var next_center := pivot + (old_center - pivot).rotated(float(turn) * PI * 0.5)
 		_set_piece_quarters(id, _rotations[id] + turn)
 		_pieces[id].global_position = next_center - Vector2(_piece_size.x * 0.5, _piece_size.y * 0.5).rotated(_pieces[id].global_rotation)
-	if _dragged_piece >= 0 and _parents[_dragged_piece] == group_id:
+	if _dragged_piece >= 0 and _groups.root_of(_dragged_piece) == group_id:
 		_pointer_offset = _pieces[_dragged_piece].global_position - get_global_mouse_position()
 		_desired_position = _pieces[_dragged_piece].global_position
 	_emit_motion(JigsawMotionContext.Kind.ROTATION, motion_ids, previous)
