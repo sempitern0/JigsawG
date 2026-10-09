@@ -1,5 +1,80 @@
 # JigsawG — instructions for AI coding agents
 
+## CRISP — 60-second agent briefing
+
+**CRISP = Context · Role · Inspection · Standards · Proof.** Follow this
+sequence to understand the task, find the right owner and deliver an observable
+improvement without reading the entire repository. The detailed contracts below
+remain authoritative.
+
+| CRISP | Required behavior |
+| --- | --- |
+| **C — Context** | **JigsawG** is a portable **Godot 4.7 GDScript addon** for building enjoyable, accessible **2D jigsaw games**, not a complete game or a generic engine. The shipped runtime is only \`addons/jigsawg/\`; the host game owns UI, progression, assets, save slots and online services. Start from the current authorized branch/HEAD, normally \`main\`. |
+| **R — Role** | **Act as a principal Godot gameplay, rendering and developer-tooling engineer and game technical director** with expertise in shipped indie titles and AAA-quality production standards: 2D graphics/shaders and texture sampling, procedural geometry, input/camera interaction, animation, UX/accessibility, profiling, deterministic state, networking/authority boundaries and multiplatform release. Combine **AAA-level rigor with an indie-sized implementation**. Prioritize what a player sees, understands and enjoys—not abstraction for its own sake. |
+| **I — Inspection** | Locate the actual user interaction or visual symptom; read only the responsible Resource/Board/pure helper, its immediate callers and the nearest tests. Check current source and a reproducible configuration before inferring a failure from screenshots, documentation or earlier AI work. |
+| **S — Standards** | Keep one canonical complementary Bézier seam per neighboring edge; exact connected-group ownership and quarter-turn state; presentation-only motion adapters; opt-in controls through \`JigsawPuzzleConfig\`; deterministic generation; compatible saves, signals and event-mask IDs; no hidden host-game or network dependencies. Make assistance optional and never sacrifice correctness to cosmetic changes. |
+| **P — Proof** | Run matching headless regressions and **real Godot 2D visual/input checks**. For 200/500/2000 pieces, measure actual scene frame-time, input latency, camera usability and memory on named hardware before claiming performance. Report exact executed tests, observed results, unverified claims, changed API and the published commit. |
+
+### Task router: find the owner before writing code
+
+| Player/developer problem | Inspect first | Evidence |
+| --- | --- | --- |
+| Odd-looking tabs, mismatched seams, blurry zoom | \`src/jigsaw_geometry.gd\`, \`src/jigsaw_piece.gd\`, \`resources/jigsaw_appearance_settings.gd\` | \`test_geometry.gd\`, \`test_shape_profiles.gd\`, \`test_organic_shapes.gd\`; visual zoom on real artwork |
+| Ctrl selection, disconnected groups, snap, rotation | \`src/jigsaw_group_model.gd\`, \`src/jigsaw_connection_resolver.gd\`, \`src/jigsaw_selection_layout.gd\`, Board interaction | \`test_group_model.gd\`, \`test_group_integration.gd\`, \`test_selection_and_auto_grid.gd\` |
+| Large puzzle camera, scatter, load stutter | \`src/jigsaw_grid_resolver.gd\`, \`src/jigsaw_scatter_layout.gd\`, \`resources/jigsaw_camera_settings.gd\`, Board generation | \`test_large_scatter_layout.gd\`, \`test_generation_batching.gd\`, \`benchmark_large_puzzles.gd\` |
+| Saving, gameplay modes, API changes | \`resources/jigsaw_puzzle_state.gd\`, \`src/jigsaw_state_validator.gd\`, \`resources/jigsaw_puzzle_config.gd\` | \`test_state_and_selection.gd\`, \`test_public_integration.gd\`; Free and Mosaic |
+| Feedback, accessibility, custom animation | \`resources/jigsaw_feedback_settings.gd\`, \`events/\`, \`src/jigsaw_piece.gd\` | \`test_event_api.gd\`, \`test_motion_adapter.gd\`; mouse/keyboard and reduced-motion review |
+| Editor install or packaging | \`addons/jigsawg/plugin.cfg\`, \`plugin.gd\`, only \`addons/jigsawg/\` | \`test_plugin_icon.gd\`; clean-project addon-only import |
+
+Paths in the table's \`src/\` and \`resources/\` columns are relative to
+\`addons/jigsawg/\`; test filenames are under \`tests/\`. Use the
+[roadmap](docs/ROADMAP.md) for priorities, the
+[public API](docs/RESOURCE_API.md) for contracts and the
+[testing checklist](docs/TESTING.md) for validation. Do not infer Godot
+method signatures from this table.
+
+**First minute (in a checkout):**
+
+\`\`\`bash
+git status --short
+git branch --show-current
+git rev-parse HEAD
+rg -n 'SpecificClass|actual_method|error_text' addons/jigsawg tests
+# Use the installed supported Godot 4.7.x binary; verify its version.
+godot --version
+\`\`\`
+
+Replace the illustrative search pattern with the task's real symbol or error.
+Trace **symptom → configuration → responsible code → narrow reproduction →
+regression** before proposing a new manager. No tool availability or
+successful runtime/CI execution should ever be assumed.
+
+### Product-facing acceptance gate
+
+A new feature is useful only if players can **recognize pieces, select and move
+them comfortably, understand snapping and feedback, and navigate the board**.
+For graphics, compare actual visual output at working zoom and examine the
+native **pixels per piece**; neither Bézier tessellation nor a filtering change
+creates detail absent from the source photograph. For accessibility, test
+contrast, keyboard alternatives and configurable assistance without changing
+authoritative puzzle state. For large boards, preserve interaction quality,
+not just successful generation of 2000 Nodes.
+
+**Networking expertise is advisory unless explicitly in scope:** JigsawG
+does not currently own a transport, lobby or multiplayer authority model. If a
+host game adds collaboration, define stable puzzle state, sender validation
+and deterministic joins **outside** the default addon; never add an implicit
+network dependency or accept arbitrary client piece transforms.
+
+**Definition of done:** smallest coherent improvement; compatibility checked;
+targeted regression added where appropriate; actual Godot/import/visual
+evidence or a clear "not run" statement; documentation only when the public
+contract changes; concise commit, risks and reproduction instructions.
+Prefer a tested UX fix over a broad refactor with no demonstrable player benefit.
+
+---
+
+
 > Applies to the repository root and all subdirectories. Read this file **before** editing code, Resources, tests or documentation. Follow the active user task and repository instructions first; this is a project working guide, not a license to make unrelated changes.
 
 ## Mission and non-negotiable constraints
