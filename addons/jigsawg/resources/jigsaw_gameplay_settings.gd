@@ -1,8 +1,8 @@
 @tool
 class_name JigsawGameplaySettings
 extends Resource
-## Reusable gameplay preset. Assigned settings override the corresponding
-## JigsawBoard inspector fields at rebuild(); leave empty for per-board defaults.
+## Reusable rules and reference-image options for JigsawPuzzleConfig.
+## Changes take effect when the board applies the configuration.
 
 enum Mode { FREE, MOSAIC }
 enum Shuffle { AROUND_BOARD, CENTER, BOTTOM }
@@ -39,3 +39,5 @@ enum Distribution { RANDOM, RADIAL }
 @export var enable_preview := true
 ## Key used to toggle the fullscreen preview.
 @export var preview_key: Key = KEY_P
+## Background darkness of fullscreen image preview; 0 transparent, 1 opaque.
+@export_range(0.0, 1.0, 0.01) var preview_dim := 0.82
