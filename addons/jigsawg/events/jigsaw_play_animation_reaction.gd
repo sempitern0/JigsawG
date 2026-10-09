@@ -24,4 +24,4 @@ func react(board: Node2D, _event: JigsawPuzzleEvent) -> void:
 	if not player.has_animation(animation_name):
 		push_warning("JigsawG: AnimationPlayer has no animation '%s'." % animation_name)
 		return
-	player.play(animation_name, blend_time, speed)
+	player.play(animation_name, blend_time, speed, speed < 0.0)
