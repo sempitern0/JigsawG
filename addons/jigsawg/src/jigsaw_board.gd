@@ -120,6 +120,7 @@ var _source_size := Vector2i.ZERO
 var _rng := RandomNumberGenerator.new()
 var _camera: Camera2D
 var _camera_pan := false
+var _camera_pan_button := 0
 var _background_pan_pending := false
 var _background_pan_press_msec := 0
 var _background_pan_press_mouse := Vector2.ZERO
@@ -190,6 +191,72 @@ func get_dragged_piece_id() -> int:
 
 func is_completed() -> bool:
 	return _finished
+
+## Current multi-selection. Connected groups are always selected/deselected as a unit.
+func get_selected_piece_ids() -> PackedInt32Array:
+	var result := PackedInt32Array()
+	var ids: Array = _selected_piece_ids.keys()
+	ids.sort()
+	for id in ids:
+		result.append(int(id))
+	return result
+
+## Clear the current selection without changing puzzle positions.
+func clear_selection() -> void:
+	_selected_piece_ids.clear()
+	_refresh_selection_visuals()
+
+## Select a piece's complete connected group. additive=false replaces the selection.
+func select_piece(piece_id: int, additive: bool = false) -> void:
+	if piece_id < 0 or piece_id >= _pieces.size() or _locked_pieces.has(piece_id):
+		return
+	if not additive:
+		_selected_piece_ids.clear()
+	for member in _members.get(_parents[piece_id], []):
+		_selected_piece_ids[int(member)] = true
+	_refresh_selection_visuals()
+
+func _toggle_group_selection(piece_id: int) -> void:
+	if piece_id < 0 or piece_id >= _pieces.size() or _locked_pieces.has(piece_id):
+		return
+	var members: Array = _members.get(_parents[piece_id], [])
+	var fully_selected := true
+	for member in members:
+		if not _selected_piece_ids.has(int(member)):
+			fully_selected = false
+			break
+	for member in members:
+		var id := int(member)
+		if fully_selected:
+			_selected_piece_ids.erase(id)
+		else:
+			_selected_piece_ids[id] = true
+	_refresh_selection_visuals()
+
+func _refresh_selection_visuals(active_drag: bool = false) -> void:
+	for i in range(_pieces.size()):
+		var selected := _selected_piece_ids.has(i) and not _locked_pieces.has(i)
+		_pieces[i].selected = selected
+		_pieces[i].z_index = 10 if selected and active_drag else (5 if selected else 0)
+		_pieces[i].queue_redraw()
+
+func _find_piece_at(world_position: Vector2) -> int:
+	for i in range(_pieces.size() - 1, -1, -1):
+		if not _locked_pieces.has(i) and _pieces[i].contains(world_position):
+			return i
+	return -1
+
+func _begin_piece_drag(piece_id: int, mouse_position: Vector2) -> void:
+	if not _selected_piece_ids.has(piece_id):
+		select_piece(piece_id, false)
+	_dragged_piece = piece_id
+	_drag_root = _parents[piece_id]
+	_pointer_offset = _pieces[piece_id].global_position - mouse_position
+	_desired_position = _pieces[piece_id].global_position
+	_refresh_selection_visuals(true)
+	_animate_pickup(_selected_piece_ids.keys(), true)
+	piece_picked.emit(piece_id)
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_STARTED, piece_id, true, JigsawPuzzleEvent.REASON_POINTER_DOWN))
 
 func rebuild() -> void:
 	if not _pieces.is_empty():
