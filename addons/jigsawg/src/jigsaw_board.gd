@@ -102,6 +102,8 @@ var highlight_shadow_offset := Vector2(3.0, 4.0)
 signal preview_toggled(visible: bool)
 signal piece_placed(piece_id: int)
 signal group_rotated(piece_id: int, quarter_turns: int, group_size: int)
+## Emitted after a compatible JigsawPuzzleState has been applied.
+signal puzzle_state_restored(state: JigsawPuzzleState)
 
 var _preview_overlay: CanvasLayer
 var _ghost_board: Sprite2D
@@ -137,6 +139,7 @@ var _rotations: Array[int] = []
 var _connector_depth := 0.25
 var _active_feedback: JigsawFeedbackSettings
 var _active_reactions: Array[JigsawReaction] = []
+var _restored_from_state := false
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -191,6 +194,85 @@ func get_dragged_piece_id() -> int:
 
 func is_completed() -> bool:
 	return _finished
+
+## Capture current positions, rotations, group graph and Mosaic locks into a new Resource.
+## Persist it with ResourceSaver yourself, or assign it to JigsawPuzzleConfig.resume_state.
+func capture_state() -> JigsawPuzzleState:
+	var state := JigsawPuzzleState.new()
+	state.columns = columns
+	state.rows = rows
+	state.source_size = _source_size
+	state.generation_seed = generation_seed
+	state.silhouette_variants = silhouette_variants
+	state.completed = _finished
+
+	for i in range(_pieces.size()):
+		state.piece_positions.append(_pieces[i].position)
+		state.piece_rotations.append(_rotations[i])
+		state.piece_group_ids.append(_parents[i])
+
+	var locked_ids: Array = _locked_pieces.keys()
+	locked_ids.sort()
+	for piece_id in locked_ids:
+		state.locked_piece_ids.append(int(piece_id))
+	return state
+
+## Apply a compatible snapshot to an already generated board.
+## Returns false and leaves the current puzzle unchanged when validation fails.
+func restore_state(state: JigsawPuzzleState, update_camera: bool = true) -> bool:
+	if state == null:
+		return false
+	if state.schema_version != JigsawPuzzleState.SCHEMA_VERSION:
+		push_warning("JigsawG: unsupported puzzle-state schema version.")
+		return false
+	if state.columns != columns or state.rows != rows or state.source_size != _source_size:
+		push_warning("JigsawG: puzzle state does not match this board's grid/source dimensions.")
+		return false
+	if state.generation_seed != generation_seed or state.silhouette_variants != silhouette_variants:
+		push_warning("JigsawG: puzzle state was created from different generation settings.")
+		return false
+	var count := _pieces.size()
+	if state.piece_positions.size() != count or state.piece_rotations.size() != count or state.piece_group_ids.size() != count:
+		push_warning("JigsawG: puzzle state has an invalid piece array size.")
+		return false
+
+	for group_id in state.piece_group_ids:
+		if group_id < 0 or group_id >= count:
+			push_warning("JigsawG: puzzle state contains an invalid group id.")
+			return false
+	for locked_id in state.locked_piece_ids:
+		if locked_id < 0 or locked_id >= count:
+			push_warning("JigsawG: puzzle state contains an invalid locked-piece id.")
+			return false
+
+	if _dragged_piece >= 0:
+		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
+	clear_selection()
+	_members.clear()
+	_locked_pieces.clear()
+
+	for i in range(count):
+		_pieces[i].position = state.piece_positions[i]
+		_set_piece_quarters(i, state.piece_rotations[i])
+		var group_id := state.piece_group_ids[i]
+		_parents[i] = group_id
+		if not _members.has(group_id):
+			_members[group_id] = []
+		_members[group_id].append(i)
+
+	for locked_id in state.locked_piece_ids:
+		_locked_pieces[int(locked_id)] = true
+	_finished = state.completed
+	_refresh_selection_visuals(false)
+
+	if update_camera and _camera != null:
+		_update_camera_bounds()
+		if auto_fit_camera:
+			_fit_camera()
+		_sync_camera_target()
+
+	puzzle_state_restored.emit(state)
+	return true
 
 ## Current multi-selection. Connected groups are always selected/deselected as a unit.
 func get_selected_piece_ids() -> PackedInt32Array:
@@ -282,6 +364,7 @@ func rebuild() -> void:
 	_drag_root = -1
 	_dragged_piece = -1
 	_finished = false
+	_restored_from_state = false
 	var source: Image
 	if puzzle_texture != null:
 		source = puzzle_texture.get_image()
@@ -376,7 +459,7 @@ func rebuild() -> void:
 				_pieces[i].position = center_before - (_piece_size * 0.5).rotated(_pieces[i].rotation)
 
 	if puzzle_config != null and puzzle_config.resume_state != null:
-		restore_state(puzzle_config.resume_state, false)
+		_restored_from_state = restore_state(puzzle_config.resume_state, false)
 
 	_camera = get_viewport().get_camera_2d()
 	if _camera:
@@ -396,7 +479,8 @@ func rebuild() -> void:
 		"columns": columns,
 		"rows": rows,
 		"game_mode": game_mode,
-		"rotation_enabled": allow_piece_rotation
+		"rotation_enabled": allow_piece_rotation,
+		"resumed": _restored_from_state
 	}))
 
 func _random_edge() -> Vector2i:
