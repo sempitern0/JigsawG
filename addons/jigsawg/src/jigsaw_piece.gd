@@ -19,16 +19,40 @@ var _closed_outline := PackedVector2Array()
 var _shadow_outline := PackedVector2Array()
 var _edge_opacity := 0.0
 var _edge_width := 0.7
+var _highlight_enabled := true
+var _highlight_color := Color(1.0, 0.84, 0.38, 0.85)
+var _highlight_width := 1.2
+var _highlight_shadow_enabled := true
+var _highlight_shadow_color := Color(0.0, 0.0, 0.0, 0.24)
+var _highlight_shadow_offset := Vector2(3.0, 4.0)
 
-const SHADOW_OFFSET := Vector2(3.0, 4.0)
-
-func configure(piece_id: int, home_position: Vector2, shape: PackedVector2Array, source: Texture2D, sampling_mode: int = 0, edge_opacity: float = 0.0, edge_width: float = 0.7) -> void:
+func configure(
+	piece_id: int,
+	home_position: Vector2,
+	shape: PackedVector2Array,
+	source: Texture2D,
+	sampling_mode: int = 0,
+	edge_opacity: float = 0.0,
+	edge_width: float = 0.7,
+	highlight_enabled: bool = true,
+	highlight_color: Color = Color(1.0, 0.84, 0.38, 0.85),
+	highlight_width: float = 1.2,
+	highlight_shadow_enabled: bool = true,
+	highlight_shadow_color: Color = Color(0.0, 0.0, 0.0, 0.24),
+	highlight_shadow_offset: Vector2 = Vector2(3.0, 4.0)
+) -> void:
 	id = piece_id
 	home = home_position
 	polygon = shape
 	_source_texture = source
 	_edge_opacity = clampf(edge_opacity, 0.0, 1.0)
 	_edge_width = maxf(edge_width, 0.1)
+	_highlight_enabled = highlight_enabled
+	_highlight_color = highlight_color
+	_highlight_width = maxf(highlight_width, 0.1)
+	_highlight_shadow_enabled = highlight_shadow_enabled
+	_highlight_shadow_color = highlight_shadow_color
+	_highlight_shadow_offset = highlight_shadow_offset
 
 	# Mipmaps are valuable at very small scales, but can soften image detail;
 	# leave that choice to the caller, independently of Bézier tessellation.
@@ -52,7 +76,7 @@ func configure(piece_id: int, home_position: Vector2, shape: PackedVector2Array,
 		high = high.max(point)
 		_uvs.append((home + point) / image_size)
 		_closed_outline.append(point)
-		_shadow_outline.append(point + SHADOW_OFFSET)
+		_shadow_outline.append(point + _highlight_shadow_offset)
 	bounds = Rect2(low, high - low)
 	if polygon.size() >= 3:
 		_closed_outline.append(polygon[0])
@@ -65,8 +89,8 @@ func contains(world_point: Vector2) -> bool:
 func _draw() -> void:
 	if _source_texture == null or polygon.size() < 3:
 		return
-	if selected:
-		draw_colored_polygon(_shadow_outline, Color(0.0, 0.0, 0.0, 0.24))
+	if selected and _highlight_enabled and _highlight_shadow_enabled:
+		draw_colored_polygon(_shadow_outline, _highlight_shadow_color)
 
 	# UVs reference a single full-resolution source image for every piece.
 	draw_colored_polygon(polygon, Color.WHITE, _uvs, _source_texture)
@@ -75,5 +99,5 @@ func _draw() -> void:
 	# halo when zoomed out. Keep it opt-in and antialiased instead.
 	if _edge_opacity > 0.001:
 		draw_polyline(_closed_outline, Color(0.08, 0.075, 0.07, _edge_opacity), _edge_width, true)
-	if selected:
-		draw_polyline(_closed_outline, Color(1.0, 0.84, 0.38, 0.85), 1.2, true)
+	if selected and _highlight_enabled:
+		draw_polyline(_closed_outline, _highlight_color, _highlight_width, true)
