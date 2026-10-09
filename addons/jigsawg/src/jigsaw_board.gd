@@ -144,6 +144,12 @@ func rebuild() -> void:
 	if source == null or source.is_empty():
 		push_error("JigsawG: a readable source image is required.")
 		return
+	if columns < 2 or rows < 2 or silhouette_variants < 1 or silhouette_variants > 8:
+		push_error("JigsawG: invalid grid dimensions or silhouette variant count.")
+		return
+	if minf(float(source.get_width()) / float(columns), float(source.get_height()) / float(rows)) < 14.0:
+		push_warning("JigsawG: image is too small for the selected grid. Use fewer pieces or a larger image.")
+		return
 	source.convert(Image.FORMAT_RGBA8)
 	if not source.has_mipmaps():
 		source.generate_mipmaps()
@@ -162,9 +168,6 @@ func rebuild() -> void:
 	_ghost_board.z_index = -10
 	add_child(_ghost_board)
 	_update_ghost_board()
-	if _piece_size.x < 14 or _piece_size.y < 14:
-		push_warning("JigsawG: source image is too small for this many pieces.")
-		return
 	_rng.seed = generation_seed
 	var horizontal: Dictionary = {}
 	var vertical: Dictionary = {}
@@ -237,6 +240,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if is_instance_valid(_preview_overlay) and _preview_overlay.is_preview_visible():
+		if event is InputEventMouseButton and not event.pressed:
+			_cancel_drag()
 		return
 	if enable_camera_navigation and _camera:
 		if event is InputEventMouseButton:
@@ -316,6 +321,20 @@ func _process(delta: float) -> void:
 	_desired_position = get_global_mouse_position() + _pointer_offset
 	var factor := 1.0 - exp(-drag_smoothing * delta)
 	_move_group((_desired_position - _pieces[_dragged_piece].global_position) * factor)
+
+## Stop an unfinished drag without snapping (e.g. when preview is opened).
+func _cancel_drag() -> void:
+	if _dragged_piece < 0:
+		_camera_pan = false
+		return
+	for member in _members.get(_parents[_dragged_piece], []):
+		var piece := _pieces[int(member)]
+		piece.selected = false
+		piece.z_index = 0
+		piece.modulate = Color.WHITE
+	_drag_root = -1
+	_dragged_piece = -1
+	_camera_pan = false
 
 func _move_group(offset: Vector2) -> void:
 	if _drag_root == -1:
@@ -488,6 +507,8 @@ func _update_ghost_board() -> void:
 func set_preview_visible(visible: bool) -> void:
 	if not enable_preview or not is_instance_valid(_preview_overlay):
 		return
+	if visible:
+		_cancel_drag()
 	_preview_overlay.set_preview_visible(visible)
 	preview_toggled.emit(visible)
 
