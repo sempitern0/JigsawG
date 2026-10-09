@@ -27,6 +27,14 @@ func _action(name: StringName, pressed: bool) -> InputEventAction:
 	return event
 
 
+func _joypad_button(button: JoyButton, pressed: bool) -> InputEventJoypadButton:
+	var event: InputEventJoypadButton = InputEventJoypadButton.new()
+	event.device = 0
+	event.button_index = button
+	event.pressed = pressed
+	return event
+
+
 func _touch(index: int, pressed: bool, point: Vector2) -> InputEventScreenTouch:
 	var event: InputEventScreenTouch = InputEventScreenTouch.new()
 	event.index = index
@@ -47,6 +55,7 @@ func _config(controller: bool, touch_enabled: bool) -> JigsawPuzzleConfig:
 	config.columns = 3
 	config.rows = 3
 	config.gameplay.initial_scatter = false
+	config.gameplay.allow_piece_rotation = true
 	config.gameplay.generation_batch_size = 0
 	config.camera.smooth_pan = false
 	config.camera.smooth_zoom = false
@@ -109,6 +118,25 @@ func _run() -> void:
 	assert(board.get_dragged_piece_id() == -1)
 	assert(_events.has("released:0"))
 	assert(board.get_piece_count() == 9)
+
+	# Standard Steam Deck/SDL buttons require no new InputMap entries.
+	board._device_pointer_screen = piece.get_global_transform_with_canvas() * piece.bounds.get_center()
+	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_A, true)))
+	assert(board.get_dragged_piece_id() == 0)
+	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_B, true)))
+	assert(board.get_dragged_piece_id() == -1)
+	assert(_events.has("cancelled"))
+	var prior_quarters: int = board._rotations[0]
+	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_RIGHT_SHOULDER, true)))
+	assert(board._rotations[0] == posmod(prior_quarters + 1, 4))
+	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_LEFT_SHOULDER, true)))
+	assert(board._rotations[0] == prior_quarters)
+	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_X, true)))
+	assert(board._selected_piece_ids.has(0))
+	# Disabling the built-in profile must leave host actions unaffected.
+	board._device_input.use_joypad_defaults = false
+	assert(not board._handle_controller_action(_joypad_button(JOY_BUTTON_X, true)))
+	board._device_input.use_joypad_defaults = true
 
 	# Right stick camera action must not mutate puzzle positions.
 	var previous_position: Vector2 = piece.position
