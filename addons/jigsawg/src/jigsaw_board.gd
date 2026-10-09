@@ -89,6 +89,7 @@ var edge_scroll_smoothing := 12.0
 var texture_sampling := 0
 var piece_edge_opacity := 0.0
 var piece_edge_width := 0.7
+var piece_edge_color := Color(0.08, 0.075, 0.07, 1.0)
 var piece_material: Material
 var camera_outer_margin := 5.0
 var restrict_camera := false
@@ -761,7 +762,8 @@ func rebuild() -> void:
 				highlight_width,
 				highlight_shadow_enabled,
 				highlight_shadow_color,
-				highlight_shadow_offset
+				highlight_shadow_offset,
+				piece_edge_color
 			)
 			if piece_material != null:
 				piece.material = piece_material
@@ -1385,6 +1387,7 @@ func _apply_resource_presets() -> void:
 	bezier_detail = appearance.bezier_detail
 	piece_edge_opacity = appearance.piece_edge_opacity
 	piece_edge_width = appearance.piece_edge_width
+	piece_edge_color = appearance.piece_edge_color
 	piece_material = appearance.piece_material
 	highlight_enabled = appearance.highlight_enabled
 	highlight_color = appearance.highlight_color

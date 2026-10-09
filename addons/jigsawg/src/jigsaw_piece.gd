@@ -28,6 +28,7 @@ var _closed_outline := PackedVector2Array()
 var _shadow_outline := PackedVector2Array()
 var _edge_opacity := 0.0
 var _edge_width := 0.7
+var _edge_color := Color(0.08, 0.075, 0.07, 1.0)
 var _highlight_enabled := true
 var _highlight_color := Color(1.0, 0.84, 0.38, 0.85)
 var _highlight_width := 1.2
@@ -48,7 +49,8 @@ func configure(
 	highlight_width: float = 1.2,
 	highlight_shadow_enabled: bool = true,
 	highlight_shadow_color: Color = Color(0.0, 0.0, 0.0, 0.24),
-	highlight_shadow_offset: Vector2 = Vector2(3.0, 4.0)
+	highlight_shadow_offset: Vector2 = Vector2(3.0, 4.0),
+	edge_color: Color = Color(0.08, 0.075, 0.07, 1.0)
 ) -> void:
 	id = piece_id
 	home = home_position
@@ -56,6 +58,7 @@ func configure(
 	_source_texture = source
 	_edge_opacity = clampf(edge_opacity, 0.0, 1.0)
 	_edge_width = maxf(edge_width, 0.1)
+	_edge_color = edge_color
 	_highlight_enabled = highlight_enabled
 	_highlight_color = highlight_color
 	_highlight_width = maxf(highlight_width, 0.1)
@@ -126,6 +129,6 @@ func _draw() -> void:
 	# A dark/beveled outline drawn for every Bézier sample looked like a fuzzy
 	# halo when zoomed out. Keep it opt-in and antialiased instead.
 	if _edge_opacity > 0.001:
-		draw_polyline(_closed_outline, Color(0.08, 0.075, 0.07, _edge_opacity), _edge_width, true)
+		draw_polyline(_closed_outline, Color(_edge_color.r, _edge_color.g, _edge_color.b, _edge_opacity * _edge_color.a), _edge_width, true)
 	if selected and _highlight_enabled:
 		draw_polyline(_closed_outline, _highlight_color, _highlight_width, true)

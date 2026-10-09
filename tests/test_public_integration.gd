@@ -43,8 +43,13 @@ func _verify(board, receiver: Node, host: Node2D) -> void:
 	var artwork := CanvasItemMaterial.new()
 	var assigned_config := board.get_configuration() as JigsawPuzzleConfig
 	assigned_config.appearance.piece_material = artwork
+	var custom_edge := Color(0.78, 0.88, 1.0, 0.9)
+	assigned_config.appearance.piece_edge_color = custom_edge
+	assigned_config.appearance.piece_edge_opacity = 0.55
 	board.apply_configuration()
 	assert(board.get_piece_node(0).material == artwork, "Appearance material was not applied to the piece.")
+	assert(board.get_piece_node(0).get("_edge_color") == custom_edge, "Custom edge tint was not propagated.")
+	assert(is_equal_approx(board.get_piece_node(0).get("_edge_opacity"), 0.55), "Custom rim opacity was not propagated.")
 
 	board.set_interaction_enabled(false)
 	assert(not board.is_interaction_enabled())

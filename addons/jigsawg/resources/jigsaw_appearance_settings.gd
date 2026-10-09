@@ -28,6 +28,9 @@ enum ConnectorFamily { CLASSIC, ROUNDED, ANGULAR, COMPACT, MIXED, ORGANIC }
 @export_range(0.0, 1.0, 0.01) var piece_edge_opacity := 0.0
 ## Thickness of an enabled edge rim in texture pixels.
 @export_range(0.1, 3.0, 0.1) var piece_edge_width := 0.7
+## Color of the visible piece contour; use a light tint on dark artwork.
+## Alpha is combined with piece_edge_opacity. Default reproduces legacy edges.
+@export var piece_edge_color := Color(0.08, 0.075, 0.07, 1.0)
 ## Optional shared CanvasItem Material/ShaderMaterial applied to generated pieces.
 ## Null preserves the default textured polygon renderer; rebuild to apply.
 @export var piece_material: Material
