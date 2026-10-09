@@ -21,6 +21,7 @@ The runner rejects non-zero exits, script/import errors and missing PASS markers
 ## Configuration
 - [ ] Install only `addons/jigsawg` in a clean Godot project; JigsawBoard appears in Add Node.
 - [ ] JigsawBoard Inspector exposes only `Puzzle Config` (no duplicated exported settings).
+- [ ] Inspect optional `JigsawDeviceInputSettings` in the nested Config; unchanged presets must default to touch/controller disabled.
 - [ ] Create a root JigsawPuzzleConfig, including texture and four nested Resources.
 - [ ] Load `examples/puzzle_lab.tscn`; verify it uses `examples/configs/standard_puzzle.tres`.
 - [ ] Confirm all appearance, camera, gameplay and feedback options take effect after `rebuild()`.
@@ -36,6 +37,19 @@ The runner rejects non-zero exits, script/import errors and missing PASS markers
 - [ ] Check that mapped actions are ignored by the Board after a HUD consumes their input; missing actions never block default keys.
 - [ ] Toggle reduced motion during built-in rotation, drag and camera zoom; verify immediate transitions, unchanged events and no save-state mutation.
 - [ ] Confirm that full keyboard-only piece manipulation and arbitrary host reaction tweens are still outside this integration.
+
+## Handheld and touch acceptance
+
+```bash
+godot --headless --path . --script res://tests/test_device_input.gd
+```
+
+- [ ] Headless: A/B/X/shoulders, cursor input, camera movement and opt-out. A held gamepad piece must release through the same Free/Mosaic placement path.
+- [ ] Headless: one-finger drag; second finger must **cancel** the active drag without snapping; pinch/pan must not move puzzle pieces.
+- [ ] Real Steam Deck: test left/right analog sticks, drift/deadzone, screen cursor, A hold/release, B cancellation, X selection, shoulder rotation and zoom triggers at 500 and 2000 pieces.
+- [ ] Real tablets: test simultaneous fingers, pinch zoom anchor, OS mouse-event emulation, HUD interception, portrait/landscape layouts and screen pixel density.
+- [ ] Opening a HUD must disable Board input; ensure no actions leak through to puzzles behind menus.
+- [ ] Report measured FPS, latency and memory only with reference devices and named Godot renderers.
 
 ## Gameplay regression
 - [ ] 5x4, 10x8 and 20x15 generate correct mirrored Bézier connections.

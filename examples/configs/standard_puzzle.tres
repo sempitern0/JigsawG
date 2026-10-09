@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://dakki2nwckxx4" path="res://examples/images/383471.jpg" id="5_dqwao"]
 [ext_resource type="Script" uid="uid://cf4vc3wwnu80f" path="res://addons/jigsawg/events/jigsaw_reaction.gd" id="6_d687h"]
 [ext_resource type="Script" uid="uid://c36r1nj20upok" path="res://addons/jigsawg/events/jigsaw_motion_adapter.gd" id="7"]
+[ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_device_input_settings.gd" id="8"]
 
 [sub_resource type="Resource" id="Appearance"]
 script = ExtResource("4")
@@ -22,6 +23,11 @@ piece_edge_color = Color(0.85, 0.86, 0.82, 0.85)
 
 [sub_resource type="Resource" id="Camera"]
 script = ExtResource("3")
+
+[sub_resource type="Resource" id="DeviceInput"]
+script = ExtResource("8")
+enable_touch = true
+enable_controller = true
 
 [sub_resource type="Resource" id="Motion"]
 script = ExtResource("7")
@@ -51,4 +57,5 @@ silhouette_variants = 6
 gameplay = SubResource("Gameplay")
 appearance = SubResource("Appearance")
 camera = SubResource("Camera")
+device_input = SubResource("DeviceInput")
 feedback = SubResource("Resource_1odl7")

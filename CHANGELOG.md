@@ -14,6 +14,7 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 - Public API smoke test and host-game integration guidance (consolidated into the Resource API and Events references).
 
 ### Notes
+- Handheld input: opt-in `JigsawDeviceInputSettings` for one-finger piece drag, two-finger pan/pinch and a virtual gamepad cursor with default Godot/SDL buttons. The input adapter never modifies saved puzzle state; real device testing remains pending.
 - Added `docs/ROADMAP.md` to prioritize validation, large-puzzle ergonomics, accessibility and release readiness, and root `AGENTS.md` for AI-assisted development and regression guidance.
 - Accessibility: host-defined InputMap shortcut aliases, reduced-motion Feedback preset and live toggling. Built-in visual tweens are cancelled without altering snap and save semantics.
 - Test maintenance: explicit local/script types in the recent nine GDScript regression scripts to avoid Variant type inference errors in Godot.
@@ -73,6 +74,6 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 
 ### Known preview limitations
 - Full regression/performance validation for very large puzzles is still pending.
-- Mouse/keyboard is the documented input path; touch/controller support is not yet certified.
+- Mouse/keyboard remains the established input path; touchscreen and controller support is experimental pending physical device testing.
 - State capture/restore is provided; host-game save-slot UI and persistence policy are not.
 - Example artwork must have redistribution rights verified before a public packaged release.

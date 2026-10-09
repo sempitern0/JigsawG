@@ -18,6 +18,7 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `JigsawGameplaySettings` | Free/Mosaic rules, snapping, rotation, shuffle, ghost guide and preview |
 | `JigsawAppearanceSettings` | Bézier connector shape, texture sampling and piece-edge rendering |
 | `JigsawCameraSettings` | Auto-fit, pan, zoom, bounds, drag response and edge scrolling |
+| `JigsawDeviceInputSettings` | Opt-in tablet gestures and handheld/controller gameplay |
 | `JigsawFeedbackSettings` | Built-in pickup/connect/failure tint feedback |
 | `JigsawPuzzleState` | Serializable runtime progress: positions, rotations, connected groups and Mosaic locks |
 | `JigsawGroupModel` (internal) | Node-free connected groups, memberships, joins and atomic state restoration |
@@ -37,6 +38,7 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `gameplay` | `JigsawGameplaySettings` |
 | `appearance` | `JigsawAppearanceSettings` |
 | `camera` | `JigsawCameraSettings` |
+| `device_input` | `JigsawDeviceInputSettings`, disabled by default |
 | `feedback` | `JigsawFeedbackSettings` |
 | `resume_state` | Optional `JigsawPuzzleState` applied after generation |
 | `reactions` | Array of `JigsawReaction` Resources |
@@ -155,6 +157,23 @@ internal, so there is no new user-facing configuration or change to saved
 state. Compare 200/500/2000 real-scene index-versus-linear query timings with
 the optional heavy benchmark; a data structure alone does not prove an FPS gain.
 
+## Optional device controls
+
+`puzzle_config.device_input` adds `JigsawDeviceInputSettings`. Both `enable_touch` and `enable_controller` default to `false`, so existing scenes require no changes.
+
+- **Touch:** one finger selects/drags/releases with the same Free/Mosaic snap logic as a mouse. A second finger cancels the drag and starts camera pan and pinch zoom; lifting one finger cannot restart a drag until all fingers are released. Control `touch_drag_threshold_px` and `touch_pinch_and_pan`. Disable Project Settings → Input Devices → Pointing → **Emulate Mouse From Touch** to avoid duplicate events in host UI.
+- **Gamepad / Steam Deck:** enabling the controller creates a screen-space pointer that ignores mouse input. Standard Godot/SDL joypad controls on `joypad_device=0`: left stick cursor, A hold/release, B cancel, X toggle connected-group selection, shoulder buttons rotate, triggers zoom, right stick pan. Set `use_joypad_defaults=false` to disable raw joypad controls and use only the optional host-owned InputMap action fields. Configure `cursor_speed_px`, `stick_deadzone`, `camera_pan_speed_px` and host action names for custom controllers.
+- **Integration:** use `board.set_interaction_enabled(false)` while a menu or HUD owns input. The board does not add global InputMap actions, create transport services or serialize virtual pointer/touch state.
+
+```gdscript
+var config: JigsawPuzzleConfig = JigsawPuzzleConfig.new()
+config.device_input.enable_controller = true
+config.device_input.enable_touch = true
+$JigsawBoard.configure(config)
+```
+
+`tests/test_device_input.gd` exercises synthetic controller buttons, drag/release, camera movement, touch pinch and cancellation. Device-specific drivers, display density, frame pacing and platform export still require manual testing before claiming hardware compatibility.
+
 ## InputMap aliases and reduced motion
 
 For alternative keyboard/gamepad shortcuts, first register actions in **your game's Project Settings → Input Map**, then put their names in the Camera and Gameplay settings. JigsawG does not register global actions and gracefully ignores empty/unregistered action names.
@@ -166,7 +185,7 @@ config.gameplay.rotate_action = &"my_game_rotate"
 config.gameplay.preview_action = &"my_game_reference"
 ```
 
-Existing Home / End / F / P, mouse wheel and right-click shortcuts remain available. The rotate action targets the group under the **current pointer**. Full keyboard-only piece selection/movement or a virtual gamepad cursor remains future work.
+Existing Home / End / F / P, mouse wheel and right-click shortcuts remain available. The rotate action targets the group under the **current pointer**. Full keyboard-only piece selection/movement remains future work; the opt-in virtual controller cursor is now available.
 
 **Feedback → Reduce Motion** disables the built-in motion adapter, camera/drag smoothing and temporary tint flashes. The runtime override applies immediately and cancels built-in piece display/tint tweens without changing logical transforms or saved groups:
 

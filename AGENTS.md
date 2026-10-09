@@ -151,6 +151,7 @@ docs/                                      # User API, events, testing, roadmap
 - Connected pieces remain rigid during dragging, packing and quarter-turn rotations. Position/rotation used for snap and save are exact, not tweened.
 - Motion adapters operate on **presentation** (e.g. `JigsawPiece.display_transform`), not the Board's authoritative piece transforms.
 - Gameplay accessibility assistance must be opt-in and must never bypass actual neighbor IDs, quarter-turn agreement, precise snap destination or exact polygon-hit priority. Screen-pixel picking margins may only affect choosing a piece; they do not enlarge saved contours.
+- Touch/Steam Deck controls must remain opt-in via `JigsawPuzzleConfig.device_input`. Never synthesize mouse events or save virtual cursor positions; a second touch must cancel a piece drag before pan/pinch. Preserve HUD input ownership and legacy mouse/keyboard behavior.
 - Optional InputMap aliases remain host-owned and supplement legacy shortcuts; reduced motion must preserve logical transforms and motion/event signals. Custom host reactions need to honor is_reduced_motion() themselves.
 - For new GDScript tests, annotate locals explicitly. In particular, use typed preloaded scripts (BoardScript, HitIndex) rather than inferring variables from Variant-returning Board/Resource expressions; verify imports with warnings treated as errors.
 - A normal click does not leave a persistent selection outline; a real drag highlights the single piece. **Ctrl+click must immediately highlight or toggle a whole connected group**, including after a plain click.
@@ -202,6 +203,7 @@ godot --headless --path . --script res://tests/test_hit_index_board.gd
 godot --headless --path . --script res://tests/test_hit_region.gd
 godot --headless --path . --script res://tests/test_accessibility_assist.gd
 godot --headless --path . --script res://tests/test_accessible_input_and_motion.gd
+godot --headless --path . --script res://tests/test_device_input.gd
 godot --headless --path . --script res://tests/test_camera_selection_focus.gd
 godot --headless --path . --script res://tests/test_motion_adapter.gd
 godot --headless --path . --script res://tests/test_generation_batching.gd

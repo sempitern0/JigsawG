@@ -83,6 +83,7 @@ The Board exposes **one Inspector entry:** `puzzle_config`. Its sections separat
 | `JigsawGameplaySettings` | Free/Mosaic, rotation, snapping, multi-selection, shuffle, ghost/preview, generation batches |
 | `JigsawAppearanceSettings` | Connector family/depth, Bézier detail, artwork filtering, **piece edge color**, material and highlights |
 | `JigsawCameraSettings` | Board/overview framing, zoom, pan, smoothing, bounds and keyboard shortcuts |
+| `JigsawDeviceInputSettings` | Opt-in tablet gestures, virtual gamepad cursor and configurable controller actions |
 | `JigsawFeedbackSettings` | Pickup/snap tints, feedback timing and optional `JigsawMotionAdapter` |
 
 A few recipes:
@@ -126,6 +127,30 @@ All relevant controls are configurable through the Gameplay and Camera Resources
 Developers can provide additional **InputMap action names** for focus (board, overview or selection), zoom, rotation and reference preview. These actions supplement existing mouse/keyboard controls; JigsawG never installs or overwrites a project's InputMap. Full keyboard-only piece movement is not implemented yet.
 
 Enable **Feedback → Reduce Motion** to suppress built-in camera/drag interpolation, presentation-only motion and tint flashes. An options menu can call `$JigsawBoard.set_reduced_motion(true)` without regenerating pieces. Host-authored custom visual reactions should also check `is_reduced_motion()`.
+
+### Tablet and Steam Deck / controller controls
+
+Enable the optional device-input Resource; existing projects keep their mouse and keyboard behavior unchanged:
+
+```gdscript
+config.device_input.enable_touch = true
+config.device_input.enable_controller = true
+board.configure(config)
+```
+
+| Device | Control | Action |
+| --- | --- | --- |
+| Controller | Left stick | Move the visible virtual cursor |
+| Controller | A / B / X | Hold and release a piece / cancel / Ctrl-style group selection |
+| Controller | Left / right shoulder | Rotate a group counterclockwise / clockwise |
+| Controller | Left / right trigger | Zoom out / in |
+| Controller | Right stick | Pan the camera |
+| Tablet | One finger | Tap, drag and release a piece |
+| Tablet | Two fingers | Pan and pinch to zoom; pending piece drags are cancelled |
+
+The built-in controller profile uses Godot/SDL mappings (device 0 by default). Disable `device_input.use_joypad_defaults` to rely exclusively on your game's InputMap actions. Cursor speed, deadzone, joypad device and camera speed are configurable. On tablets, disable **Emulate Mouse From Touch** in Godot Project Settings when enabling native touch. When an overlay or pause menu takes input, use `board.set_interaction_enabled(false)`.
+
+The included demo preset enables both input modes. Actual Steam Deck and tablet hardware behavior and performance must still be validated; headless tests alone do not certify support.
 
 ## Integrate without rewriting the puzzle
 
