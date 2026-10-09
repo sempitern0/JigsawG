@@ -128,9 +128,11 @@ func _run() -> void:
 	assert(_events.has("cancelled"))
 	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_Y, true)))
 	assert(board.is_reference_preview_visible())
+	assert(not board._controller_cursor_ui.visible, "Fullscreen reference should hide the virtual cursor.")
 	assert(not board._handle_controller_action(_joypad_button(JOY_BUTTON_A, true)), "Preview must block piece interaction.")
 	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_Y, true)))
 	assert(not board.is_reference_preview_visible())
+	assert(board._controller_cursor_ui.visible)
 	var prior_quarters: int = board._rotations[0]
 	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_RIGHT_SHOULDER, true)))
 	assert(board._rotations[0] == posmod(prior_quarters + 1, 4))

@@ -1885,6 +1885,8 @@ func set_preview_visible(visible: bool) -> void:
 		_touch_gesture_active = false
 		_device_pointer_active = _controller_cursor_active
 	_preview_overlay.set_preview_visible(visible)
+	if is_instance_valid(_controller_cursor_ui):
+		_controller_cursor_ui.visible = not visible and _controller_cursor_active
 	preview_toggled.emit(visible)
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PREVIEW_TOGGLED, -1, true, JigsawPuzzleEvent.REASON_VISIBLE if visible else JigsawPuzzleEvent.REASON_HIDDEN, {
 		"visible": visible
