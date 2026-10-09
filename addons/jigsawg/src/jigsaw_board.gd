@@ -82,6 +82,9 @@ var initial_focus := JigsawCameraSettings.InitialFocus.AUTO
 var large_puzzle_threshold := 200
 var focus_board_key: Key = KEY_HOME
 var overview_key: Key = KEY_END
+var focus_selection_key: Key = KEY_F
+var selection_focus_padding := 1.0
+var selection_focus_max_zoom := 2.0
 var max_zoom := 8.0
 var edge_scroll_zone := 64.0
 var edge_scroll_speed := 900.0
@@ -293,6 +296,40 @@ func focus_board() -> bool:
 	if _camera == null or _piece_size == Vector2.ZERO:
 		return false
 	_fit_camera_to(Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows)))
+	_finish_camera_framing()
+	return true
+
+
+## Reframe the last clicked or Ctrl-selected connected groups; leaves puzzle
+## transforms and selection unchanged. Never interrupt an active drag.
+func focus_selection() -> bool:
+	if _camera == null or _generating or _drag_root >= 0 or _selected_piece_ids.is_empty():
+		return false
+	var seen: Dictionary = {}
+	var combined := Rect2()
+	var has_bounds := false
+	var ids: Array = _selected_piece_ids.keys()
+	ids.sort()
+	for piece_variant in ids:
+		var piece_id := int(piece_variant)
+		if piece_id < 0 or piece_id >= _pieces.size() or _locked_pieces.has(piece_id):
+			continue
+		var root := _groups.root_of(piece_id)
+		if root < 0 or seen.has(root):
+			continue
+		seen[root] = true
+		var bounds := _group_bounds_local(root)
+		if not has_bounds:
+			combined = bounds
+			has_bounds = true
+		else:
+			combined = combined.merge(bounds)
+	if not has_bounds:
+		return false
+	var margin := maxf(_piece_size.x, _piece_size.y) * selection_focus_padding
+	_fit_camera_to(combined.grow(margin))
+	_camera.zoom = Vector2.ONE * minf(_camera.zoom.x, selection_focus_max_zoom)
+	_limit_camera()
 	_finish_camera_framing()
 	return true
 
@@ -853,6 +890,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			if fit_view():
 				get_viewport().set_input_as_handled()
 			return
+		if event.keycode == focus_selection_key and focus_selection_key != KEY_NONE:
+			if focus_selection():
+				get_viewport().set_input_as_handled()
+			return
 
 	if event is InputEventKey and event.pressed and not event.echo and enable_preview and event.keycode == preview_key:
 		set_preview_visible(not _preview_overlay.is_preview_visible())
@@ -1406,6 +1447,9 @@ func _apply_resource_presets() -> void:
 	large_puzzle_threshold = camera_options.large_puzzle_threshold
 	focus_board_key = camera_options.focus_board_key
 	overview_key = camera_options.overview_key
+	focus_selection_key = camera_options.focus_selection_key
+	selection_focus_padding = camera_options.selection_focus_padding
+	selection_focus_max_zoom = camera_options.selection_focus_max_zoom
 	smooth_pan = camera_options.smooth_pan
 	pan_smoothing = camera_options.pan_smoothing
 	restrict_camera = camera_options.restrict_camera

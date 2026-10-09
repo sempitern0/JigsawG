@@ -19,6 +19,12 @@ enum InitialFocus { AUTO, ALL_PIECES, BOARD }
 ## Keyboard shortcuts for board work and full scattered overview.
 @export var focus_board_key: Key = KEY_HOME
 @export var overview_key: Key = KEY_END
+## Focus the last clicked piece or all Ctrl-selected groups.
+@export var focus_selection_key: Key = KEY_F
+## Padding measured in longest native piece sides.
+@export_range(0.0, 4.0, 0.1) var selection_focus_padding := 1.0
+## Max zoom when framing the selected pieces; limits disorienting close-ups.
+@export_range(0.25, 8.0, 0.25) var selection_focus_max_zoom := 2.0
 ## Smooth camera position toward drag/edge-scroll targets instead of snapping each input sample.
 @export var smooth_pan := true
 ## Exponential pan response per second; higher follows the pointer more immediately.
