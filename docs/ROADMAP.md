@@ -48,7 +48,7 @@ Phases are **ordered by dependencies**, not promised calendar dates. Every phase
 **Goal:** make development repeatable and know what the current plugin actually costs.
 
 **Deliverables**
-- Set up a reliable Godot **4.7.x** headless import/parse and fast regression runner (local and, if possible, CI). Pin the exact tested engine version.
+- Set up a reliable Godot **4.7.x** headless import/parse and fast regression runner (local and, if possible, CI). Pin the exact tested engine version. **Runner and workflow scaffold published; successful Godot execution and CI status remain to be verified.**
 - Review existing tests for false assumptions, brittle assertions, render-dependent behavior and incomplete event/state coverage; fix failures before feature expansion.
 - Add a reproducible performance harness for **200, 500 and 2000** pieces, both Free and Mosaic where applicable, using known image dimensions, seeds, viewport and renderer.
 - Collect *first-generation time*, peak and steady memory, frame-time p50/p95/p99, input-to-motion latency, visible/drawn piece counts and pan/zoom responsiveness. Record GPU/CPU, OS, resolution and texture source.
@@ -68,7 +68,7 @@ Phases are **ordered by dependencies**, not promised calendar dates. Every phase
 - Adaptive rendering detail / visibility strategy for out-of-view or far-zoom pieces; verify complementary geometry remains the single source of truth.
 - Time-budgeted or adaptive generation batches, with safe cancellation and monotonic progress signals.
 - Improve shuffle footprint and grouping distribution for large/portrait images; keep deterministic behavior and avoid overlaps.
-- Working-area and overview navigation: clear camera framing, easy return to current group, optional zoom-to-selection; input actions overridable by the host.
+- Working-area and overview navigation: clear camera framing, easy return to the current selected group (**F / `focus_selection()` implemented, in-engine check pending**) and host-configurable camera keys.
 - Preserve image clarity: texture resolution guidance, reasonable filtering defaults and honest warnings when source pixels cannot support deep zoom.
 
 **Acceptance**

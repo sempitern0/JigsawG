@@ -114,6 +114,7 @@ Be mindful of VRAM and maximum texture sizes when choosing ultra-high-resolution
 | **Mouse wheel** | Zoom at cursor |
 | **Empty-space drag / middle drag** | Pan the camera |
 | **Home / End** | Focus assembly board / show all scattered pieces |
+| **F** | Return to the last clicked piece or frame all Ctrl-selected groups |
 | **P** | Toggle the full-image reference preview |
 
 All relevant controls are configurable through the Gameplay and Camera Resources. A normal single click leaves no persistent highlight; Ctrl selections stay visibly outlined.
@@ -137,6 +138,17 @@ func _on_puzzle_finished(_event: JigsawPuzzleEvent) -> void:
 ```
 
 **For saving:** call `capture_state()` / `restore_state()` or `capture_resume_config()`. **For no-code feedback:** add a `JigsawAudioReaction`, `JigsawSpawnSceneReaction`, `JigsawPlayAnimationReaction` or `JigsawCallMethodReaction` to your config's **Reactions** array.
+
+## Development checks
+
+Use the pinned Godot 4.7.2 regression runner (import + every fast `tests/test_*.gd` script):
+
+```bash
+python3 scripts/ci/run_tests.py --godot /path/to/godot
+python3 scripts/ci/run_tests.py --godot /path/to/godot --test test_camera_selection_focus
+```
+
+It rejects script/parser errors, non-zero exit codes and missing test success markers. The heavy 200/500/2000-piece benchmark is separate. The presence of a CI workflow does **not** mean these tests have already passed on a particular Godot installation.
 
 ## Architecture
 

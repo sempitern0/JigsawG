@@ -1,5 +1,16 @@
 # JigsawG — release validation
 
+## Headless regression command
+
+Run the Godot 4.7.2 editor import and all fast `tests/test_*.gd` tests with one command:
+
+```bash
+python3 scripts/ci/run_tests.py --godot /path/to/godot
+python3 scripts/ci/run_tests.py --godot /path/to/godot --test test_camera_selection_focus
+```
+
+The runner rejects non-zero exits, script/import errors and missing PASS markers. The separate `benchmark_large_puzzles.gd` is excluded; run it on named hardware for actual performance evidence. The GitHub Actions file `.github/workflows/godot-regression.yml` still requires a verified green run before CI success can be claimed.
+
 ## Plugin startup and icon (Godot 4.7.2)
 
 - [ ] Start the editor with the JigsawG plugin enabled; `plugin.gd` must resolve both the board script and icon by UID without parse/import errors.
@@ -47,6 +58,9 @@
 - [ ] Chaotic shuffle produces deterministic results for the same seed, avoids overlaps, and does not visibly align pieces to a regular grid.
 - [ ] Highlight enable/color/width/shadow settings update all selected pieces consistently.
 - [ ] Preview shortcut, ghost image transparency and full-image overlay render correctly.
+- [ ] Run `godot --headless --path . --script res://tests/test_camera_selection_focus.gd`; verify last-click focus, multi-group bounds and configured zoom limit.
+- [ ] After selecting a distant piece, press F to return to it without moving pieces or leaving a persistent single-selection outline.
+- [ ] Ctrl-select detached groups and press F; no selection or a current drag must leave the camera unchanged.
 - [ ] Camera drag follows the pointer smoothly without visible jumps.
 - [ ] `smooth_pan=false` restores direct camera movement.
 - [ ] `pan_smoothing` visibly changes responsiveness without changing final pan distance.

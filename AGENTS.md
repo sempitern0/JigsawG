@@ -180,6 +180,9 @@ If the Godot binary, GUI or reference hardware is unavailable, do static review 
 Use the available Godot 4.7.x executable (`godot` or `godot4` on your machine):
 
 ```bash
+# Full fast regression: python3 scripts/ci/run_tests.py --godot /path/to/godot
+# Focused regression: python3 scripts/ci/run_tests.py --godot /path/to/godot --test test_camera_selection_focus
+
 # Import assets / resolve UID references before headless test scripts
 godot --headless --path . --editor --quit
 
@@ -191,6 +194,7 @@ godot --headless --path . --script res://tests/test_group_model.gd
 godot --headless --path . --script res://tests/test_group_integration.gd
 godot --headless --path . --script res://tests/test_state_and_selection.gd
 godot --headless --path . --script res://tests/test_selection_and_auto_grid.gd
+godot --headless --path . --script res://tests/test_camera_selection_focus.gd
 godot --headless --path . --script res://tests/test_motion_adapter.gd
 godot --headless --path . --script res://tests/test_generation_batching.gd
 godot --headless --path . --script res://tests/test_event_api.gd

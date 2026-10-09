@@ -133,6 +133,9 @@ Mipmaps are generated only for `texture_sampling = Mipmaps`, avoiding unnecessar
 - `large_puzzle_threshold` (200 pieces by default)
 - `focus_board_key` (Home by default)
 - `overview_key` (End by default)
+- `focus_selection_key` (F by default; KEY_NONE disables it)
+- `selection_focus_padding` (margin around the selection, measured in native piece sides)
+- `selection_focus_max_zoom` (maximum zoom when focusing selected pieces; default 2.0)
 - `smooth_pan`
 - `pan_smoothing`
 - `restrict_camera`
@@ -294,6 +297,7 @@ If a nested Resource is null, JigsawG creates runtime defaults for that section.
 | `is_interaction_enabled()` | Check whether puzzle input is enabled |
 | `fit_view()` | Recenter on all scattered pieces; returns false without a camera |
 | `focus_board()` | Frame only the assembly board for readable large puzzles |
+| `focus_selection()` | Frame the last clicked or currently Ctrl-selected connected groups; does not move pieces or work during a drag |
 | `is_generating()` | Whether a batched generation is in progress |
 | `get_generation_progress()` | Generated and total piece counts as `Vector2i` |
 | `toggle_reference_preview()` | Open/close the reference overlay |
