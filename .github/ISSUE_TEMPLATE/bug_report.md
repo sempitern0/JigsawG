@@ -1,42 +1,34 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ""
-labels: "\U0001F41B bug"
-assignees: ""
+about: Report a reproducible issue in the JigsawG Godot plugin
+title: "[Bug] "
+labels: ["bug"]
+assignees: []
 ---
 
-Godot version: x.x.x
+### Environment
+- Godot version:
+- JigsawG version/commit:
+- OS and renderer (GL Compatibility / other):
+- Input device:
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+### Reproduction
+1. 
+2. 
+3. 
 
-**To Reproduce**
-Steps to reproduce the behavior:
+### Expected vs actual
+**Expected:**
 
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Actual:**
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+### Puzzle configuration
+- Rows × columns:
+- Game mode:
+- Rotation enabled:
+- Shuffle/distribution:
+- Source image dimensions:
+- Attached .tres or minimal project, if possible:
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
-
-**Desktop (please complete the following information):**
-
-- OS: [e.g. iOS]
-- Browser [e.g. chrome, safari]
-- Version [e.g. 22]
-
-**Smartphone (please complete the following information):**
-
-- Device: [e.g. iPhone6]
-- OS: [e.g. iOS8.1]
-- Browser [e.g. stock browser, safari]
-- Version [e.g. 22]
-
-**Additional context**
-Add any other context about the problem here.
+### Logs/screenshots
+Attach the editor output and a short video/screenshot. Remove private artwork if you do not have redistribution rights.
