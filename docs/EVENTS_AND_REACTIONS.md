@@ -1,53 +1,239 @@
 # Events and reactions
 
-JigsawG keeps puzzle mechanics independent from your game's presentation. Use the event API for particles, audio, UI, scoring, achievements, analytics, tutorials or any other host-game behavior.
+JigsawG keeps puzzle mechanics independent from your game's presentation. The board solves dragging, snapping, grouping, rotation and completion; your game decides what should happen visually or logically when those things occur.
 
-There are three integration levels:
+There are three ways to react:
 
-1. **Semantic signals** on `JigsawBoard`: easiest for scene scripts.
-2. **`event_emitted(JigsawPuzzleEvent)`**: one event bus for centralized systems.
-3. **`JigsawReaction` Resources** inside `JigsawPuzzleConfig.reactions`: reusable plug-and-play behavior.
+1. **No-code Resources** in `JigsawPuzzleConfig.reactions` — fastest for audio and reusable VFX.
+2. **Typed signals** on `JigsawBoard` — ideal for scene-local UI or gameplay.
+3. **`event_emitted(JigsawPuzzleEvent)`** — one event bus for score, analytics, progression or centralized feedback.
 
-The old lightweight signals such as `piece_picked`, `pieces_connected` and `puzzle_completed` remain available for compatibility.
+The compact legacy signals such as `piece_picked`, `pieces_connected` and `puzzle_completed` remain available for compatibility.
+
+---
+
+## No-code quick start
+
+Open the `JigsawPuzzleConfig` assigned to your `JigsawBoard`.
+
+1. Expand **Reactions**.
+2. Add an array element.
+3. Choose **New JigsawAudioReaction** or **New JigsawSpawnSceneReaction**.
+4. Expand the new Resource.
+5. Under **Reaction → Event Mask**, tick the puzzle events that should trigger it.
+6. Configure the sound or scene.
+7. Run the puzzle.
+
+An empty Event Mask means **every event**, so for normal effects select at least one flag.
+
+Reactions execute in array order. You can stack several reactions on the same event—for example sound + particles + floating score text on a successful group connection.
+
+### Recipe: sound when pieces/groups connect
+
+Create a **JigsawAudioReaction**:
+
+```text
+Puzzle Config
+└── Reactions
+    └── JigsawAudioReaction
+        ├── Event Mask
+        │   └── Group Connected ✓
+        ├── Stream: res://audio/puzzle_snap.ogg
+        ├── Spatial: true
+        ├── Bus: SFX
+        ├── Volume Db: -2
+        ├── Pitch Min: 0.96
+        └── Pitch Max: 1.04
+```
+
+Every successful Free-mode connection now plays the sound at the snap position. The temporary `AudioStreamPlayer2D` is removed automatically when playback finishes.
+
+### Recipe: one error sound for both gameplay modes
+
+A single **JigsawAudioReaction** can listen to multiple events:
+
+```text
+Event Mask
+├── Piece Placement Failed ✓
+└── Group Connection Failed ✓
+```
+
+Assign a soft error sound. The same preset then works in both Mosaic and Free mode.
+
+### Recipe: sparkle when a Mosaic piece is placed
+
+Create a small scene such as:
+
+```text
+piece_sparkle.tscn
+└── GPUParticles2D
+```
+
+Set the particles to start emitting when instantiated. Then create:
+
+```text
+JigsawSpawnSceneReaction
+├── Event Mask
+│   └── Piece Placed ✓
+├── Scene: piece_sparkle.tscn
+├── Parent Mode: Board Parent
+├── Offset: (0, 0)
+└── Auto Free After: 1.5
+```
+
+The scene is instantiated at `event.world_position` and removed after 1.5 seconds. No script is required on the effect.
+
+### Recipe: effect that follows the dragged piece
+
+Use **Piece Drag Started** and set:
+
+```text
+Parent Mode: Primary Piece
+```
+
+The spawned Node2D becomes a child of the piece and therefore follows its movement automatically. The Offset is local to that piece in this mode.
+
+For a short pickup glow:
+
+```text
+JigsawSpawnSceneReaction
+├── Event Mask
+│   └── Piece Drag Started ✓
+├── Scene: pickup_glow.tscn
+├── Parent Mode: Primary Piece
+└── Auto Free After: 0.4
+```
+
+For a continuous drag trail, let the spawned scene manage its own lifetime or combine it with a small custom reaction/script that stops it on **Piece Drag Finished** and **Piece Drag Cancelled**.
+
+### Recipe: completion celebration
+
+Create a scene containing your confetti, animation or full-screen effect, then:
+
+```text
+JigsawSpawnSceneReaction
+├── Event Mask
+│   └── Puzzle Completed ✓
+├── Scene: puzzle_complete_fx.tscn
+├── Parent Mode: Current Scene
+└── Auto Free After: 4.0
+```
+
+Board-level events use the center of the solved puzzle as `event.world_position`, which is useful for world-space completion effects.
+
+### Recommended reaction setup
+
+A practical reusable puzzle preset can look like:
+
+```text
+JigsawPuzzleConfig
+└── Reactions
+    ├── [0] AudioReaction       → Piece Drag Started
+    ├── [1] AudioReaction       → Group Connected
+    ├── [2] SpawnSceneReaction  → Group Connected
+    ├── [3] AudioReaction       → Placement Failed + Connection Failed
+    ├── [4] SpawnSceneReaction  → Piece Placed
+    ├── [5] AudioReaction       → Puzzle Completed
+    └── [6] SpawnSceneReaction  → Puzzle Completed
+```
+
+Save individual reactions as external `.tres` files when you want to reuse the same sound/VFX language across many puzzle configs.
+
+---
+
+## Built-in reaction Resources
+
+### JigsawAudioReaction
+
+Plays a one-shot `AudioStream` when one of its selected events occurs.
+
+| Property | Effect |
+| --- | --- |
+| `event_mask` | Events that trigger the reaction; empty means all |
+| `stream` | AudioStream to play |
+| `spatial` | true = AudioStreamPlayer2D at event position; false = global audio |
+| `bus` | Host project's audio bus |
+| `volume_db` | Playback volume |
+| `pitch_min/max` | Random pitch range for subtle variation |
+
+Programmatic equivalent:
+
+```gdscript
+var snap_sound := JigsawAudioReaction.new()
+snap_sound.stream = load("res://audio/puzzle_snap.ogg")
+snap_sound.event_mask = JigsawReaction.mask_for(
+    JigsawPuzzleEvent.Type.GROUP_CONNECTED
+)
+config.reactions.append(snap_sound)
+```
+
+### JigsawSpawnSceneReaction
+
+Instantiates a `PackedScene` when one of its selected events occurs.
+
+| Property | Effect |
+| --- | --- |
+| `scene` | Scene to instantiate |
+| `parent_mode` | Board, Board Parent, Current Scene or Primary Piece |
+| `offset` | World offset, or local offset in Primary Piece mode |
+| `auto_free_after` | Seconds before automatic cleanup; 0 = scene manages lifetime |
+| `pass_event_to_scene` | Calls `setup_jigsaw_event(event)` when the spawned root implements it |
+
+Use **Primary Piece** for short effects that should move with the source piece. Use **Board Parent** for normal world-space VFX. Use **Current Scene** for overlays or effects managed by the host scene.
+
+If the spawned scene needs event data, optionally add:
+
+```gdscript
+func setup_jigsaw_event(event: JigsawPuzzleEvent) -> void:
+    $Label.text = "+%d" % (event.group_size * 10)
+```
+
+The effect remains reusable because JigsawG passes the same event context to every scene.
+
+---
 
 ## Event model
 
-Every rich event is a `JigsawPuzzleEvent` with the same context fields:
+Every rich event is a `JigsawPuzzleEvent` with a common context:
 
 | Field | Meaning |
 | --- | --- |
-| `type` | `JigsawPuzzleEvent.Type` semantic event kind |
+| `type` | Semantic event type |
 | `board` | Board that emitted the event |
 | `piece_id` | Primary piece, or -1 for board-level events |
-| `piece_ids` | Current connected group membership |
-| `group_size` | Size of `piece_ids` |
-| `world_position` | World-space center suitable for VFX/audio |
-| `quarter_turns` | Current 0–3 orientation of the primary piece |
+| `piece_ids` | Connected group membership at emission time |
+| `group_size` | Number of pieces represented by `piece_ids` |
+| `world_position` | World-space position intended for effects/audio |
+| `quarter_turns` | Current orientation from 0 to 3 |
 | `success` | Whether the interaction succeeded |
-| `reason` | Stable short reason such as `neighbor_snap` or `wrong_position_or_rotation` |
-| `metadata` | Event-specific extra values |
-| `timestamp_msec` | Engine tick time when the event was created |
+| `reason` | Stable `JigsawPuzzleEvent.REASON_*` value |
+| `metadata` | Event-specific additional data |
+| `timestamp_msec` | Engine tick time when the event was built |
 
 ### Event types
 
 | Type | Typical use |
 | --- | --- |
 | `PUZZLE_RESET` | Clear temporary UI/VFX before regeneration |
-| `PUZZLE_STARTED` | Start timer, music, tutorial or analytics session |
-| `PIECE_DRAG_STARTED` | Pickup sound, glow, trail activation |
-| `PIECE_DRAG_FINISHED` | Stop drag trail, update move counter |
-| `PIECE_DRAG_CANCELLED` | Clean up drag effects when preview/rebuild interrupts input |
-| `PIECE_PLACED` | Mosaic success particles/audio |
-| `PIECE_PLACEMENT_FAILED` | Mosaic incorrect-placement feedback |
-| `GROUP_CONNECTED` | Free-mode snap celebration, combo/scoring |
-| `GROUP_CONNECTION_FAILED` | Free-mode failed snap feedback |
+| `PUZZLE_STARTED` | Start timer, music or tutorial |
+| `PIECE_DRAG_STARTED` | Pickup audio, glow, short trail |
+| `PIECE_DRAG_FINISHED` | Stop drag feedback, count a move |
+| `PIECE_DRAG_CANCELLED` | Cleanup when preview/rebuild interrupts drag |
+| `PIECE_PLACED` | Mosaic success feedback |
+| `PIECE_PLACEMENT_FAILED` | Mosaic error feedback |
+| `GROUP_CONNECTED` | Free-mode snap feedback, combo/scoring |
+| `GROUP_CONNECTION_FAILED` | Free-mode invalid connection feedback |
 | `GROUP_ROTATED` | Rotation sound or orientation UI |
-| `PREVIEW_TOGGLED` | Pause timer or update help HUD |
-| `PUZZLE_COMPLETED` | Completion screen, persistence, rewards |
+| `PREVIEW_TOGGLED` | Pause timer or update help UI |
+| `PUZZLE_COMPLETED` | Results, rewards, persistence |
 
-JigsawG deliberately does **not** emit a per-frame drag event. High-frequency effects should listen to `PIECE_DRAG_STARTED`, obtain the live piece with `board.get_piece_node(event.piece_id)`, follow it in their own `_process()`, and stop on `PIECE_DRAG_FINISHED` / `PIECE_DRAG_CANCELLED`. This keeps the event bus semantic and inexpensive.
+JigsawG deliberately does **not** emit a per-frame drag event. High-frequency effects can follow the live piece returned by `board.get_piece_node(event.piece_id)` after **Piece Drag Started** and stop on Drag Finished/Cancelled. This keeps the event API semantic and inexpensive.
 
-## Option 1 — connect one specific signal
+---
+
+## Signals: scene-local integration
+
+Connect only what the scene needs:
 
 ```gdscript
 @onready var board = $JigsawBoard
@@ -57,17 +243,15 @@ func _ready() -> void:
     board.puzzle_finished.connect(_on_puzzle_finished)
 
 func _on_group_connected(event: JigsawPuzzleEvent) -> void:
-    $SnapParticles.global_position = event.world_position
-    $SnapParticles.restart()
-    $SnapSound.play()
+    score += event.group_size * 10
 
-func _on_puzzle_finished(event: JigsawPuzzleEvent) -> void:
-    $HUD.show_results()
+func _on_puzzle_finished(_event: JigsawPuzzleEvent) -> void:
+    $ResultsScreen.open()
 ```
 
-## Option 2 — one event bus
+## One central event bus
 
-Useful for score managers, telemetry or a centralized feedback controller:
+For a score manager, analytics system or game-state controller:
 
 ```gdscript
 func _ready() -> void:
@@ -85,51 +269,11 @@ func _on_puzzle_event(event: JigsawPuzzleEvent) -> void:
             save_result()
 ```
 
-## Option 3 — no-code / low-code Resource reactions
-
-Add Resources to `JigsawPuzzleConfig.reactions`.
-
-### JigsawAudioReaction
-
-Create **JigsawAudioReaction**, select its event flags and assign an `AudioStream`. It can play globally or as 2D audio at `event.world_position`, with volume, bus and pitch variation.
-
-Programmatic setup:
-
-```gdscript
-var snap_sound := JigsawAudioReaction.new()
-snap_sound.stream = load("res://audio/puzzle_snap.ogg")
-snap_sound.event_mask = JigsawReaction.mask_for(JigsawPuzzleEvent.Type.GROUP_CONNECTED)
-config.reactions.append(snap_sound)
-```
-
-Examples:
-- `GROUP_CONNECTED` → cardboard click
-- `PIECE_PLACEMENT_FAILED` + `GROUP_CONNECTION_FAILED` → soft error sound
-- `PUZZLE_COMPLETED` → completion sting
-
-### JigsawSpawnSceneReaction
-
-Create **JigsawSpawnSceneReaction**, select event flags and assign a `PackedScene`. The root is spawned at the event position when it is a Node2D.
-
-This works well for:
-- GPUParticles2D bursts
-- AnimatedSprite2D snap effects
-- floating score labels
-- short-lived custom VFX scenes
-
-The spawned scene owns its own lifetime. If its root implements:
-
-```gdscript
-func setup_jigsaw_event(event: JigsawPuzzleEvent) -> void:
-    # Customize text/color/intensity from event.group_size, event.success, etc.
-    pass
-```
-
-the reaction passes the context automatically.
+---
 
 ## Custom reusable reaction
 
-Create a Resource script:
+When the built-ins are not enough, extend `JigsawReaction`:
 
 ```gdscript
 @tool
@@ -142,33 +286,34 @@ func react(board: Node2D, event: JigsawPuzzleEvent) -> void:
     if event.type != JigsawPuzzleEvent.Type.GROUP_CONNECTED:
         return
 
-    var score_manager = board.get_tree().get_first_node_in_group("score_manager")
+    var score_manager := board.get_tree().get_first_node_in_group("score_manager")
     if score_manager:
         score_manager.add_points(event.group_size * points_per_piece)
 ```
 
-Create a `ComboReaction.tres`, add it to `JigsawPuzzleConfig.reactions`, and reuse it in as many puzzle presets as needed.
+Save it as `ComboReaction.tres`, place it in `JigsawPuzzleConfig.reactions`, and reuse it across puzzles.
 
-Use the inherited **Event Mask** to avoid receiving unrelated events. An empty mask means “all events”.
+### Reaction lifecycle rules
 
-### Reaction design rule
+- Treat shared Reaction Resources as **stateless definitions**.
+- Keep changing session state in Nodes/autoloads, not in shared Resources.
+- The Board snapshots the reaction list when a configuration is applied.
+- Resource edits during a running puzzle take effect on the next `apply_configuration()`, `configure()` or rebuild.
+- `PUZZLE_RESET` goes to the reactions of the puzzle being closed; `PUZZLE_STARTED` goes to the newly applied set.
+- If a reaction switches puzzles, defer that transition rather than rebuilding recursively inside the current event callback.
 
-Reaction Resources may be shared by many boards, so treat them as **stateless definitions**. Keep session state in Nodes/autoloads. Do not store current combo, timer or piece references inside a shared Resource.
-
-The Board snapshots the reaction list when a configuration is applied. Editing the Resource during play does not silently change the current event routing; call `apply_configuration()` or `configure()` to start a new puzzle with the new list. `PUZZLE_RESET` is delivered to the reactions that belonged to the puzzle being closed, while `PUZZLE_STARTED` is delivered to the newly applied list.
-
-If a reaction needs to regenerate or switch puzzles in response to an event, defer that lifecycle change (for example with `call_deferred`) to avoid deeply nested rebuilds.
+---
 
 ## Public helper queries
 
-For custom systems JigsawBoard exposes:
+Custom systems can query the Board without touching its internals:
 
 - `get_piece_count()`
-- `get_piece_node(piece_id)` — read-only transform hook for VFX
+- `get_piece_node(piece_id)` — read-only transform hook for effects
 - `get_group_piece_ids(piece_id)`
 - `get_piece_world_center(piece_id)`
 - `get_dragged_piece_id()`
 - `is_completed()`
 - `get_configuration()`
 
-Do not directly modify piece transforms returned by `get_piece_node()`; the board owns puzzle positioning and snapping.
+Do not directly modify transforms returned by `get_piece_node()`; JigsawBoard owns puzzle positioning and snapping.
