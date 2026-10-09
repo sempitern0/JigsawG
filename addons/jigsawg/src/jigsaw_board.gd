@@ -957,12 +957,21 @@ func _scatter_chaotic() -> void:
 			break
 
 		if not placed:
-			# Extremely dense fallback: continue below the board instead of overlapping.
+			# Extremely dense fallback: search a guaranteed free lane below the board.
 			var fallback_center := Vector2(
 				board_rect.position.x + footprint_extent + float(piece_index % maxi(columns, 1)) * footprint_size.x,
 				board_rect.end.y + base_margin + float(piece_index / maxi(columns, 1)) * footprint_size.y
 			)
 			var fallback_footprint := Rect2(fallback_center - footprint_size * 0.5, footprint_size)
+			var searching := true
+			while searching:
+				searching = false
+				for existing in placed_footprints:
+					if existing.intersects(fallback_footprint):
+						fallback_center.y += footprint_size.y
+						fallback_footprint = Rect2(fallback_center - footprint_size * 0.5, footprint_size)
+						searching = true
+						break
 			_pieces[piece_index].position = fallback_center - _piece_size * 0.5
 			placed_footprints.append(fallback_footprint)
 
