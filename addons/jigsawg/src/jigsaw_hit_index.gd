@@ -75,7 +75,9 @@ func query_region(region: Rect2) -> PackedInt32Array:
 	if width * height > 4096:
 		for id in range(_rectangles.size()):
 			var rect := _rectangles[id]
-			if rect.intersects(region) or region.has_point(rect.position):
+			# Inclusive contact also matters: points exactly at the click
+			# radius boundary must not disappear in the large-region path.
+			if rect.position.x <= region.end.x and rect.end.x >= region.position.x and rect.position.y <= region.end.y and rect.end.y >= region.position.y:
 				found[id] = true
 	else:
 		for y in range(low.y, high.y + 1):
