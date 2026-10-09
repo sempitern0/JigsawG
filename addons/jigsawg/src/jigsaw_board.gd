@@ -2,6 +2,7 @@
 extends Node2D
 ## Public puzzle component. Persistent behavior comes from JigsawPuzzleConfig;
 ## host games integrate through signals, JigsawPuzzleEvent and JigsawReaction.
+## Compact compatibility signals. Prefer the rich semantic API below for new integrations.
 signal puzzle_generated(piece_count: int)
 signal pieces_connected(group_size: int)
 signal puzzle_completed
@@ -86,7 +87,6 @@ var random_rotation_on_shuffle := true
 
 signal preview_toggled(visible: bool)
 signal piece_placed(piece_id: int)
-signal group_placed(group_size: int)
 signal group_rotated(piece_id: int, quarter_turns: int, group_size: int)
 
 var _preview_overlay: CanvasLayer
