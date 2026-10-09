@@ -123,13 +123,13 @@ static func _organic_edge(
 	var anchors: Array[Vector2] = [
 		Vector2(0.0, 0.0),
 		Vector2(0.11, left_wobble),
-		Vector2(center - l_shoulder, left_foot),
+		Vector2(maxf(0.165, center - l_shoulder), left_foot),
 		Vector2(center - l_neck, 0.10),
 		Vector2(center - l_head, l_height),
 		Vector2(center + peak_offset, height),
 		Vector2(center + r_head, r_height),
 		Vector2(center + r_neck, 0.10),
-		Vector2(center + r_shoulder, right_foot),
+		Vector2(minf(0.835, center + r_shoulder), right_foot),
 		Vector2(0.89, right_wobble),
 		Vector2(1.0, 0.0)
 	]

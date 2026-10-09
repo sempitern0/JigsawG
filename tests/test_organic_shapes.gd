@@ -27,6 +27,18 @@ func _initialize() -> void:
 		unique_contours[signature] = true
 	assert(unique_contours.size() >= 5, "Organic seams must vary per shared token.")
 
+	# Exercise a rare near-shoulder contour that could fold back on itself.
+	# Contour segments may touch their immediate neighbors only.
+	var pathological := Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
+		Vector2i(1, 12974), 26.0, 12, 5, 1.0)
+	for i in range(pathological.size() - 1):
+		for j in range(i + 2, pathological.size() - 1):
+			var intersection := Geometry2D.segment_intersects_segment(
+				pathological[i], pathological[i + 1],
+				pathological[j], pathological[j + 1]
+			)
+			assert(intersection == null, "Organic contour crossed itself.")
+
 	var older := JigsawAppearanceSettings.new()
 	assert(older.connector_family == JigsawAppearanceSettings.ConnectorFamily.CLASSIC)
 	assert(JigsawAppearanceSettings.ConnectorFamily.MIXED == 4)
