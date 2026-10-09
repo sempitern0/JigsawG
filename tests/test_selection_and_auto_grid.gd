@@ -67,6 +67,24 @@ func _verify_board(board: Node2D, host: Node2D) -> void:
 	board._cancel_drag()
 	board.clear_selection()
 
+	# A genuine connected pair stays rigid when packed with another distant group.
+	board.rebuild()
+	for i in range(2, board.get_piece_count()):
+		board.get_piece_node(i).position = Vector2(9000.0 + float(i) * 900.0, 10000.0 + float(i) * 900.0)
+	assert(board._connect_group_from(0), "Expected two neighboring pieces to join.")
+	assert(board.get_group_piece_ids(0).size() == 2)
+	board.get_piece_node(8).position = Vector2(-7000, 5000)
+	var relative_before: Vector2 = board.get_piece_node(1).position - board.get_piece_node(0).position
+	board.select_piece(0, true)
+	board.select_piece(8, true)
+	board._begin_piece_drag(0, board.get_piece_node(0).global_position)
+	board._activate_drag()
+	var relative_after: Vector2 = board.get_piece_node(1).position - board.get_piece_node(0).position
+	assert(relative_before.is_equal_approx(relative_after), "Existing connected group was distorted.")
+	assert(not board._group_bounds_local(0).intersects(board._group_bounds_local(8)))
+	board._cancel_drag()
+	board.clear_selection()
+
 	var auto := JigsawPuzzleConfig.new()
 	auto.grid_mode = JigsawPuzzleConfig.GridMode.AUTO
 	auto.target_piece_count = 35

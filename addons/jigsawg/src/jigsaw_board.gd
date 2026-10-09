@@ -442,6 +442,12 @@ func _refresh_selection_visuals(active_drag: bool = false) -> void:
 		_pieces[i].z_index = 10 if selected and active_drag else (5 if selected and _multi_selection_mode else 0)
 
 func _find_piece_at(world_position: Vector2) -> int:
+	# Ctrl-selected groups are raised visually; give them hit priority as well.
+	# Ordinary single clicks preserve normal scene draw order.
+	if _multi_selection_mode:
+		for i in range(_pieces.size() - 1, -1, -1):
+			if _selected_piece_ids.has(i) and not _locked_pieces.has(i) and _pieces[i].contains(world_position):
+				return i
 	for i in range(_pieces.size() - 1, -1, -1):
 		if not _locked_pieces.has(i) and _pieces[i].contains(world_position):
 			return i
