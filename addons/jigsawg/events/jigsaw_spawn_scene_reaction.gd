@@ -43,7 +43,4 @@ func react(board: Node2D, event: JigsawPuzzleEvent) -> void:
 		instance.call("setup_jigsaw_event", event)
 	if auto_free_after > 0.0:
 		var timer := board.get_tree().create_timer(auto_free_after)
-		timer.timeout.connect(func() -> void:
-			if is_instance_valid(instance):
-				instance.queue_free()
-		)
+		timer.timeout.connect(instance.queue_free)
