@@ -798,7 +798,7 @@ func rebuild() -> void:
 		# yields guarantee at least one real frame with only the complete
 		# assembly guide before creating the first piece batch. Verify the
 		# generation token after each yield to support immediate cancellation.
-		for frame_index in range(2):
+		for _frame_index in range(2):
 			await get_tree().process_frame
 			if build_id != _generation_serial or not is_inside_tree():
 				return
