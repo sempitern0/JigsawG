@@ -105,6 +105,11 @@ signal group_placed(group_size: int)
 ## Emitted after a clockwise quarter turn of a piece or connected group.
 signal group_rotated(piece_id: int, quarter_turns: int, group_size: int)
 
+@export_group("Configuration")
+## Drag a JigsawPuzzleConfig .tres here to configure the entire board.
+## When supplied it takes priority over legacy inspector fields on rebuild().
+@export var puzzle_config: JigsawPuzzleConfig
+
 @export_group("Reusable Presets")
 ## Optional gameplay Resource; its settings override board defaults on rebuild().
 @export var gameplay_settings: JigsawGameplaySettings
@@ -139,8 +144,6 @@ var _pan_last_mouse := Vector2.ZERO
 var _pan_bounds := Rect2()
 var _fit_bounds := Rect2()
 var _rotations: Array[int] = []
-var _applied_gameplay: JigsawGameplaySettings
-var _applied_appearance: JigsawAppearanceSettings
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -556,8 +559,40 @@ func _tween_piece_tint(piece: JigsawPiece, tint: Color) -> void:
 ## A Resource is a shared preset. Do not mutate it while applying it:
 ## assign only the board instance's properties.
 func _apply_resource_presets() -> void:
-	if gameplay_settings != null:
-		var s := gameplay_settings
+	# Root config owns image, board dimensions, and optional subresources.
+	# No Resource is ever modified by this method.
+	if puzzle_config != null:
+		puzzle_texture = puzzle_config.puzzle_texture
+		columns = puzzle_config.columns
+		rows = puzzle_config.rows
+		silhouette_variants = puzzle_config.silhouette_variants
+		if puzzle_config.camera != null:
+			var camera_preset := puzzle_config.camera
+			enable_camera_navigation = camera_preset.enable_camera_navigation
+			invert_background_pan = camera_preset.invert_background_pan
+			auto_fit_camera = camera_preset.auto_fit_camera
+			restrict_camera = camera_preset.restrict_camera
+			camera_outer_margin = camera_preset.camera_outer_margin
+			smooth_zoom = camera_preset.smooth_zoom
+			zoom_smoothing = camera_preset.zoom_smoothing
+			wheel_zoom_factor = camera_preset.wheel_zoom_factor
+			min_zoom = camera_preset.min_zoom
+			max_zoom = camera_preset.max_zoom
+			drag_smoothing = camera_preset.drag_smoothing
+			edge_scroll_zone = camera_preset.edge_scroll_zone
+			edge_scroll_speed = camera_preset.edge_scroll_speed
+		if puzzle_config.feedback != null:
+			var fx := puzzle_config.feedback
+			animation_style = fx.animation_style
+			connect_animation_duration = fx.connect_animation_duration
+		# Root subresources override individually assigned legacy presets.
+	var active_gameplay: JigsawGameplaySettings = puzzle_config.gameplay if puzzle_config != null else gameplay_settings
+	var active_appearance: JigsawAppearanceSettings = puzzle_config.appearance if puzzle_config != null else appearance_settings
+	_apply_gameplay_and_appearance(active_gameplay, active_appearance)
+
+func _apply_gameplay_and_appearance(active_gameplay: JigsawGameplaySettings, active_appearance: JigsawAppearanceSettings) -> void:
+	if active_gameplay != null:
+		var s := active_gameplay
 		game_mode = GameMode.FREE if s.game_mode == JigsawGameplaySettings.Mode.FREE else GameMode.MOSAIC
 		snap_tolerance = s.snap_tolerance
 		allow_piece_rotation = s.allow_piece_rotation
@@ -577,8 +612,8 @@ func _apply_resource_presets() -> void:
 		ghost_opacity = s.ghost_opacity
 		enable_preview = s.enable_preview
 		preview_key = s.preview_key
-	if appearance_settings != null:
-		var a := appearance_settings
+	if active_appearance != null:
+		var a := active_appearance
 		match a.visual_style:
 			JigsawAppearanceSettings.VisualStyle.CARDBOARD:
 				visual_style = VisualStyle.CARDBOARD
