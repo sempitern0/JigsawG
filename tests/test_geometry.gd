@@ -12,8 +12,8 @@ func _initialize() -> void:
 				var shape_right: PackedVector2Array = Geometry.make_outline(size, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, descriptor)
 				# The left piece's right seam is drawn top-to-bottom. The right
 				# piece's left seam is drawn bottom-to-top; reverse for comparison.
-				var left_seam := Geometry.edge_points(Vector2(size.x, 0), size, Vector2.RIGHT, descriptor, minf(size.x, size.y) * 0.235)
-				var right_seam := Geometry.edge_points(Vector2.ZERO, Vector2(0, size.y), Vector2.RIGHT, descriptor, minf(size.x, size.y) * 0.235)
+				var left_seam := Geometry.edge_points(Vector2(size.x, 0), size, Vector2.RIGHT, descriptor, minf(size.x, size.y) * 0.25)
+				var right_seam := Geometry.edge_points(Vector2.ZERO, Vector2(0, size.y), Vector2.RIGHT, descriptor, minf(size.x, size.y) * 0.25)
 				assert(left_seam.size() == right_seam.size())
 				for i in range(left_seam.size()):
 					assert((left_seam[i] - Vector2(size.x, 0)).distance_to(right_seam[i]) < 0.0001, "Unmatched vertical seam")
