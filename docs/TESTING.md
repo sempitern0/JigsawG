@@ -1,38 +1,30 @@
-# JigsawG manual release validation
+# JigsawG — release validation
 
-Godot 4.7, GL Compatibility, mouse and keyboard. Use a real high-resolution photo for visual tests. The authoring environment does not run Godot; mark each check only after executing it locally.
+The resource-first refactor requires local Godot 4.7 verification. The authoring environment cannot run Godot.
 
-## Core
-- [ ] Open the project with the plugin enabled; no GDScript parse errors, missing image dependency or GLES3 2D MSAA warning.
-- [ ] Run 5x4, 10x8 and 20x15. Generated pieces all use matching Bézier edges.
-- [ ] Connect two groups independently in Free mode; rotate one group and verify that incompatible orientations cannot snap.
-- [ ] Rotate the group back to the same orientation as its neighbor, position it at the correct rotated offset, then merge the groups.
-- [ ] Complete a small Free-mode puzzle in a consistent orientation and verify that completion emits exactly once.
-- [ ] In Mosaic, correctly place a piece at 90°, 180° and 270°: none may lock. Rotate to 0°, align it and verify that it locks.
-- [ ] Right-click on a piece rotates by 90°, including when it is already part of a group.
-- [ ] Rotate a piece while left-dragging; it must not jump away from the cursor.
-- [ ] Test portrait and landscape images; rotated non-square pieces must not collide with shuffled neighbors.
-- [ ] Random 90° shuffle is reproducible for the same seed and is disabled when the corresponding property is false.
-- [ ] Confirm free camera pan, zoom, edge scrolling, and P toggle still work while rotation is on.
+## Configuration
+- [ ] Install only `addons/jigsawg` in a clean Godot project; JigsawBoard appears in Add Node.
+- [ ] JigsawBoard Inspector exposes only `Puzzle Config` (no duplicated exported settings).
+- [ ] Create a root JigsawPuzzleConfig, including texture and four nested Resources.
+- [ ] Load `examples/puzzle_lab.tscn`; verify it uses `examples/configs/standard_puzzle.tres`.
+- [ ] Confirm all appearance, camera, gameplay and feedback options take effect after `rebuild()`.
+- [ ] Verify a missing subresource receives defaults without null access or stale state.
+- [ ] Share one .tres across multiple board instances; no Resource is mutated.
+- [ ] Use `configure(config)` and `apply_configuration()` and confirm both reset game progress.
+- [ ] Test migration from an old scene by moving legacy board exports into a .tres.
 
-## Plugin embedding
-- [ ] Copy only `addons/jigsawg` into a fresh Godot project; enable the plugin and add JigsawBoard via Add Node.
-- [ ] Create `JigsawGameplaySettings.tres` and `JigsawAppearanceSettings.tres`, assign them on two separate boards and check both apply identical configuration.
-- [ ] Change a Resource property, call `rebuild()` and verify that updated values take effect.
-- [ ] Remove Resources and confirm the board's directly exported fields work.
-- [ ] Connect to `group_rotated`, `pieces_connected` and `puzzle_completed` from a host game scene.
-- [ ] No hardcoded path to `examples/images`, and no external addons required.
-- [ ] Test repeated `rebuild()`, game-mode switches, fullscreen preview and shuffled rotation without leaked nodes or stale connections.
+## Gameplay regression
+- [ ] 5x4, 10x8 and 20x15 generate correct mirrored Bézier connections.
+- [ ] Left drag, group union and completion work in Free mode.
+- [ ] Pieces lock in Mosaic only in the correct position and orientation.
+- [ ] Right-click rotation and shuffle at 90° multiples preserve group connections.
+- [ ] Preview shortcut, ghost image transparency and full-image overlay render correctly.
+- [ ] Camera drag, smooth wheel zoom, auto-pan and camera margins work.
+- [ ] Style edge alpha, connector depth, texture sampling and profile resolution work.
+- [ ] Connect success/failure/pickup animations use JigsawFeedbackSettings.
 
-## Publishing
-- [ ] Validate package metadata and license attribution.
-- [ ] Perform parse/headless tests and inspect performance for at least 300 pieces.
-- [ ] Attach images/video of Free/Mosaic/Rotation in a release.
-- [ ] Tag only after regression test results and documentation match the shipped package.
-
-## Resource-first packaging
-- [ ] Create a JigsawPuzzleConfig .tres, set texture, columns, rows, connector depth, camera and feedback subresources; attach via JigsawBoard.puzzle_config.
-- [ ] Run the examples/configs/standard_puzzle.tres preset and inspect resource loading errors.
-- [ ] Reuse a shared config in two boards; neither board mutates the Resource.
-- [ ] Call board.configure(config) and board.apply_configuration() and verify generation reset is intentional.
-- [ ] Copy only addons/jigsawg to a new project and configure a puzzle with no legacy inspector fields.
+## Publication
+- [ ] Godot parser and import logs show no GDScript warnings/errors.
+- [ ] Measure large-image memory and the performance of a 300-piece puzzle.
+- [ ] Verify plugin.cfg metadata, license and the packaged addons directory.
+- [ ] Publish a test release only after the checklist has been executed.
