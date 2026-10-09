@@ -14,6 +14,13 @@ enum Distribution { RANDOM, RADIAL }
 ## Accept snapping within this fraction of a piece side.
 @export_range(0.05, 0.5, 0.01) var snap_tolerance := 0.24
 
+## Allow right-click quarter-turn rotation of an unlocked piece or connected group.
+@export var allow_piece_rotation := false
+## Start scattered pieces at random 0°, 90°, 180° or 270° when rotation is enabled.
+@export var random_rotation_on_shuffle := true
+## Ctrl+click toggles complete connected groups; a drag packs distant groups into a compact non-overlapping arrangement.
+@export var enable_multi_select := true
+
 @export_group("Accessibility")
 ## Additional fraction of the shorter piece side allowed for joining neighbors.
 ## Zero retains the current puzzle difficulty without altering join geometry.
@@ -21,14 +28,6 @@ enum Distribution { RANDOM, RADIAL }
 ## Extra pointer tolerance just outside a contour, in viewport pixels.
 ## Exact hits always win. Zero retains the existing input behavior.
 @export_range(0.0, 24.0, 1.0) var selection_assist_radius_px := 0.0
-
-@export_group("Rules")
-## Allow right-click quarter-turn rotation of an unlocked piece or connected group.
-@export var allow_piece_rotation := false
-## Start scattered pieces at random 0°, 90°, 180° or 270° when rotation is enabled.
-@export var random_rotation_on_shuffle := true
-## Ctrl+click toggles complete connected groups; a drag packs distant groups into a compact non-overlapping arrangement.
-@export var enable_multi_select := true
 
 @export_group("Shuffle")
 ## Choose where scattered pieces are placed.

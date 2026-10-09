@@ -7,12 +7,12 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 
-func _config(mode: int, extra_snap: float, pointer_radius: float) -> JigsawPuzzleConfig:
+func _config(mosaic: bool, extra_snap: float, pointer_radius: float) -> JigsawPuzzleConfig:
 	var cfg := JigsawPuzzleConfig.new()
 	cfg.columns = 3
 	cfg.rows = 3
 	cfg.gameplay.initial_scatter = false
-	cfg.gameplay.game_mode = mode
+	cfg.gameplay.game_mode = JigsawGameplaySettings.Mode.MOSAIC if mosaic else JigsawGameplaySettings.Mode.FREE
 	cfg.gameplay.allow_piece_rotation = true
 	cfg.gameplay.snap_assist_extra_fraction = extra_snap
 	cfg.gameplay.selection_assist_radius_px = pointer_radius
@@ -31,7 +31,7 @@ func _run() -> void:
 	host.add_child(camera)
 	camera.make_current()
 	var board := BoardScript.new()
-	var normal := _config(JigsawGameplaySettings.Mode.FREE, 0.0, 0.0)
+	var normal := _config(false, 0.0, 0.0)
 	board.puzzle_config = normal
 	host.add_child(board)
 	_isolate_other_pieces(board)
@@ -44,7 +44,7 @@ func _run() -> void:
 	assert(is_equal_approx(board._effective_snap_tolerance_pixels(), board._piece_size.y * 0.24))
 
 	# Opt in through the shared Resource and reapply; no puzzle state schema changes.
-	var easy := _config(JigsawGameplaySettings.Mode.FREE, 0.12, 8.0)
+	var easy := _config(false, 0.12, 8.0)
 	board.configure(easy)
 	_isolate_other_pieces(board)
 	first = board.get_piece_node(0) as JigsawPiece
@@ -96,13 +96,13 @@ func _run() -> void:
 	assert(is_equal_approx(easy.gameplay.snap_assist_extra_fraction, 0.12))
 
 	# Mosaic uses exactly the same configured tolerance and still needs 0°.
-	var mosaic_hard := _config(JigsawGameplaySettings.Mode.MOSAIC, 0.0, 0.0)
+	var mosaic_hard := _config(true, 0.0, 0.0)
 	board.configure(mosaic_hard)
 	board.get_piece_node(0).position += Vector2(offset, 0)
 	board.select_piece(0, true)
 	assert(not board._place_selected_in_mosaic())
 	assert(board.get_locked_piece_count() == 0)
-	var mosaic_easy := _config(JigsawGameplaySettings.Mode.MOSAIC, 0.12, 8.0)
+	var mosaic_easy := _config(true, 0.12, 8.0)
 	board.configure(mosaic_easy)
 	board.get_piece_node(0).position += Vector2(offset, 0)
 	board.rotate_piece(0)
