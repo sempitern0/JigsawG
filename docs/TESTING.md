@@ -1,7 +1,5 @@
 # JigsawG — release validation
 
-The resource-first refactor requires local Godot 4.7 verification. The authoring environment cannot run Godot.
-
 ## Plugin startup and icon (Godot 4.7.2)
 
 - [ ] Start the editor with the JigsawG plugin enabled; `plugin.gd` must resolve both the board script and icon by UID without parse/import errors.
@@ -26,7 +24,14 @@ The resource-first refactor requires local Godot 4.7 verification. The authoring
 - [ ] Pieces lock in Mosaic only in the correct position and orientation.
 - [ ] Right-click rotation and shuffle at 90° multiples preserve group connections.
 - [ ] Preview shortcut, ghost image transparency and full-image overlay render correctly.
-- [ ] Camera drag, smooth wheel zoom, auto-pan and camera margins work.
+- [ ] Camera drag follows the pointer smoothly without visible jumps.
+- [ ] `smooth_pan=false` restores direct camera movement.
+- [ ] `pan_smoothing` visibly changes responsiveness without changing final pan distance.
+- [ ] Smooth wheel zoom keeps the cursor anchor stable.
+- [ ] Edge auto-pan accelerates/decelerates smoothly and stops after leaving the edge zone.
+- [ ] `edge_scroll_smoothing` changes acceleration without changing configured maximum speed.
+- [ ] Restricted camera margins still clamp both actual and target camera positions.
+- [ ] Enabling both Camera2D position smoothing and JigsawG smooth_pan produces the documented warning.
 - [ ] Style edge alpha, connector depth, texture sampling and profile resolution work.
 - [ ] Connect success/failure/pickup animations use JigsawFeedbackSettings.
 
@@ -42,6 +47,8 @@ The resource-first refactor requires local Godot 4.7 verification. The authoring
 - [ ] `JigsawReaction.event_mask` filters correctly; empty mask receives all event types.
 - [ ] `JigsawAudioReaction` cleans up one-shot players after playback.
 - [ ] `JigsawSpawnSceneReaction` places Node2D roots at event.world_position and calls optional `setup_jigsaw_event`.
+- [ ] `ParentMode.PRIMARY_PIECE` attaches spawned Node2D effects to the source piece.
+- [ ] `auto_free_after` removes temporary spawned scenes without leaks.
 - [ ] Run `godot --headless --path . --script res://tests/test_event_api.gd`.
 
 ## Publication
