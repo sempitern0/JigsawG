@@ -782,11 +782,23 @@ func rebuild() -> void:
 	_ghost_board.z_index = -10
 	add_child(_ghost_board)
 	_update_ghost_board()
+
+	# The complete mosaic already exists as a single guide texture. Frame it
+	# before yielding so the first displayed batch never shows only one corner.
+	# The final fit is still applied after scatter/restore as configured.
+	if _generation_batch_size > 0:
+		_prepare_batch_camera()
 	_rng.seed = generation_seed
 	_groups.reset(columns * rows)
 	_generation_total = columns * rows
 	_generating = true
 	generation_progress_changed.emit(0, _generation_total)
+	if _generation_batch_size > 0:
+		# Render at least one complete frame of the correctly framed mosaic
+		# before materializing individual piece nodes.
+		await get_tree().process_frame
+		if build_id != _generation_serial or not is_inside_tree():
+			return
 	var horizontal: Dictionary = {}
 	var vertical: Dictionary = {}
 	for r in range(rows - 1):
@@ -892,6 +904,27 @@ func rebuild() -> void:
 			"piece_count": puzzle_config.resume_state.get_piece_count()
 		}))
 	_emit_progress_changed()
+
+## Batched builds yield while piece nodes do not yet exist, so fitting to
+## _pieces at this stage would only capture an incomplete corner of the grid.
+## Use the entire board's logical dimensions / guide texture instead.
+func _prepare_batch_camera() -> void:
+	_camera = get_viewport().get_camera_2d()
+	if _camera == null:
+		_camera_target_ready = false
+		return
+	if smooth_pan and _camera.position_smoothing_enabled:
+		push_warning("JigsawG: Camera2D position_smoothing_enabled and JigsawCameraSettings.smooth_pan are both active. Avoid double smoothing.")
+	var board_rect := Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
+	_fit_bounds = board_rect
+	_pan_bounds = board_rect.grow(maxf(_piece_size.x, _piece_size.y) * camera_outer_margin)
+	if auto_fit_camera:
+		_fit_camera_to(board_rect)
+		# Camera2D updates are normally deferred until the canvas redraw.
+		# Synchronize the first loading frame with the new fit immediately.
+		_camera.force_update_scroll()
+	_finish_camera_framing()
+
 
 func _random_edge() -> Vector2i:
 	var polarity := 1 if _rng.randi_range(0, 1) == 0 else -1
