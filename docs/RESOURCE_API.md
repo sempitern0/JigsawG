@@ -161,7 +161,7 @@ var resume_config := ResourceLoader.load("user://puzzle_resume.tres") as JigsawP
 $JigsawBoard.configure(resume_config)
 ```
 
-The Board validates compatibility before applying a state and returns `false` from `restore_state()` if it does not match. It never writes files itself.
+The Board validates compatibility before applying a state and returns `false` from `restore_state()` if it does not match. It never writes files itself. `puzzle_state_restored(state)` is emitted after a compatible snapshot is applied.
 
 ## Feedback settings
 
