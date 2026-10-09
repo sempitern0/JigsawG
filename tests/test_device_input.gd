@@ -86,7 +86,7 @@ func _run() -> void:
 	var board: BoardScript = BoardScript.new()
 	var config: JigsawPuzzleConfig = _config(true, false)
 	board.puzzle_config = config
-	board.piece_released.connect(func(id: int, joined: bool) -> void:
+	board.piece_released.connect(func(id: int, _joined: bool) -> void:
 		_events.append("released:%d" % id)
 	)
 	board.piece_drag_cancelled.connect(func(_event: JigsawPuzzleEvent) -> void:
@@ -182,9 +182,18 @@ func _run() -> void:
 	assert(piece.position == before_gesture)
 	assert(board._handle_touch_event(_touch(0, false, screen)))
 	assert(board._touch_gesture_active, "Lifting one finger must not begin another drag.")
+	assert(board._handle_touch_event(_drag(1, finger_2 + Vector2(25, 0))))
+	assert(board.get_dragged_piece_id() == -1)
 	assert(board._handle_touch_event(_touch(1, false, finger_2)))
 	assert(not board._touch_gesture_active)
 	assert(board._touch_positions.is_empty())
+
+	# Fullscreen reference must intercept native touch just as it intercepts mouse.
+	board.set_preview_visible(true)
+	assert(board._handle_touch_event(_touch(3, true, screen)))
+	assert(board.get_dragged_piece_id() == -1)
+	assert(board._touch_positions.is_empty())
+	board.set_preview_visible(false)
 
 	# Single-finger travel uses the same group movement and release events.
 	screen = piece.get_global_transform_with_canvas() * piece.bounds.get_center()

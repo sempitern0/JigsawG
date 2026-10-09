@@ -141,7 +141,7 @@ board.configure(config)
 | Device | Control | Action |
 | --- | --- | --- |
 | Controller | Left stick | Move the visible virtual cursor |
-| Controller | A / B / X | Hold and release a piece / cancel / Ctrl-style group selection |
+| Controller | A / B / X / Y | Hold/release a piece / cancel / toggle group / full-image preview |
 | Controller | Left / right shoulder | Rotate a group counterclockwise / clockwise |
 | Controller | Left / right trigger | Zoom out / in |
 | Controller | Right stick | Pan the camera |

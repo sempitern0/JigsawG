@@ -1129,8 +1129,8 @@ func _activate_controller_cursor() -> void:
 func _device_vector(left: StringName, right: StringName, up: StringName, down: StringName) -> Vector2:
 	if left == &"" or right == &"" or up == &"" or down == &"":
 		return Vector2.ZERO
-	for name: StringName in [left, right, up, down]:
-		if not InputMap.has_action(name):
+	for action_name: StringName in [left, right, up, down]:
+		if not InputMap.has_action(action_name):
 			return Vector2.ZERO
 	return Input.get_vector(left, right, up, down, _device_input.stick_deadzone)
 
@@ -1211,9 +1211,9 @@ func _handle_joypad_button(event: InputEventJoypadButton) -> bool:
 		JOY_BUTTON_X:
 			if event.pressed and enable_multi_select:
 				_activate_controller_cursor()
-				var piece_id: int = _find_piece_at(_get_pointer_world())
-				if piece_id >= 0:
-					_toggle_group_selection(piece_id)
+				var selected_id: int = _find_piece_at(_get_pointer_world())
+				if selected_id >= 0:
+					_toggle_group_selection(selected_id)
 				return true
 		JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_RIGHT_SHOULDER:
 			if event.pressed and allow_piece_rotation:
