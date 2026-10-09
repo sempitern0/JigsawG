@@ -4,10 +4,10 @@ The resource-first refactor requires local Godot 4.7 verification. The authoring
 
 ## Plugin startup and icon (Godot 4.7.2)
 
-- [ ] Start the editor with the JigsawG plugin enabled; `plugin.gd` must parse without `Preload file ... icon.svg has no resource loaders`.
+- [ ] Start the editor with the JigsawG plugin enabled; `plugin.gd` must resolve both the board script and icon by UID without parse/import errors.
 - [ ] Verify the custom JigsawBoard icon depicts the puzzle-piece and right-hand gear.
-- [ ] Copy only `addons/jigsawg` to a fresh Godot project; the icon must work without any root `res://icon.svg`.
-- [ ] Run `godot --headless --path . --script res://tests/test_plugin_icon.gd` and confirm the SVG rasterization smoke test passes.
+- [ ] Copy only `addons/jigsawg` to a fresh Godot project; after Godot imports the addon, the icon UID must resolve without any root `res://icon.svg`.
+- [ ] Run `godot --headless --path . --script res://tests/test_plugin_icon.gd` and confirm the UID resolves to a valid Texture2D.
 
 ## Configuration
 - [ ] Install only `addons/jigsawg` in a clean Godot project; JigsawBoard appears in Add Node.
