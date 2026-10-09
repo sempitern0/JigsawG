@@ -7,6 +7,7 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 ## Unreleased (public integration improvements)
 
 ### Added
+- Optional shared piece CanvasItem Material/ShaderMaterial via JigsawAppearanceSettings, without subclassing JigsawPiece.
 - Public Board facade for HUD progress, interaction pause, reference/ghost controls and camera refit.
 - `progress_changed` and `interaction_enabled_changed` signals.
 - `JigsawPlayAnimationReaction` and `JigsawCallMethodReaction` to reuse host-scene functionality without Board overrides.
