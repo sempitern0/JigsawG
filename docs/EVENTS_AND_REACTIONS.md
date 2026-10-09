@@ -227,7 +227,7 @@ Every rich event is a `JigsawPuzzleEvent` with a common context:
 | `PREVIEW_TOGGLED` | Pause timer or update help UI |
 | `PUZZLE_COMPLETED` | Results, rewards, persistence |
 
-JigsawG deliberately does **not** emit a per-frame drag event. High-frequency effects can follow the live piece returned by `board.get_piece_node(event.piece_id)` after **Piece Drag Started** and stop on Drag Finished/Cancelled. This keeps the event API semantic and inexpensive.
+JigsawG deliberately does **not** emit a per-frame drag event. High-frequency effects can follow the live piece returned by `board.get_piece_node(event.piece_id)` after **Piece Drag Started** and stop on Drag Finished/Cancelled. When multi-selection is active, drag lifecycle events also expose `event.metadata.selected_piece_ids`. This keeps the event API semantic and inexpensive.
 
 ---
 
