@@ -30,7 +30,7 @@ func _initialize() -> void:
 	host.add_child(board)
 	call_deferred("_verify", board, receiver, host)
 
-func _verify(board: Node2D, receiver: Node, host: Node2D) -> void:
+func _verify(board, receiver: Node, host: Node2D) -> void:
 	assert(board.get_piece_count() == 4)
 	assert(is_equal_approx(board.get_progress(), 0.0))
 	assert(board.get_progress_info()["connections_needed"] == 3)
@@ -59,14 +59,14 @@ func _verify(board: Node2D, receiver: Node, host: Node2D) -> void:
 	plain.target_path = NodePath("../HUD")
 	plain.method_name = &"on_simple_event"
 	plain.react(board, event)
-	assert(receiver.no_arg_calls == 1, "No-argument reaction failed.")
+	assert(receiver.get("no_arg_calls") == 1, "No-argument reaction failed.")
 
 	var detailed := JigsawCallMethodReaction.new()
 	detailed.target_path = NodePath("../HUD")
 	detailed.method_name = &"on_puzzle_event"
 	detailed.pass_event = true
 	detailed.react(board, event)
-	assert(receiver.last_event == event, "Event-context reaction failed.")
+	assert(receiver.get("last_event") == event, "Event-context reaction failed.")
 
 	var animation_player := AnimationPlayer.new()
 	animation_player.name = "AnimationPlayer"
