@@ -1561,18 +1561,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	# leaving piece selection, group graph and saved state completely intact.
 	if event is InputEventKey and event.pressed and not event.echo:
 		var organizer_key: Key = event.keycode
-		var organizer_type: int = -1
 		if organizer_key != KEY_NONE:
+			var focused_category: bool = false
+			var focused_id: int = -1
 			if organizer_key == _organizer_corner_key:
-				organizer_type = PieceCategory.CORNER
+				focused_category = true
+				focused_id = focus_next_piece_by_category(PieceCategory.CORNER)
 			elif organizer_key == _organizer_edge_key:
-				organizer_type = PieceCategory.EDGE
+				focused_category = true
+				focused_id = focus_next_piece_by_category(PieceCategory.EDGE)
 			elif organizer_key == _organizer_interior_key:
-				organizer_type = PieceCategory.INTERIOR
-		if organizer_type >= 0:
-			if focus_next_piece_by_category(organizer_type) >= 0:
-				get_viewport().set_input_as_handled()
-			return
+				focused_category = true
+				focused_id = focus_next_piece_by_category(PieceCategory.INTERIOR)
+			if focused_category:
+				if focused_id >= 0:
+					get_viewport().set_input_as_handled()
+				return
 	if _matches_input_action(event, _organizer_corner_action):
 		if focus_next_piece_by_category(PieceCategory.CORNER) >= 0:
 			get_viewport().set_input_as_handled()
