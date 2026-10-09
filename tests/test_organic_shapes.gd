@@ -43,7 +43,7 @@ func _initialize() -> void:
 	assert(older.connector_family == JigsawAppearanceSettings.ConnectorFamily.CLASSIC)
 	assert(JigsawAppearanceSettings.ConnectorFamily.MIXED == 4)
 	assert(JigsawAppearanceSettings.ConnectorFamily.ORGANIC == 5)
-	var board: Node2D = BoardScript.new()
+	var board: BoardScript = BoardScript.new()
 	var config: JigsawPuzzleConfig = JigsawPuzzleConfig.new()
 	config.columns = 3
 	config.rows = 3
@@ -54,7 +54,7 @@ func _initialize() -> void:
 	get_root().add_child(board)
 	call_deferred("_verify", board)
 
-func _verify(board: Node2D) -> void:
+func _verify(board: BoardScript) -> void:
 	assert(board.get_piece_count() == 9)
 	var state = board.capture_state()
 	assert(state.connector_family == JigsawAppearanceSettings.ConnectorFamily.ORGANIC)

@@ -18,7 +18,7 @@ func _config(columns: int, rows: int, batch_size: int) -> JigsawPuzzleConfig:
 
 
 func _initialize() -> void:
-	var board: Node2D = BoardScript.new()
+	var board: BoardScript = BoardScript.new()
 	board.puzzle_config = _config(6, 6, 7)
 	board.generation_progress_changed.connect(func(done: int, total: int) -> void:
 		progress.append(Vector2i(done, total))
@@ -34,7 +34,7 @@ func _initialize() -> void:
 	call_deferred("_verify_async", board)
 
 
-func _verify_async(board: Node2D) -> void:
+func _verify_async(board: BoardScript) -> void:
 	await board.puzzle_generated
 	assert(not board.is_generating())
 	assert(board.get_piece_count() == 36)

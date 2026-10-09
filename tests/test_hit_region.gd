@@ -4,7 +4,7 @@ const HitIndex = preload("res://addons/jigsawg/src/jigsaw_hit_index.gd")
 
 
 func _initialize() -> void:
-	var index: RefCounted = HitIndex.new()
+	var index: HitIndex = HitIndex.new()
 	var rectangles: Array[Rect2] = []
 	for id in range(2000):
 		rectangles.append(Rect2(Vector2((id % 50) * 80 - 2000, (id / 50) * 80 - 1600), Vector2(64, 64)))

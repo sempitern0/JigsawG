@@ -49,7 +49,7 @@ func _verify() -> void:
 	cfg.camera.zoom_in_action = ACTION_ZOOM_IN
 	cfg.camera.zoom_out_action = ACTION_ZOOM_OUT
 	cfg.feedback.motion_adapter = JigsawMotionAdapter.new()
-	var board: Node2D = BoardScript.new()
+	var board: BoardScript = BoardScript.new()
 	board.puzzle_config = cfg
 	host.add_child(board)
 	assert(not board.is_reduced_motion())

@@ -16,12 +16,12 @@ func _initialize() -> void:
 	cfg.camera.selection_focus_padding = 0.75
 	cfg.camera.restrict_camera = true
 	cfg.camera.focus_selection_key = KEY_F
-	var board: Node2D = BoardScript.new()
+	var board: BoardScript = BoardScript.new()
 	board.puzzle_config = cfg
 	host.add_child(board)
 	call_deferred("_verify", host, camera, board, cfg)
 
-func _verify(host: Node2D, camera: Camera2D, board: Node2D, cfg: JigsawPuzzleConfig) -> void:
+func _verify(host: Node2D, camera: Camera2D, board: BoardScript, cfg: JigsawPuzzleConfig) -> void:
 	assert(board.get_piece_count() == 12)
 	assert(not board.focus_selection(), "Without a selection, the view must not jump.")
 	var before: Vector2 = camera.global_position

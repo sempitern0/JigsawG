@@ -19,7 +19,7 @@ func _config(mosaic: bool, extra_snap: float, pointer_radius: float) -> JigsawPu
 	return cfg
 
 
-func _isolate_other_pieces(board: Node2D) -> void:
+func _isolate_other_pieces(board: BoardScript) -> void:
 	for i in range(2, board.get_piece_count()):
 		board.get_piece_node(i).position = Vector2(6000.0 + i * 750.0, 8000.0)
 
@@ -30,7 +30,7 @@ func _run() -> void:
 	var camera: Camera2D = Camera2D.new()
 	host.add_child(camera)
 	camera.make_current()
-	var board: Node2D = BoardScript.new()
+	var board: BoardScript = BoardScript.new()
 	var normal: JigsawPuzzleConfig = _config(false, 0.0, 0.0)
 	board.puzzle_config = normal
 	host.add_child(board)

@@ -3,7 +3,7 @@ extends SceneTree
 const HitIndex = preload("res://addons/jigsawg/src/jigsaw_hit_index.gd")
 
 func _initialize() -> void:
-	var index: RefCounted = HitIndex.new()
+	var index: HitIndex = HitIndex.new()
 	assert(index.is_dirty())
 	assert(index.query(Vector2.ZERO).is_empty())
 	for count in [200, 500, 2000]:

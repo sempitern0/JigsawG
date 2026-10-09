@@ -28,7 +28,7 @@ func _run() -> void:
 	host.add_child(camera)
 	camera.make_current()
 	var cfg: JigsawPuzzleConfig = _config()
-	var board: Node2D = BoardScript.new()
+	var board: BoardScript = BoardScript.new()
 	board.puzzle_config = cfg
 	host.add_child(board)
 	assert(board.is_generating())

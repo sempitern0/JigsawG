@@ -2,7 +2,7 @@ extends SceneTree
 ## Explicit heavy benchmark (not run in the normal regression suite):
 ## godot --headless --path . --script res://tests/benchmark_large_puzzles.gd
 const BoardScript = preload("res://addons/jigsawg/src/jigsaw_board.gd")
-var _board: Node2D
+var _board: BoardScript
 var _camera: Camera2D
 var _source: Texture2D
 
@@ -23,7 +23,7 @@ func _config(target: int, chaotic: bool) -> JigsawPuzzleConfig:
 
 ## Compare equal live-scene queries to the legacy O(N) polygon scan.
 ## No speed or latency threshold is assumed; measurements depend on hardware.
-func _measure_hits(board: Node2D, count: int) -> void:
+func _measure_hits(board: BoardScript, count: int) -> void:
 	var probes: Array[Vector2] = []
 	for sample in range(160):
 		var id: int = floori(float(sample * count) / 160.0)

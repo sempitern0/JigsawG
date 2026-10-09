@@ -9,12 +9,12 @@ func _initialize() -> void:
 	config.columns = 3
 	config.rows = 3
 	config.gameplay.initial_scatter = false
-	var board: Node2D = BoardScript.new()
+	var board: BoardScript = BoardScript.new()
 	board.puzzle_config = config
 	host.add_child(board)
 	call_deferred("_verify", host, board)
 
-func _brute_hit(board: Node2D, world: Vector2) -> int:
+func _brute_hit(board: BoardScript, world: Vector2) -> int:
 	var ids: PackedInt32Array = board.get_selected_piece_ids()
 	if board._multi_selection_mode:
 		for index in range(board.get_piece_count() - 1, -1, -1):
@@ -25,13 +25,13 @@ func _brute_hit(board: Node2D, world: Vector2) -> int:
 			return index
 	return -1
 
-func _check_hit(board: Node2D, point: Vector2) -> int:
+func _check_hit(board: BoardScript, point: Vector2) -> int:
 	var expected: int = _brute_hit(board, point)
 	var actual: int = board._find_piece_at(point)
 	assert(actual == expected, "Spatial index changed hit priority or skipped a piece.")
 	return actual
 
-func _verify(host: Node2D, board: Node2D) -> void:
+func _verify(host: Node2D, board: BoardScript) -> void:
 	assert(board.get_piece_count() == 9)
 	for i in range(2, board.get_piece_count()):
 		board.get_piece_node(i).position = Vector2(10000 + i * 650, -10000)
