@@ -107,29 +107,29 @@ Before proposing new machinery, check whether the behavior is already available 
 addons/jigsawg/
   plugin.cfg, plugin.gd, icon.svg         # Editor registration; independent of root project
   resources/
-    jigsaw_puzzle_config.gd               # Only public Board Inspector entry
-    jigsaw_gameplay_settings.gd           # Modes, shuffle, rotation, generation batches
-    jigsaw_appearance_settings.gd         # Profile families, tint, filtering
-    jigsaw_camera_settings.gd             # Navigation, framing and shortcuts
-    jigsaw_feedback_settings.gd           # Presentation and motion adapter
-    jigsaw_puzzle_state.gd                # Serialized runtime snapshot
+	jigsaw_puzzle_config.gd               # Only public Board Inspector entry
+	jigsaw_gameplay_settings.gd           # Modes, shuffle, rotation, generation batches
+	jigsaw_appearance_settings.gd         # Profile families, tint, filtering
+	jigsaw_camera_settings.gd             # Navigation, framing and shortcuts
+	jigsaw_feedback_settings.gd           # Presentation and motion adapter
+	jigsaw_puzzle_state.gd                # Serialized runtime snapshot
   src/
-    jigsaw_board.gd                       # Scene controller / coordination
-    jigsaw_piece.gd                       # Draw-only presentation and hit shapes
-    jigsaw_geometry.gd                    # Canonical complementary Bézier seams
-    jigsaw_group_model.gd                 # Node-free membership and merge model
-    jigsaw_connection_resolver.gd         # Pure snap and adjacency calculations
-    jigsaw_grid_resolver.gd               # Approximate count -> balanced grid
-    jigsaw_scatter_layout.gd              # Seeded structured/chaotic layouts
-    jigsaw_selection_layout.gd            # Compact multiple-group arrangement
-    jigsaw_state_validator.gd             # Reject incompatible snapshots
-    jigsaw_preview_overlay.gd             # Reference-image overlay
+	jigsaw_board.gd                       # Scene controller / coordination
+	jigsaw_piece.gd                       # Draw-only presentation and hit shapes
+	jigsaw_geometry.gd                    # Canonical complementary Bézier seams
+	jigsaw_group_model.gd                 # Node-free membership and merge model
+	jigsaw_connection_resolver.gd         # Pure snap and adjacency calculations
+	jigsaw_grid_resolver.gd               # Approximate count -> balanced grid
+	jigsaw_scatter_layout.gd              # Seeded structured/chaotic layouts
+	jigsaw_selection_layout.gd            # Compact multiple-group arrangement
+	jigsaw_state_validator.gd             # Reject incompatible snapshots
+	jigsaw_preview_overlay.gd             # Reference-image overlay
   events/
-    jigsaw_puzzle_event.gd                # Typed semantic event and reason values
-    jigsaw_reaction.gd                    # Resource-driven event subscription
-    jigsaw_motion_adapter.gd              # Presentation-only transform interpolation
-    jigsaw_motion_context.gd              # Snapshot for motion callbacks
-    jigsaw_*_reaction.gd                  # Audio, spawn, animation, method effects
+	jigsaw_puzzle_event.gd                # Typed semantic event and reason values
+	jigsaw_reaction.gd                    # Resource-driven event subscription
+	jigsaw_motion_adapter.gd              # Presentation-only transform interpolation
+	jigsaw_motion_context.gd              # Snapshot for motion callbacks
+	jigsaw_*_reaction.gd                  # Audio, spawn, animation, method effects
 
 examples/                                  # Development/demo only
 tests/                                     # Regression scripts and heavy benchmark

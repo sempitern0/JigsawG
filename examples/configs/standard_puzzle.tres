@@ -36,6 +36,7 @@ motion_adapter = SubResource("Motion")
 script = ExtResource("2")
 allow_piece_rotation = true
 shuffle_mode = 2
+generation_batch_size = 5
 show_ghost_board = true
 ghost_opacity = 0.2
 
