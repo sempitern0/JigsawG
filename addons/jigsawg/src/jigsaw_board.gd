@@ -1055,8 +1055,167 @@ func _matches_input_action(event: InputEvent, action: StringName) -> bool:
 	return event.is_action_pressed(action)
 
 
+## Pointer abstraction: mouse by default, screen-space touch/gamepad if active.
+func _get_pointer_screen() -> Vector2:
+	return _device_pointer_screen if _device_pointer_active else get_viewport().get_mouse_position()
+
+
+func _get_pointer_world() -> Vector2:
+	if not _device_pointer_active:
+		return get_global_mouse_position()
+	return get_viewport().get_canvas_transform().affine_inverse() * _device_pointer_screen
+
+
+func _drag_threshold_screen() -> float:
+	if _device_input != null and _touch_primary >= 0:
+		return _device_input.touch_drag_threshold_px
+	return 4.0
+
+
+func _end_device_pointer() -> void:
+	_device_pointer_active = false
+	_controller_cursor_active = false
+	if is_instance_valid(_controller_cursor_ui):
+		_controller_cursor_ui.visible = false
+
+
+func _setup_controller_overlay() -> void:
+	if is_instance_valid(_controller_cursor_layer):
+		_controller_cursor_layer.queue_free()
+	_controller_cursor_layer = null
+	_controller_cursor_ui = null
+	if _device_input == null or not _device_input.enable_controller:
+		return
+	_controller_cursor_layer = CanvasLayer.new()
+	_controller_cursor_layer.layer = 40
+	add_child(_controller_cursor_layer)
+	_controller_cursor_ui = VirtualCursor.new()
+	_controller_cursor_layer.add_child(_controller_cursor_ui)
+	_controller_cursor_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_controller_cursor_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_controller_cursor_ui.visible = false
+
+
+func _activate_controller_cursor() -> void:
+	if _device_input == null or not _device_input.enable_controller or _touch_primary >= 0 or _touch_gesture_active:
+		return
+	if not _controller_cursor_ready:
+		_device_pointer_screen = get_viewport_rect().size * 0.5
+		_controller_cursor_ready = true
+	_controller_cursor_active = true
+	_device_pointer_active = true
+	if is_instance_valid(_controller_cursor_ui):
+		_controller_cursor_ui.visible = true
+		_controller_cursor_ui.cursor_position = _device_pointer_screen
+
+
+## Read four optional, host-owned analog InputMap actions without installing
+## or changing any global bindings.
+func _device_vector(left: StringName, right: StringName, up: StringName, down: StringName) -> Vector2:
+	if left == &"" or right == &"" or up == &"" or down == &"":
+		return Vector2.ZERO
+	for name: StringName in [left, right, up, down]:
+		if not InputMap.has_action(name):
+			return Vector2.ZERO
+	return Input.get_vector(left, right, up, down, _device_input.stick_deadzone)
+
+
+func _process_controller(delta: float) -> void:
+	if _device_input == null or not _device_input.enable_controller or not _interaction_enabled or _generating:
+		return
+	if _touch_primary >= 0 or _touch_gesture_active:
+		return
+	var movement: Vector2 = _device_vector(
+		_device_input.cursor_left_action, _device_input.cursor_right_action,
+		_device_input.cursor_up_action, _device_input.cursor_down_action
+	)
+	if movement.length_squared() > 0.001:
+		_activate_controller_cursor()
+		var screen_size: Vector2 = get_viewport_rect().size
+		_device_pointer_screen = (_device_pointer_screen + movement * _device_input.cursor_speed_px * delta).clamp(
+			Vector2.ZERO, screen_size
+		)
+	if _controller_cursor_active and is_instance_valid(_controller_cursor_ui):
+		_controller_cursor_ui.cursor_position = _device_pointer_screen
+		_controller_cursor_ui.over_piece = _find_piece_at(_get_pointer_world()) >= 0
+	if not enable_camera_navigation or _camera == null:
+		return
+	var camera_vector: Vector2 = _device_vector(
+		_device_input.camera_left_action, _device_input.camera_right_action,
+		_device_input.camera_up_action, _device_input.camera_down_action
+	)
+	if camera_vector.length_squared() > 0.001:
+		_offset_camera_target(camera_vector * _device_input.camera_pan_speed_px * delta / maxf(_camera.zoom.x, 0.001))
+
+
+func _handle_controller_action(event: InputEvent) -> bool:
+	if _device_input == null or not _device_input.enable_controller:
+		return false
+	if _matches_input_action(event, _device_input.cancel_action):
+		if _drag_root >= 0 and _controller_cursor_active:
+			_cancel_drag()
+			return true
+		return false
+	if _matches_input_action(event, _device_input.add_group_action):
+		_activate_controller_cursor()
+		if _controller_cursor_active:
+			var hit: int = _find_piece_at(_get_pointer_world())
+			if hit >= 0 and enable_multi_select:
+				_toggle_group_selection(hit)
+			return true
+	if _matches_input_action(event, _device_input.grab_action):
+		_activate_controller_cursor()
+		if not _controller_cursor_active:
+			return false
+		if _drag_root < 0:
+			var hovered: int = _find_piece_at(_get_pointer_world())
+			if hovered >= 0:
+				_begin_piece_drag(hovered, _get_pointer_world())
+			else:
+				clear_selection()
+		return true
+	if _device_input.grab_action != &"" and InputMap.has_action(_device_input.grab_action) and event.is_action_released(_device_input.grab_action):
+		if _controller_cursor_active and _drag_root >= 0:
+			_finish_pointer_drag(_device_pointer_screen, _get_pointer_world())
+		return _controller_cursor_active
+	return false
+
+
+## Core release path used by mouse, touch and gamepad without fake mouse
+## events. Only actual drag travel may attempt joining / placing a group.
+func _finish_pointer_drag(pointer_screen: Vector2, pointer_world: Vector2) -> void:
+	if _drag_root == -1 or _dragged_piece == -1:
+		return
+	if not _drag_visual_active and pointer_screen.distance_to(_drag_start_screen) >= _drag_threshold_screen():
+		_activate_drag()
+	var connected := false
+	if _drag_visual_active:
+		_desired_position = pointer_world + _pointer_offset
+		_move_group(_desired_position - _pieces[_dragged_piece].global_position)
+		connected = _place_selected_in_mosaic() if game_mode == GameMode.MOSAIC else _connect_selected_groups()
+		_animate_pickup(_selected_piece_ids.keys(), false)
+	_refresh_selection_visuals(false)
+	var released_piece_id := _dragged_piece
+	if _drag_visual_active and not connected:
+		connection_failed.emit(released_piece_id)
+		_animate_failed_connection(_pieces[released_piece_id])
+		if game_mode == GameMode.FREE:
+			_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_NO_COMPATIBLE_NEIGHBOR))
+	piece_released.emit(released_piece_id, connected)
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, JigsawPuzzleEvent.REASON_RELEASED, {
+		"selected_piece_ids": get_selected_piece_ids()
+	}))
+	_drag_root = -1
+	_dragged_piece = -1
+	_drag_visual_active = false
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint() or not _interaction_enabled or _generating:
+		return
+
+	if _handle_controller_action(event):
+		get_viewport().set_input_as_handled()
 		return
 
 	if enable_camera_navigation and _camera != null:
@@ -1165,29 +1324,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 			if not event.pressed:
 				if _drag_root != -1 and _dragged_piece != -1:
-					# A click with no travel is not a failed connection attempt.
-					if not _drag_visual_active and get_viewport().get_mouse_position().distance_to(_drag_start_screen) >= 4.0:
-						_activate_drag()
-					var connected := false
-					if _drag_visual_active:
-						_desired_position = get_global_mouse_position() + _pointer_offset
-						_move_group(_desired_position - _pieces[_dragged_piece].global_position)
-						connected = _place_selected_in_mosaic() if game_mode == GameMode.MOSAIC else _connect_selected_groups()
-						_animate_pickup(_selected_piece_ids.keys(), false)
-					_refresh_selection_visuals(false)
-					var released_piece_id := _dragged_piece
-					if _drag_visual_active and not connected:
-						connection_failed.emit(released_piece_id)
-						_animate_failed_connection(_pieces[released_piece_id])
-						if game_mode == GameMode.FREE:
-							_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_NO_COMPATIBLE_NEIGHBOR))
-					piece_released.emit(released_piece_id, connected)
-					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, JigsawPuzzleEvent.REASON_RELEASED, {
-						"selected_piece_ids": get_selected_piece_ids()
-					}))
-					_drag_root = -1
-					_dragged_piece = -1
-					_drag_visual_active = false
+					_finish_pointer_drag(_get_pointer_screen(), _get_pointer_world())
 					get_viewport().set_input_as_handled()
 					return
 
@@ -1225,6 +1362,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 func _process(delta: float) -> void:
+	_process_controller(delta)
 	if enable_camera_navigation and _camera:
 		if smooth_zoom and not reduced_motion:
 			_update_smooth_zoom(delta)
