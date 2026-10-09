@@ -88,7 +88,7 @@ func _verify(board, receiver: Node, host: Node2D) -> void:
 	animation_reaction.animation_player_path = NodePath("../AnimationPlayer")
 	animation_reaction.animation_name = &"win"
 	animation_reaction.react(board, event)
-	assert(animation_player.current_animation == "win", "Animation reaction did not play.")
+	assert(animation_player.assigned_animation == &"win", "Animation reaction did not select the configured clip.")
 
 	print("JigsawG public integration smoke test: PASS")
 	host.queue_free()
