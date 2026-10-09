@@ -1052,8 +1052,16 @@ func _connect_group_from(anchor_piece_id: int) -> bool:
 func _update_camera_bounds() -> void:
 	_fit_bounds = Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
 	for piece in _pieces:
-		_fit_bounds = _fit_bounds.expand(piece.position + piece.bounds.position)
-		_fit_bounds = _fit_bounds.expand(piece.position + piece.bounds.end)
+		# The first/last rectangle corners are insufficient after quarter turns.
+		# Include all rotated contour bounds so the overview never crops pieces.
+		var bounds := piece.bounds
+		for local_corner in [
+			bounds.position,
+			Vector2(bounds.end.x, bounds.position.y),
+			bounds.end,
+			Vector2(bounds.position.x, bounds.end.y)
+		]:
+			_fit_bounds = _fit_bounds.expand(piece.transform * local_corner)
 	_pan_bounds = _fit_bounds.grow(maxf(_piece_size.x, _piece_size.y) * camera_outer_margin)
 
 func _fit_camera() -> void:
