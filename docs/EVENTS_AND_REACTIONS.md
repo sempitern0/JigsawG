@@ -365,6 +365,20 @@ Save it as `ComboReaction.tres`, place it in `JigsawPuzzleConfig.reactions`, and
 
 ---
 
+## Host-scene routing
+
+The **No-code** approach works through the `Reactions` array in `JigsawPuzzleConfig`. These NodePaths resolve relative to the **Board** that emits the event, not the location of the `.tres` preset.
+
+| Goal | Reaction configuration |
+| --- | --- |
+| Play a completion animation | `JigsawPlayAnimationReaction`, Event Mask = Puzzle Completed, path = `../WinAnimationPlayer`, name = `celebrate` |
+| Reveal a results panel | `JigsawCallMethodReaction`, Event Mask = Puzzle Completed, path = `../ResultsPanel`, method = `show`, `pass_event = false` |
+| Add score when pieces join | Custom stateless `JigsawReaction`, Event Mask = Group Connected, retrieve an external score manager |
+
+`JigsawBoard.get_node_or_null()` resolves the target. Missing nodes or animations warn instead of breaking gameplay. Event-driven rebuilds and scene changes should be deferred to avoid re-entrant initialization. Do not use custom method reactions with untrusted/user-provided method names.
+
+Resource scripts are reusable across puzzles; transient state belongs in scene Nodes, not Resource members. `JigsawBoard` exposes one root `puzzle_config` instead of mirroring its settings as Inspector exports.
+
 ## Public helper queries
 
 Custom systems can query the Board without touching its internals:

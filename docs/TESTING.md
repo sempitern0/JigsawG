@@ -56,6 +56,7 @@
 - [ ] Restricted camera margins still clamp both actual and target camera positions.
 - [ ] Enabling both Camera2D position smoothing and JigsawG smooth_pan produces the documented warning.
 - [ ] Style edge alpha, connector depth, texture sampling and profile resolution work.
+- [ ] Change Appearance → Piece Edge Color on a dark photographic puzzle and confirm the new tint appears without changing snap geometry; verify defaults reproduce legacy contours.
 - [ ] Assign a CanvasItemMaterial through Appearance → Piece Material and confirm every generated piece uses it; null preserves existing visuals.
 - [ ] Connect success/failure/pickup animations use JigsawFeedbackSettings.
 - [ ] `capture_state()` followed by `restore_state()` restores piece positions, rotations, group membership and Mosaic locks.
@@ -109,4 +110,6 @@
 - [ ] Godot parser and import logs show no GDScript warnings/errors.
 - [ ] Measure large-image memory and the performance of a 300-piece puzzle.
 - [ ] Verify plugin.cfg metadata, license and the packaged addons directory.
+- [ ] Validate all Markdown links after documentation consolidation and keep installation instructions within the root README.
+- [ ] Confirm example image redistribution rights and replace unlicensed third-party media before packaging.
 - [ ] Publish a test release only after the checklist has been executed.

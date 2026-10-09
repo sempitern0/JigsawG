@@ -11,10 +11,13 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 - Public Board facade for HUD progress, interaction pause, reference/ghost controls and camera refit.
 - `progress_changed` and `interaction_enabled_changed` signals.
 - `JigsawPlayAnimationReaction` and `JigsawCallMethodReaction` to reuse host-scene functionality without Board overrides.
-- Advanced integration guide and public API smoke test.
+- Public API smoke test and host-game integration guidance (consolidated into the Resource API and Events references).
 
 ### Notes
-- Existing puzzle geometry, game modes, Resource-based configuration and saved-state formats remain unchanged.
+- Readability: added configurable RGBA piece contour color without changing the default render style.
+- Auto piece-count grid, Organic connectors, standalone group graph, optional motion adapter, cancellable batch generation and improved large-puzzle camera/chaotic scatter are documented in their respective references.
+- Consolidated overlapping advanced-guide examples into the Resource API and Events guides, and streamlined README navigation.
+- Existing saved-state schema and legacy shape/gameplay defaults remain compatible.
 - Godot editor/runtime regression validation remains required before tagging a stable release.
 
 ## 0.4.0-dev
@@ -66,5 +69,5 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 ### Known preview limitations
 - Full regression/performance validation for very large puzzles is still pending.
 - Mouse/keyboard is the documented input path; touch/controller support is not yet certified.
-- Save/load of in-progress assembly is not yet provided.
+- State capture/restore is provided; host-game save-slot UI and persistence policy are not.
 - Example artwork must have redistribution rights verified before a public packaged release.

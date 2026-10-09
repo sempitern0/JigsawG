@@ -91,6 +91,7 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 - `bezier_detail`
 - `piece_edge_opacity`
 - `piece_edge_width`
+- `piece_edge_color` (RGBA tint of the visible rim; combines with edge opacity)
 - `piece_material`
 - `highlight_enabled`
 - `highlight_color`
@@ -102,6 +103,8 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 `piece_material` accepts an optional CanvasItem `Material`/`ShaderMaterial` shared by every generated piece; null uses the built-in renderer. Apply changes with `rebuild()`. Because the material is shared, set per-piece shader instance parameters through custom integrations if necessary.
 
 **Shape difficulty:** Classic preserves existing contours. Rounded, Angular and Compact generate original Bézier silhouettes; Mixed chooses one of these families per seeded seam. Organic produces original, seeded asymmetric, more curved seams with shared complementary tokens. This takes inspiration from the mask *families* in the supplied C# puzzle reference, but does not copy its SVG mask assets. Low `connector_variation` makes connectors within a family more similar; high variation makes them more distinctive. Set `silhouette_variants` (1–8) in the root config to control how many seam variants are used. Geometry does not affect snap rules, but changing family or variation requires `rebuild()` and invalidates snapshots generated with different profile settings. Piece count, rotation, source image and reference guides also affect difficulty.
+
+For visually dark or noisy artwork, use **Appearance → Piece Edge Color** with a lighter tint and adjust **Piece Edge Opacity** and **Piece Edge Width**. The default RGBA tint (`#141312` approximately), opacity and width preserve the older look. This is an optional extra contour stroke when edge opacity is positive; it does not alter the silhouette or snap rules.
 
 `bezier_detail` changes contour tessellation, not source-image resolution. The highlight settings affect selected/multi-selected pieces only; they do not change snap geometry.
 
@@ -213,14 +216,16 @@ The Board validates compatibility and group/rotation invariants before applying 
 - `failure_animation_duration`
 - `motion_adapter` (optional `JigsawMotionAdapter`; rotation/arrangement timing and easing or custom subclass)
 
-For project-specific sound, particles, UI or scoring, prefer the reaction/event API instead of extending built-in feedback. For **motion** effects, assign a `JigsawMotionAdapter` Resource to `feedback.motion_adapter`. The default (null) preserves instantaneous movement; the supplied adapter interpolates piece rendering independently of logical transforms. Custom Resources can override `animate(board, motion)`; `motion_requested` is the corresponding public signal. See [Events & Reactions](EVENTS_AND_REACTIONS.md). See [Events & Reactions](EVENTS_AND_REACTIONS.md).
+For project-specific sound, particles, UI or scoring, prefer the reaction/event API instead of extending built-in feedback. For **motion** effects, assign a `JigsawMotionAdapter` Resource to `feedback.motion_adapter`. The default (null) preserves instantaneous movement; the supplied adapter interpolates piece rendering independently of logical transforms. Custom Resources can override `animate(board, motion)`; `motion_requested` is the corresponding public signal. See [Events & Reactions](EVENTS_AND_REACTIONS.md).
 
 ## Reactions
 
 `JigsawPuzzleConfig.reactions` can contain:
 
-- `JigsawAudioReaction`
-- `JigsawSpawnSceneReaction`
+- `JigsawAudioReaction` (sound)
+- `JigsawSpawnSceneReaction` (scene/VFX)
+- `JigsawPlayAnimationReaction` (host `AnimationPlayer`)
+- `JigsawCallMethodReaction` (invoke a host Node method)
 - any custom Resource derived from `JigsawReaction`
 
 The board snapshots the active reaction list when configuration is applied. Editing the Resource during a running puzzle takes effect on the next `rebuild()`, `apply_configuration()` or `configure()`.
@@ -230,7 +235,7 @@ The board snapshots the active reaction list when configuration is applied. Edit
 1. Add a `JigsawBoard` to a 2D scene.
 2. Create **New JigsawPuzzleConfig** in **Puzzle Config**.
 3. Assign `puzzle_texture`.
-4. Choose `columns` and `rows`.
+4. Choose **Manual** with `columns` and `rows`, or **Auto** with `target_piece_count`.
 5. Expand Gameplay, Appearance, Camera and Feedback.
 6. Add optional Reactions.
 7. Run the scene.
@@ -301,7 +306,49 @@ If a nested Resource is null, JigsawG creates runtime defaults for that section.
 
 **Progress semantics:** Free = (total pieces − connected group count) / (total pieces − 1); Mosaic = locked pieces / total pieces. This is assembly progress, not a timer or board-area metric. Runtime guide overrides reset to config defaults on rebuild. These controls do not mutate shared Resources.
 
-For higher-level use, see [Advanced integration](ADVANCED_USAGE.md).
+### HUD, pause menu and framing
+
+Connect progress once; Free mode reports successful joins while Mosaic reports locked slots:
+
+```gdscript
+@onready var board = $JigsawBoard
+
+func _ready() -> void:
+    board.progress_changed.connect(_on_progress)
+    _on_progress(board.get_progress())
+
+func _on_progress(value: float) -> void:
+    $HUD/ProgressBar.value = value * 100.0
+
+func show_pause() -> void:
+    board.set_interaction_enabled(false)
+    $PauseMenu.show()
+
+func hide_pause() -> void:
+    $PauseMenu.hide()
+    board.set_interaction_enabled(true)
+
+func show_all_pieces() -> void:
+    board.fit_view()
+
+func focus_assembly() -> void:
+    board.focus_board()
+```
+
+You can also call `toggle_reference_preview()`, `set_ghost_guide_visible(bool)` and `set_ghost_guide_opacity(float)`. Runtime overrides do not change the shared configuration and reset when the Board rebuilds.
+
+### Resource ownership and integration limits
+
+- Reuse external Gameplay, Appearance, Camera and Feedback Resources when presets share their settings; do not mutate shared Resources in response to a running session.
+- Keep score, timers, achievements and save slots in host Nodes or autoloads. Reaction Resources should be stateless.
+- Use `get_piece_node(piece_id)` as a **read-only** attachment point for VFX. Do not modify piece transforms, geometry, group IDs or UVs from host scripts.
+- `rebuild()` replaces the generated piece Nodes. Do not keep references to them across regeneration.
+- A single Board uses the viewport's active `Camera2D` and `_unhandled_input`. Multiple interactive Boards in **one viewport** are not an isolated input/camera setup; use separate `SubViewport` instances or enable interaction on only one Board at a time.
+- A saved state checks geometry/grid/seed settings but does **not** cryptographically identify image contents. Associate save slots with your own puzzle/image ID.
+- `piece_material` is shared across generated pieces. For different piece-specific shader values, use CanvasItem instance shader parameters; null leaves the default renderer.
+- Gameplay input is currently focused on mouse and keyboard; touch/controller paths still need project-specific verification. Test performance and memory on target hardware.
+
+For custom host reactions, audio, animation, and event contracts see [Events & Reactions](EVENTS_AND_REACTIONS.md).
 
 ## Public Board helpers
 
@@ -325,6 +372,7 @@ Useful integration methods:
 - `capture_state()`
 - `restore_state(state, update_camera = true)`
 - `capture_resume_config()`
+- `get_artwork_detail_info()` — native pixels per piece and recommended source size
 - `is_completed()`
 
 For external effects and game logic, use the rich semantic signals and `JigsawPuzzleEvent` API documented in [Events & Reactions](EVENTS_AND_REACTIONS.md).
