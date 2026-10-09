@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://l4glowfkua03"]
 
 [ext_resource type="Script" uid="uid://dg252a3yj7sqv" path="res://addons/jigsawg/src/jigsaw_board.gd" id="1"]
-[ext_resource type="Texture2D" uid="uid://6utvaa7cbx0m" path="res://examples/images/wallpaperflare.com_wallpaper.jpg" id="2_cukyi"]
+[ext_resource type="Resource" path="res://examples/configs/standard_puzzle.tres" id="2_config"]
 
 [node name="PuzzleLab" type="Node2D" unique_id=1238527851]
 
@@ -9,9 +9,4 @@
 
 [node name="JigsawBoard" type="Node2D" parent="." unique_id=659092595]
 script = ExtResource("1")
-puzzle_texture = ExtResource("2_cukyi")
-columns = 10
-rows = 8
-shuffle_mode = 2
-show_ghost_board = true
-connect_animation_duration = 0.31
+puzzle_config = ExtResource("2_config")
