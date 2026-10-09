@@ -86,6 +86,11 @@ var large_puzzle_threshold := 200
 var focus_board_key: Key = KEY_HOME
 var overview_key: Key = KEY_END
 var focus_selection_key: Key = KEY_F
+var focus_board_action: StringName = &""
+var overview_action: StringName = &""
+var focus_selection_action: StringName = &""
+var zoom_in_action: StringName = &""
+var zoom_out_action: StringName = &""
 var selection_focus_padding := 1.0
 var selection_focus_max_zoom := 2.0
 var max_zoom := 8.0
@@ -111,6 +116,8 @@ var ghost_opacity := 0.25:
 		ghost_opacity = value
 		_update_ghost_board()
 var preview_key: Key = KEY_P
+var preview_action: StringName = &""
+var rotate_action: StringName = &""
 var preview_dim := 0.82
 var enable_preview := true
 var visual_style: VisualStyle = VisualStyle.CLEAN
@@ -989,8 +996,50 @@ func _make_demo_image() -> Image:
 			image.set_pixel(x, y, Color(0.20, 0.55, 0.77) if checker else Color(0.95, 0.64, 0.28))
 	return image
 
+## No required InputMap entries or global input remapping. Existing mouse and
+## keyboard controls still work; host-defined actions extend those controls.
+func _matches_input_action(event: InputEvent, action: StringName) -> bool:
+	if action == &"" or not InputMap.has_action(action):
+		return false
+	if event is InputEventKey and event.echo:
+		return false
+	return event.is_action_pressed(action)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint() or not _interaction_enabled or _generating:
+		return
+
+	if enable_camera_navigation and _camera != null:
+		if _matches_input_action(event, focus_board_action):
+			if focus_board():
+				get_viewport().set_input_as_handled()
+			return
+		if _matches_input_action(event, overview_action):
+			if fit_view():
+				get_viewport().set_input_as_handled()
+			return
+		if _matches_input_action(event, focus_selection_action):
+			if focus_selection():
+				get_viewport().set_input_as_handled()
+			return
+		if _matches_input_action(event, zoom_in_action):
+			_zoom_at_cursor(wheel_zoom_factor)
+			get_viewport().set_input_as_handled()
+			return
+		if _matches_input_action(event, zoom_out_action):
+			_zoom_at_cursor(1.0 / wheel_zoom_factor)
+			get_viewport().set_input_as_handled()
+			return
+
+	if enable_preview and _matches_input_action(event, preview_action):
+		toggle_reference_preview()
+		get_viewport().set_input_as_handled()
+		return
+
+	if allow_piece_rotation and _matches_input_action(event, rotate_action):
+		if _rotate_under_cursor():
+			get_viewport().set_input_as_handled()
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo and enable_camera_navigation and _camera != null:
@@ -1510,6 +1559,7 @@ func _apply_resource_presets() -> void:
 	snap_assist_extra_fraction = gameplay.snap_assist_extra_fraction
 	selection_assist_radius_px = gameplay.selection_assist_radius_px
 	allow_piece_rotation = gameplay.allow_piece_rotation
+	rotate_action = gameplay.rotate_action
 	random_rotation_on_shuffle = gameplay.random_rotation_on_shuffle
 	enable_multi_select = gameplay.enable_multi_select
 	match gameplay.shuffle_mode:
@@ -1532,6 +1582,7 @@ func _apply_resource_presets() -> void:
 	ghost_opacity = gameplay.ghost_opacity
 	enable_preview = gameplay.enable_preview
 	preview_key = gameplay.preview_key
+	preview_action = gameplay.preview_action
 	preview_dim = gameplay.preview_dim
 
 	var appearance := config.appearance
@@ -1572,6 +1623,11 @@ func _apply_resource_presets() -> void:
 	focus_board_key = camera_options.focus_board_key
 	overview_key = camera_options.overview_key
 	focus_selection_key = camera_options.focus_selection_key
+	focus_board_action = camera_options.focus_board_action
+	overview_action = camera_options.overview_action
+	focus_selection_action = camera_options.focus_selection_action
+	zoom_in_action = camera_options.zoom_in_action
+	zoom_out_action = camera_options.zoom_out_action
 	selection_focus_padding = camera_options.selection_focus_padding
 	selection_focus_max_zoom = camera_options.selection_focus_max_zoom
 	smooth_pan = camera_options.smooth_pan

@@ -20,6 +20,9 @@ enum Distribution { RANDOM, RADIAL }
 @export var random_rotation_on_shuffle := true
 ## Ctrl+click toggles complete connected groups; a drag packs distant groups into a compact non-overlapping arrangement.
 @export var enable_multi_select := true
+## Optional host InputMap action for rotating the group under the pointer.
+## Does not replace the standard right-mouse click unless the host maps it.
+@export var rotate_action: StringName = &""
 
 @export_group("Accessibility")
 ## Additional fraction of the shorter piece side allowed for joining neighbors.
@@ -59,5 +62,7 @@ enum Distribution { RANDOM, RADIAL }
 @export var enable_preview := true
 ## Key used to toggle the fullscreen preview.
 @export var preview_key: Key = KEY_P
+## Optional InputMap action for displaying the reference without pressing P.
+@export var preview_action: StringName = &""
 ## Background darkness of fullscreen image preview; 0 transparent, 1 opaque.
 @export_range(0.0, 1.0, 0.01) var preview_dim := 0.82

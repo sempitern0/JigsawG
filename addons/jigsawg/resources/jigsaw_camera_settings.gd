@@ -21,6 +21,17 @@ enum InitialFocus { AUTO, ALL_PIECES, BOARD }
 @export var overview_key: Key = KEY_END
 ## Focus the last clicked piece or all Ctrl-selected groups.
 @export var focus_selection_key: Key = KEY_F
+
+@export_group("Optional InputMap Actions")
+## Host-owned InputMap actions are optional in addition to existing key shortcuts.
+## Missing/empty names are safely ignored. No InputMap actions are installed.
+@export var focus_board_action: StringName = &""
+@export var overview_action: StringName = &""
+@export var focus_selection_action: StringName = &""
+@export var zoom_in_action: StringName = &""
+@export var zoom_out_action: StringName = &""
+
+@export_group("Navigation")
 ## Padding measured in longest native piece sides.
 @export_range(0.0, 4.0, 0.1) var selection_focus_padding := 1.0
 ## Max zoom when framing the selected pieces; limits disorienting close-ups.
