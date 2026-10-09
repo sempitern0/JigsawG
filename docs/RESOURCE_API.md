@@ -60,6 +60,8 @@ In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image di
 - `allow_piece_rotation`
 - `random_rotation_on_shuffle`
 - `enable_multi_select`
+- `rotate_action` (optional host InputMap action; right-click remains)
+- `preview_action` (optional host InputMap action; P remains)
 - `shuffle_mode`
 - `distribution_mode`
 - `initial_scatter`
@@ -153,6 +155,28 @@ internal, so there is no new user-facing configuration or change to saved
 state. Compare 200/500/2000 real-scene index-versus-linear query timings with
 the optional heavy benchmark; a data structure alone does not prove an FPS gain.
 
+## InputMap aliases and reduced motion
+
+For alternative keyboard/gamepad shortcuts, first register actions in **your game's Project Settings → Input Map**, then put their names in the Camera and Gameplay settings. JigsawG does not register global actions and gracefully ignores empty/unregistered action names.
+
+```gdscript
+config.camera.focus_board_action = &"my_game_focus_board"
+config.camera.zoom_in_action = &"my_game_zoom_in"
+config.gameplay.rotate_action = &"my_game_rotate"
+config.gameplay.preview_action = &"my_game_reference"
+```
+
+Existing Home / End / F / P, mouse wheel and right-click shortcuts remain available. The rotate action targets the group under the **current pointer**. Full keyboard-only piece selection/movement or a virtual gamepad cursor remains future work.
+
+**Feedback → Reduce Motion** disables the built-in motion adapter, camera/drag smoothing and temporary tint flashes. The runtime override applies immediately and cancels built-in piece display/tint tweens without changing logical transforms or saved groups:
+
+```gdscript
+$JigsawBoard.set_reduced_motion(true)
+print($JigsawBoard.is_reduced_motion())
+```
+
+`rebuild()` restores the configured Feedback Resource value. Motion/event signals are still emitted. Host-owned custom reaction animations are outside the plugin's control and should consult `is_reduced_motion()` themselves.
+
 ## Camera settings
 
 `JigsawCameraSettings` owns:
@@ -165,6 +189,8 @@ the optional heavy benchmark; a data structure alone does not prove an FPS gain.
 - `focus_board_key` (Home by default)
 - `overview_key` (End by default)
 - `focus_selection_key` (F by default; KEY_NONE disables it)
+- `focus_board_action`, `overview_action`, `focus_selection_action` (optional host InputMap actions)
+- `zoom_in_action`, `zoom_out_action` (optional host InputMap actions)
 - `selection_focus_padding` (margin around the selection, measured in native piece sides)
 - `selection_focus_max_zoom` (maximum zoom when focusing selected pieces; default 2.0)
 - `smooth_pan`

@@ -121,6 +121,12 @@ Be mindful of VRAM and maximum texture sizes when choosing ultra-high-resolution
 
 All relevant controls are configurable through the Gameplay and Camera Resources. A normal single click leaves no persistent highlight; Ctrl selections stay visibly outlined. The optional Gameplay → Accessibility pointer radius is measured in **screen pixels**, so assistance feels consistent when zooming.
 
+### Optional input actions and reduced motion
+
+Developers can provide additional **InputMap action names** for focus (board, overview or selection), zoom, rotation and reference preview. These actions supplement existing mouse/keyboard controls; JigsawG never installs or overwrites a project's InputMap. Full keyboard-only piece movement is not implemented yet.
+
+Enable **Feedback → Reduce Motion** to suppress built-in camera/drag interpolation, presentation-only motion and tint flashes. An options menu can call `$JigsawBoard.set_reduced_motion(true)` without regenerating pieces. Host-authored custom visual reactions should also check `is_reduced_motion()`.
+
 ## Integrate without rewriting the puzzle
 
 Use public Board signals for HUDs and built-in `JigsawReaction` Resources for sounds, particle scenes or host animations:

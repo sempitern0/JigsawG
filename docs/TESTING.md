@@ -29,6 +29,14 @@ The runner rejects non-zero exits, script/import errors and missing PASS markers
 - [ ] Use `configure(config)` and `apply_configuration()` and confirm both reset game progress.
 - [ ] Test migration from an old scene by moving legacy board exports into a .tres.
 
+## Optional input and reduced-motion validation
+
+- [ ] Execute `tests/test_accessible_input_and_motion.gd` and confirm host InputMap actions, legacy key fallback and cancel-in-progress reduced-motion behavior.
+- [ ] Run Godot import with **GDScript warnings treated as errors**. The nine recently added test files now explicitly type all local declarations that previously relied on Variant inference.
+- [ ] Check that mapped actions are ignored by the Board after a HUD consumes their input; missing actions never block default keys.
+- [ ] Toggle reduced motion during built-in rotation, drag and camera zoom; verify immediate transitions, unchanged events and no save-state mutation.
+- [ ] Confirm that full keyboard-only piece manipulation and arbitrary host reaction tweens are still outside this integration.
+
 ## Gameplay regression
 - [ ] 5x4, 10x8 and 20x15 generate correct mirrored Bézier connections.
 - [ ] Test Classic, Rounded, Angular, Compact, Mixed and Organic families with low/high variation.
