@@ -161,6 +161,9 @@ var _organizer_last_focused: Dictionary = {}
 var _organizer_corner_action: StringName = &""
 var _organizer_edge_action: StringName = &""
 var _organizer_interior_action: StringName = &""
+var _organizer_corner_key: Key = KEY_NONE
+var _organizer_edge_key: Key = KEY_NONE
+var _organizer_interior_key: Key = KEY_NONE
 var _multi_selection_mode := false
 var _drag_visual_active := false
 var _drag_start_screen := Vector2.ZERO
@@ -1556,6 +1559,20 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	# The host owns the optional binding. Browsing only reframes the camera,
 	# leaving piece selection, group graph and saved state completely intact.
+	if event is InputEventKey and event.pressed and not event.echo:
+		var organizer_key: Key = event.keycode
+		var organizer_type: int = -1
+		if organizer_key != KEY_NONE:
+			if organizer_key == _organizer_corner_key:
+				organizer_type = PieceCategory.CORNER
+			elif organizer_key == _organizer_edge_key:
+				organizer_type = PieceCategory.EDGE
+			elif organizer_key == _organizer_interior_key:
+				organizer_type = PieceCategory.INTERIOR
+		if organizer_type >= 0:
+			if focus_next_piece_by_category(organizer_type) >= 0:
+				get_viewport().set_input_as_handled()
+			return
 	if _matches_input_action(event, _organizer_corner_action):
 		if focus_next_piece_by_category(PieceCategory.CORNER) >= 0:
 			get_viewport().set_input_as_handled()
@@ -2056,6 +2073,9 @@ func _apply_resource_presets() -> void:
 	_organizer_corner_action = gameplay.next_corner_action
 	_organizer_edge_action = gameplay.next_edge_action
 	_organizer_interior_action = gameplay.next_interior_action
+	_organizer_corner_key = gameplay.next_corner_key
+	_organizer_edge_key = gameplay.next_edge_key
+	_organizer_interior_key = gameplay.next_interior_key
 	match gameplay.shuffle_mode:
 		JigsawGameplaySettings.Shuffle.CENTER:
 			shuffle_mode = ShuffleMode.CENTER

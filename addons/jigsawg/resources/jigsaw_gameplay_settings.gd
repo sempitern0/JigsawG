@@ -38,6 +38,10 @@ enum Distribution { RANDOM, RADIAL }
 @export var next_corner_action: StringName = &""
 @export var next_edge_action: StringName = &""
 @export var next_interior_action: StringName = &""
+## Optional direct shortcuts for simple demos; KEY_NONE keeps them disabled.
+@export var next_corner_key: Key = KEY_NONE
+@export var next_edge_key: Key = KEY_NONE
+@export var next_interior_key: Key = KEY_NONE
 
 @export_group("Shuffle")
 ## Choose where scattered pieces are placed.
