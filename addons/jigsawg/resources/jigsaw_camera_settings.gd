@@ -3,6 +3,8 @@ class_name JigsawCameraSettings
 extends Resource
 ## Reusable camera and input-navigation settings for JigsawBoard.
 
+enum InitialFocus { AUTO, ALL_PIECES, BOARD }
+
 @export_group("Navigation")
 ## Enable mouse-wheel zoom, empty-space/middle-button pan and edge scroll.
 @export var enable_camera_navigation := true
@@ -10,6 +12,13 @@ extends Resource
 @export var invert_background_pan := false
 ## Fit board and scattered pieces when generated.
 @export var auto_fit_camera := true
+## Auto initially frames the board for large puzzles, all pieces for small ones.
+@export var initial_focus: InitialFocus = InitialFocus.AUTO
+## Auto switches to a board-first view at this actual number of generated pieces.
+@export_range(20, 4000, 10) var large_puzzle_threshold := 200
+## Keyboard shortcuts for board work and full scattered overview.
+@export var focus_board_key: Key = KEY_HOME
+@export var overview_key: Key = KEY_END
 ## Smooth camera position toward drag/edge-scroll targets instead of snapping each input sample.
 @export var smooth_pan := true
 ## Exponential pan response per second; higher follows the pointer more immediately.
@@ -31,7 +40,7 @@ extends Resource
 ## Scale multiplier applied for one wheel notch.
 @export_range(1.05, 2.0, 0.05) var wheel_zoom_factor := 1.15
 ## Smallest permitted camera zoom.
-@export_range(0.01, 10.0, 0.01) var min_zoom := 0.025
+@export_range(0.001, 10.0, 0.001) var min_zoom := 0.005
 ## Largest permitted camera zoom.
 @export_range(0.25, 16.0, 0.25) var max_zoom := 8.0
 

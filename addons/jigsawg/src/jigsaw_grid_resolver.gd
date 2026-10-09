@@ -5,7 +5,7 @@ extends RefCounted
 static func resolve(
 	requested_count: int,
 	source_size: Vector2i,
-	max_axis: int = 40,
+	max_axis: int = 80,
 	min_piece_side: float = 14.0
 ) -> Vector2i:
 	if requested_count < 4 or source_size.x <= 0 or source_size.y <= 0:
