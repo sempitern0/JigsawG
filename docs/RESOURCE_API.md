@@ -1,22 +1,22 @@
-# JigsawG — resource-first API
+# JigsawG — API basada en Resources
 
-## One asset per puzzle
+## Configuración del tablero
 
-Create **JigsawPuzzleConfig** in Godot's Create Resource dialog and save it as a `.tres`. Drag that Resource to the **Puzzle Config** export on a **JigsawBoard** node. The component reads the referenced settings when it enters the scene tree and whenever `rebuild()` / `apply_configuration()` is called.
+El nodo `JigsawBoard` expone **una sola propiedad** en el Inspector: `puzzle_config: JigsawPuzzleConfig`. Configura cada puzle mediante un recurso raíz .tres que agrupa la imagen, las dimensiones y cuatro recursos especializados.
 
-You can create one config per level and multiple boards may reuse the same config. Board code never alters Resource objects.
-
-| Resource | Responsibilities |
+| Resource | Variables |
 |---|---|
-| **JigsawPuzzleConfig** | Source texture, rows, columns, connector family count; references the other Resources |
-| **JigsawGameplaySettings** | Mode, snapping, rotation, initial placement/shuffle, preview and ghost board |
-| **JigsawAppearanceSettings** | Bézier connector depth/detail, edges, texture filtering, rendering style |
-| **JigsawCameraSettings** | Zoom, pan, camera bounds, initial fitting and edge scrolling |
-| **JigsawFeedbackSettings** | Pickup/success/failure tint animations and durations |
+| `JigsawPuzzleConfig` | `puzzle_texture`, `columns`, `rows`, `silhouette_variants`, `gameplay`, `appearance`, `camera`, `feedback` |
+| `JigsawGameplaySettings` | `game_mode`, `snap_tolerance`, `allow_piece_rotation`, `random_rotation_on_shuffle`, `shuffle_mode`, `distribution_mode`, `initial_scatter`, `shuffle_spacing`, `generation_seed`, `show_ghost_board`, `ghost_opacity`, `enable_preview`, `preview_key`, `preview_dim` |
+| `JigsawAppearanceSettings` | `connector_depth`, `visual_style`, `texture_sampling`, `bezier_detail`, `piece_edge_opacity`, `piece_edge_width` |
+| `JigsawCameraSettings` | `enable_camera_navigation`, `invert_background_pan`, `auto_fit_camera`, `restrict_camera`, `camera_outer_margin`, `smooth_zoom`, `zoom_smoothing`, `wheel_zoom_factor`, `min_zoom`, `max_zoom`, `drag_smoothing`, `edge_scroll_zone`, `edge_scroll_speed` |
+| `JigsawFeedbackSettings` | `animation_style`, `connect_animation_duration`, `connect_tint`, `pickup_tint`, `enable_failure_feedback`, `failure_tint`, `failure_animation_duration` |
 
-The root Resource creates default subresources automatically; expand and adjust them in the Inspector. To share a subresource across different puzzle configs, save it as an external `.tres` and assign it to each config. `JigsawGameplaySettings` and `JigsawAppearanceSettings` may also be assigned directly to older boards for backward compatibility. The **root configuration wins** if both are present.
+Los ajustes de animación se definen **únicamente** en `JigsawFeedbackSettings`, no en Appearance. `preview_dim` pertenece a Gameplay.
 
-## Programmatic setup
+Crea un recurso `JigsawPuzzleConfig` desde el editor y asígnalo directamente al nodo, o utiliza el ejemplo `examples/configs/standard_puzzle.tres`. Los subrecursos se pueden reutilizar como recursos externos entre varios puzles.
+
+## Uso por código
 
 ```gdscript
 extends Node2D
@@ -25,49 +25,30 @@ extends Node2D
 
 func _ready() -> void:
     var config := JigsawPuzzleConfig.new()
-    config.puzzle_texture = load("res://art/my_image.png")
+    config.puzzle_texture = load("res://art/puzzle.png")
     config.columns = 10
     config.rows = 8
-    config.silhouette_variants = 8
-
     config.gameplay.allow_piece_rotation = true
-    config.gameplay.random_rotation_on_shuffle = true
-    config.gameplay.game_mode = JigsawGameplaySettings.Mode.FREE
-
+    config.gameplay.show_ghost_board = true
     config.appearance.connector_depth = 0.23
-    config.appearance.visual_style = JigsawAppearanceSettings.VisualStyle.CARDBOARD
-    config.feedback.connect_animation_duration = 0.23
-    config.feedback.enable_failure_feedback = true
+    config.feedback.connect_animation_duration = 0.25
     config.camera.smooth_zoom = true
 
     board.configure(config)
-    board.puzzle_completed.connect(_on_completed)
+    board.puzzle_completed.connect(_on_finished)
 
-func _on_completed() -> void:
-    print("Solved!")
+func _on_finished() -> void:
+    print("Completed!")
 ```
 
-To reuse assets, save `res://puzzles/forest.tres` and call:
+Para alternar entre niveles: `board.configure(load("res://puzzles/forest.tres"))`. Para aplicar cambios en el recurso actual: `board.apply_configuration()`. Ambos regeneran las piezas y reinician la partida; no llames a esas funciones cada fotograma.
 
-```gdscript
-board.configure(load("res://puzzles/forest.tres"))
-```
+`board.get_configuration()` devuelve el recurso asignado. `board.set_preview_visible(true)` abre la referencia y `board.rotate_piece(index)` gira una pieza cuando el modo permite rotación.
 
-`board.get_configuration()` retrieves the assigned root Resource. `board.apply_configuration()` regenerates the puzzle using the latest values in it. **Regeneration deliberately resets gameplay progress**; do not call it every frame.
+## Reglas de propiedad y migración
 
-## Inspector compatibility
+Los Resources son la única fuente de opciones. `JigsawBoard` conserva una copia de valores **no exportados** para el runtime; no se escriben cambios sobre los Resources. Un subrecurso nulo aplica valores predeterminados para su categoría. Si el Resource raíz no se asigna, el tablero genera el puzzle de demostración con valores predeterminados.
 
-Legacy direct `JigsawBoard` properties are still available for previously built scenes. In resource-first projects, set **Puzzle Config** and configure its children; do not mix direct and resource values for the same setting.
+**Cambio incompatible en escenas antiguas:** propiedades como `puzzle_texture`, `columns`, `show_ghost_board` o `animation_style` ya no se exportan en el nodo. Crea un `JigsawPuzzleConfig` y traslada sus valores antes de actualizar. No deben persistir asignaciones antiguas en `.tscn`.
 
-Configuration resolution:
-1. If a root **Puzzle Config** exists, take dimensions/texture from it and use its nested resources.
-2. If there is no root config, allow legacy **Gameplay Settings** and **Appearance Settings** exports.
-3. If neither exists, use the individual legacy board exports.
-
-A null nested config section leaves the corresponding legacy properties in use. Configs are not edited or duplicated by the Board, but legacy exported board fields receive an effective copy when `rebuild()` applies Resources. To switch away from a root config completely, explicitly reset the individual legacy fields or instantiate a fresh Board.
-
-## Signals and extension points
-
-`puzzle_generated(piece_count)`, `piece_picked(piece_id)`, `piece_released(piece_id, connected)`, `pieces_connected(group_size)`, `piece_placed(piece_id)`, `group_rotated(piece_id, quarter_turns, group_size)`, `preview_toggled(visible)`, `connection_failed(piece_id)` and `puzzle_completed()` let host games add HUD, audio, analytics, achievements or custom effects.
-
-The internal `JigsawPiece` and `jigsaw_geometry.gd` scripts are implementation details, not required as integration entry points. The public component remains `JigsawBoard`.
+Las señales públicas permiten añadir HUD, efectos, sonido y puntuación: `puzzle_generated`, `piece_picked`, `piece_released`, `pieces_connected`, `piece_placed`, `group_rotated`, `preview_toggled`, `connection_failed`, `puzzle_completed`.
