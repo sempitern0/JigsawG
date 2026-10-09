@@ -129,11 +129,12 @@ All relevant controls are configurable through the Gameplay and Camera Resources
 The included demo enables C / E / I for cycling **corner, border and interior** connected groups. These keys are disabled in newly created Configs, so host games choose their own shortcuts or UI buttons.
 
 ```gdscript
+const BoardScript = preload("res://addons/jigsawg/src/jigsaw_board.gd")
 var corners: PackedInt32Array = board.get_piece_ids_by_category(
-    JigsawBoard.PieceCategory.CORNER
+    BoardScript.PieceCategory.CORNER
 )
 var focused_piece_id: int = board.focus_next_piece_by_category(
-    JigsawBoard.PieceCategory.CORNER
+    BoardScript.PieceCategory.CORNER
 )
 ```
 

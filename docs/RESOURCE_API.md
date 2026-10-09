@@ -47,19 +47,20 @@ In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image di
 
 ## Corner, edge and interior organizer
 
-Every piece retains a stable topology category in `JigsawBoard.PieceCategory`: `CORNER`, `EDGE` (outer border **excluding corners**) or `INTERIOR`. Categories come from the original solved grid, not current position, angle, Bézier silhouette or image color.
+Every piece retains a stable topology category in `BoardScript.PieceCategory`: `CORNER`, `EDGE` (outer border **excluding corners**) or `INTERIOR`. Categories come from the original solved grid, not current position, angle, Bézier silhouette or image color.
 
 ```gdscript
 # Use after the puzzle_generated signal if generation is batched.
+const BoardScript = preload("res://addons/jigsawg/src/jigsaw_board.gd")
 var category: int = board.get_piece_category(piece_id)  # -1 if invalid
 var corners: PackedInt32Array = board.get_piece_ids_by_category(
-    JigsawBoard.PieceCategory.CORNER
+    BoardScript.PieceCategory.CORNER
 )
 var borders: PackedInt32Array = board.get_piece_ids_by_category(
-    JigsawBoard.PieceCategory.EDGE, true  # include already placed Mosaic pieces
+    BoardScript.PieceCategory.EDGE, true  # include already placed Mosaic pieces
 )
 var id: int = board.focus_next_piece_by_category(
-    JigsawBoard.PieceCategory.CORNER
+    BoardScript.PieceCategory.CORNER
 )
 ```
 
