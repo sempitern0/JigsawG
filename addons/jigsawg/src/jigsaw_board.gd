@@ -201,7 +201,7 @@ var _device_pointer_screen := Vector2.ZERO
 var _controller_cursor_active := false
 var _controller_cursor_ready := false
 var _controller_cursor_layer: CanvasLayer
-var _controller_cursor_ui: Control
+var _controller_cursor_ui: VirtualCursor
 var _touch_positions: Dictionary = {}
 var _touch_primary := -1
 var _touch_gesture_active := false
@@ -298,6 +298,9 @@ func set_interaction_enabled(enabled: bool) -> void:
 	if not enabled:
 		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
 		_end_device_pointer()
+		_touch_positions.clear()
+		_touch_primary = -1
+		_touch_gesture_active = false
 		_background_pan_pending = false
 		_camera_pan = false
 		_camera_pan_button = 0
@@ -1210,9 +1213,131 @@ func _finish_pointer_drag(pointer_screen: Vector2, pointer_world: Vector2) -> vo
 	_drag_visual_active = false
 
 
+## Touch input uses the same Board pointer operations as mouse/controller.
+## A second finger cancels picking and changes the interaction to a camera
+## gesture; lifting that finger never resumes an old piece drag implicitly.
+func _handle_touch_event(event: InputEvent) -> bool:
+	if _device_input == null or not _device_input.enable_touch:
+		return false
+	if event is InputEventScreenTouch:
+		var touch: InputEventScreenTouch = event as InputEventScreenTouch
+		_touch_suppress_mouse_until = Time.get_ticks_msec() + 250
+		if touch.pressed:
+			if _touch_positions.has(touch.index):
+				return true
+			if _controller_cursor_active:
+				if _drag_root >= 0:
+					_cancel_drag()
+				_end_device_pointer()
+			_touch_positions[touch.index] = touch.position
+			if _touch_positions.size() == 1:
+				_touch_primary = touch.index
+				_device_pointer_active = true
+				_device_pointer_screen = touch.position
+				var picked: int = _find_piece_at(_get_pointer_world())
+				if picked >= 0:
+					_begin_piece_drag(picked, _get_pointer_world())
+			elif _touch_positions.size() == 2:
+				if _drag_root >= 0:
+					_cancel_drag()
+				_touch_gesture_active = true
+				_touch_primary = -1
+				_device_pointer_active = false
+				_reset_touch_gesture()
+			return true
+		if not _touch_positions.has(touch.index):
+			return true
+		var was_primary: bool = touch.index == _touch_primary
+		if was_primary and not _touch_gesture_active:
+			_device_pointer_screen = touch.position
+			if _drag_root >= 0:
+				_finish_pointer_drag(touch.position, _get_pointer_world())
+			elif _touch_positions.size() == 1:
+				clear_selection()
+		_touch_positions.erase(touch.index)
+		if _touch_positions.is_empty():
+			_touch_primary = -1
+			_touch_gesture_active = false
+			_device_pointer_active = false
+			_touch_last_distance = 0.0
+		return true
+	if event is InputEventScreenDrag:
+		var drag: InputEventScreenDrag = event as InputEventScreenDrag
+		if not _touch_positions.has(drag.index):
+			return true
+		_touch_suppress_mouse_until = Time.get_ticks_msec() + 250
+		_touch_positions[drag.index] = drag.position
+		if _touch_gesture_active:
+			_update_touch_gesture()
+		elif drag.index == _touch_primary:
+			_device_pointer_screen = drag.position
+			if _drag_root >= 0 and not _drag_visual_active and _device_pointer_screen.distance_to(_drag_start_screen) >= _drag_threshold_screen():
+				_activate_drag()
+		return true
+	return false
+
+
+func _touch_pair() -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	var ids: Array = _touch_positions.keys()
+	ids.sort()
+	for id_variant in ids:
+		if result.size() == 2:
+			break
+		var position: Vector2 = _touch_positions[id_variant]
+		result.append(position)
+	return result
+
+
+func _reset_touch_gesture() -> void:
+	var points: Array[Vector2] = _touch_pair()
+	if points.size() < 2:
+		return
+	_touch_last_center = (points[0] + points[1]) * 0.5
+	_touch_last_distance = points[0].distance_to(points[1])
+
+
+func _update_touch_gesture() -> void:
+	if not _device_input.touch_pinch_and_pan or _camera == null or not enable_camera_navigation:
+		return
+	var points: Array[Vector2] = _touch_pair()
+	if points.size() < 2:
+		return
+	var center: Vector2 = (points[0] + points[1]) * 0.5
+	var distance: float = points[0].distance_to(points[1])
+	if _touch_last_distance >= 2.0 and distance >= 2.0:
+		var zoom: float = clampf(_camera.zoom.x * distance / _touch_last_distance, min_zoom, max_zoom)
+		_zoom_goal = zoom
+		_apply_zoom(zoom, center)
+		_zoom_anchor_valid = false
+	var screen_shift: Vector2 = center - _touch_last_center
+	if _camera != null and screen_shift != Vector2.ZERO:
+		_camera.global_position = _clamp_camera_position(
+			_camera.global_position - screen_shift / maxf(_camera.zoom.x, 0.001)
+		)
+		_camera.force_update_scroll()
+		_sync_camera_target()
+	_touch_last_center = center
+	_touch_last_distance = distance
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint() or not _interaction_enabled or _generating:
 		return
+
+	if _handle_touch_event(event):
+		get_viewport().set_input_as_handled()
+		return
+
+	# Native touch is authoritative when enabled. Ignore OS-generated mouse
+	# duplicates briefly; real mouse movement switches control afterward.
+	if event is InputEventMouseButton or event is InputEventMouseMotion:
+		if _device_input != null and _device_input.enable_touch and Time.get_ticks_msec() <= _touch_suppress_mouse_until:
+			return
+		if _controller_cursor_active:
+			if _drag_root >= 0:
+				_cancel_drag()
+			_end_device_pointer()
 
 	if _handle_controller_action(event):
 		get_viewport().set_input_as_handled()
