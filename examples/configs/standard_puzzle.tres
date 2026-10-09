@@ -34,6 +34,7 @@ ghost_opacity = 0.2
 [resource]
 script = ExtResource("1")
 puzzle_texture = ExtResource("5_dqwao")
+grid_mode = 1
 columns = 10
 rows = 5
 silhouette_variants = 4
