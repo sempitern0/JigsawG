@@ -37,6 +37,7 @@ A resource-driven **2D puzzle runtime** for [Godot 4.7](https://godotengine.org/
 | 💾 | **Resumable state** | Save/restore positions, rotations, groups and Mosaic locks in Godot Resources |
 | 🔊 | **Event-driven integration** | Typed events, audio, VFX, `AnimationPlayer` and method-call reactions |
 | ⚙️ | **Scalable generation options** | Seeded layouts, spatial-hash Chaotic shuffle and optional cancellable frame batches |
+| ♿ | **Optional precision assistance** | Screen-pixel selection margin and adjustable Free/Mosaic snap radius, without changing connector geometry |
 
 Two play styles are included: **Free** (assemble independent connected groups anywhere) and **Mosaic** (place pieces at their original positions).
 
@@ -88,6 +89,7 @@ A few recipes:
 
 - **For natural pieces:** choose **Organic**, raise `connector_variation` and use a balanced Auto grid.
 - **For dark images:** use a lighter **Piece Edge Color**, plus a moderate **Piece Edge Opacity** and width. These change rendering only, never the snap geometry.
+- **For easier interaction:** in Gameplay → Accessibility, set **Snap Assist Extra Fraction** to `0.08` and **Selection Assist Radius Px** to `8`. Exact hits still win; the snap still requires matching neighbors and orientation. Both defaults are `0` for backward compatibility.
 - **For large puzzles:** use high-resolution *original* artwork, set **Generation Batch Size** to 64–128 and keep **Camera → Initial Focus** on Auto. When batching is enabled, JigsawG first fits and displays the **whole mosaic/assembly guide** for one frame, before spawning the first piece batch; it then applies the final camera framing after scattering.
 - **For custom animations:** assign a `JigsawMotionAdapter` under Feedback; its subclasses can animate rotation and multi-group arrangement without changing logical transforms.
 
@@ -117,7 +119,7 @@ Be mindful of VRAM and maximum texture sizes when choosing ultra-high-resolution
 | **F** | Return to the last clicked piece or frame all Ctrl-selected groups |
 | **P** | Toggle the full-image reference preview |
 
-All relevant controls are configurable through the Gameplay and Camera Resources. A normal single click leaves no persistent highlight; Ctrl selections stay visibly outlined.
+All relevant controls are configurable through the Gameplay and Camera Resources. A normal single click leaves no persistent highlight; Ctrl selections stay visibly outlined. The optional Gameplay → Accessibility pointer radius is measured in **screen pixels**, so assistance feels consistent when zooming.
 
 ## Integrate without rewriting the puzzle
 

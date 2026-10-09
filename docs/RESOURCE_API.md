@@ -55,6 +55,8 @@ In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image di
 
 - `game_mode`
 - `snap_tolerance`
+- `snap_assist_extra_fraction` (default `0`, optional extra fraction of the shorter piece side, capped to a total 0.5)
+- `selection_assist_radius_px` (default `0`, optional 0–24 extra **screen pixels** of silhouette picking allowance)
 - `allow_piece_rotation`
 - `random_rotation_on_shuffle`
 - `enable_multi_select`
@@ -73,6 +75,14 @@ In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image di
 - `preview_dim`
 
 Use **Free** for classic group assembly. Use **Mosaic** when pieces should lock into their original image position.
+
+### Optional accessibility assistance
+
+In Gameplay → Accessibility, **Snap Assist Extra Fraction** adds to the existing `snap_tolerance` rather than overriding it. For example, `0.24` base + `0.10` extra accepts a 0.34-shorter-piece-side offset. This operates on **Free** group joining and **Mosaic** slot placement, but does not permit joining unrelated grid neighbors, mixing quarter-turn orientations, or changing the exact snap destination. Its total tolerance is capped at half the shorter piece side. Both gameplay modes still use their original failure/success events and serialization.
+
+**Selection Assist Radius Px** relaxes only mouse picking, not piece geometry. Real polygon hits always take priority, including Ctrl-selected group priority. If nothing lies under the cursor, the Board checks nearby indexed pieces for the closest visible contour within the configured **screen-pixel radius**; Ctrl-highlighted candidates win equivalent ambiguous near-misses. The search uses a spatial rectangle in Board coordinates, so large puzzles do not require a full polygon scan. Render-only movement transforms and Camera2D zoom are respected.
+
+Both settings default to `0`: old Resource presets, procedural geometry, group IDs and puzzle save snapshots remain compatible. These settings are intended for optional ergonomic presets, not as an automatic puzzle solver. A practical starting point is `0.08` extra snap and `8` screen pixels for easier picking.
 
 With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in the current selection. Dragging a multi-selection automatically packs disconnected groups into compact, separated rows near the grabbed group while retaining existing connections and rotations. A simple click does not rearrange anything. Normal single clicks are visually unhighlighted; the highlight appears only after actual pointer motion during a drag, and disappears on release. Ctrl-selections stay highlighted to indicate intentional selection.
 

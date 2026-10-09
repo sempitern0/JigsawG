@@ -150,6 +150,7 @@ docs/                                      # User API, events, testing, roadmap
 - `JigsawGroupModel` is the authoritative source of connected group roots/members. A union retains the **dragged/anchor group's root**. Do not mirror independent mutable parent/member arrays in the Board.
 - Connected pieces remain rigid during dragging, packing and quarter-turn rotations. Position/rotation used for snap and save are exact, not tweened.
 - Motion adapters operate on **presentation** (e.g. `JigsawPiece.display_transform`), not the Board's authoritative piece transforms.
+- Gameplay accessibility assistance must be opt-in and must never bypass actual neighbor IDs, quarter-turn agreement, precise snap destination or exact polygon-hit priority. Screen-pixel picking margins may only affect choosing a piece; they do not enlarge saved contours.
 - A normal click does not leave a persistent selection outline; a real drag highlights the single piece. **Ctrl+click must immediately highlight or toggle a whole connected group**, including after a plain click.
 - Compact multi-selection must not overlap groups, disassemble connected groups, unexpectedly teleport on click-without-drag or corrupt rotation.
 - Camera navigation must respect caller settings and not hijack host UI input; multiple simultaneously interactive Boards in one viewport are **not** currently an isolated, guaranteed configuration.
@@ -196,6 +197,8 @@ godot --headless --path . --script res://tests/test_state_and_selection.gd
 godot --headless --path . --script res://tests/test_selection_and_auto_grid.gd
 godot --headless --path . --script res://tests/test_hit_index.gd
 godot --headless --path . --script res://tests/test_hit_index_board.gd
+godot --headless --path . --script res://tests/test_hit_region.gd
+godot --headless --path . --script res://tests/test_accessibility_assist.gd
 godot --headless --path . --script res://tests/test_camera_selection_focus.gd
 godot --headless --path . --script res://tests/test_motion_adapter.gd
 godot --headless --path . --script res://tests/test_generation_batching.gd
@@ -216,7 +219,7 @@ godot --headless --path . --script res://tests/benchmark_large_puzzles.gd
 | --- | --- | --- |
 | Geometry / Organic / UV sampling | geometry, shape profiles, organic shapes, state & selection | Neighbor seams, rotation, zoomed art |
 | Groups / snapping / multi-select | group model, group integration, selection & auto grid, state & selection | Connected drag and save/restore |
-| Input / camera / scatter | selection & auto grid, hit index, hit index Board, large scatter, generation batching | 200/500/2000 camera navigation and pan |
+| Input / camera / scatter | selection & auto grid, hit index, hit index Board, hit region, accessibility assist, large scatter, generation batching | 200/500/2000 camera navigation and pan |
 | Generation / save | generation batching, state & selection, public integration | Cancellation, immutable Resource presets |
 | Events / reactions / motion | event API, board events, motion adapter, public integration | Event ordering and visual tween correctness |
 | Plugin registration / distribution | plugin icon, public integration | Clean-project install using addon alone |

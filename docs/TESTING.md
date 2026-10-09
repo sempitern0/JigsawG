@@ -52,6 +52,10 @@ The runner rejects non-zero exits, script/import errors and missing PASS markers
 - [ ] Run `godot --headless --path . --script res://tests/test_selection_and_auto_grid.gd`.
 - [ ] Run `godot --headless --path . --script res://tests/test_hit_index.gd` (200/500/2000 broad phase and deterministic order).
 - [ ] Run `godot --headless --path . --script res://tests/test_hit_index_board.gd` (Ctrl priority, movement, rotation, animation, save/restore).
+- [ ] Run `godot --headless --path . --script res://tests/test_hit_region.gd` for 2000-piece extended region searches and index bounds at very low zoom.
+- [ ] Run `godot --headless --path . --script res://tests/test_accessibility_assist.gd` for precise-hit priority, screen-pixel pointer margins, animated transforms, Free snap and Mosaic orientation.
+- [ ] Compare assist radius `0` vs `8` px on a real 1080p / 1440p viewport; confirm empty regions do not select distant pieces and Ctrl priority remains sensible.
+- [ ] Test Snap Assist `0` vs `0.08` / `0.12` for detached Free groups and Mosaic slots, including rotation mismatch and unchanged saved state.
 - [ ] Compare indexed and full-scan queries in `tests/benchmark_large_puzzles.gd` on actual hardware; record before/after times.
 - [ ] Run `godot --headless --path . --script res://tests/test_motion_adapter.gd`; verify animated rotation and packed selection with the demo's Motion Adapter.
 - [ ] Confirm that `capture_state()`, `restore_state()`, snap and group membership are unaffected by presentation tweens.
