@@ -28,5 +28,16 @@ func _initialize() -> void:
 	assert(config.reactions.size() == 1)
 	assert(config.reactions[0] == reaction)
 
+	var spawn := JigsawSpawnSceneReaction.new()
+	spawn.parent_mode = JigsawSpawnSceneReaction.ParentMode.PRIMARY_PIECE
+	spawn.auto_free_after = 0.5
+	assert(spawn.parent_mode == JigsawSpawnSceneReaction.ParentMode.PRIMARY_PIECE)
+	assert(is_equal_approx(spawn.auto_free_after, 0.5))
+
+	var camera := JigsawCameraSettings.new()
+	assert(camera.smooth_pan)
+	assert(camera.pan_smoothing > 0.0)
+	assert(camera.edge_scroll_smoothing > 0.0)
+
 	print("JigsawG event/reaction API smoke test: PASS")
 	quit()
