@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="JigsawPuzzleConfig" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_puzzle_config.gd" id="1"]
+[ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_gameplay_settings.gd" id="2"]
+[ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_camera_settings.gd" id="3"]
+[ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_appearance_settings.gd" id="4"]
+[ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_feedback_settings.gd" id="5"]
+
+[sub_resource type="Resource" id="Gameplay"]
+script = ExtResource("2")
+game_mode = 0
+allow_piece_rotation = true
+random_rotation_on_shuffle = true
+
+[sub_resource type="Resource" id="Appearance"]
+script = ExtResource("4")
+connector_depth = 0.25
+
+[sub_resource type="Resource" id="Camera"]
+script = ExtResource("3")
+
+[sub_resource type="Resource" id="Feedback"]
+script = ExtResource("5")
+
+[resource]
+script = ExtResource("1")
+columns = 5
+rows = 4
+silhouette_variants = 3
+gameplay = SubResource("Gameplay")
+appearance = SubResource("Appearance")
+camera = SubResource("Camera")
+feedback = SubResource("Feedback")
