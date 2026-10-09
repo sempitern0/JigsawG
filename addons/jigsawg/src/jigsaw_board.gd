@@ -197,6 +197,13 @@ func is_completed() -> bool:
 
 ## Capture current positions, rotations, group graph and Mosaic locks into a new Resource.
 ## Persist it with ResourceSaver yourself, or assign it to JigsawPuzzleConfig.resume_state.
+## Create a standalone config snapshot suitable for ResourceSaver.
+## The returned Resource is detached from the board's original config.
+func capture_resume_config() -> JigsawPuzzleConfig:
+	var config := puzzle_config.duplicate(true) as JigsawPuzzleConfig if puzzle_config != null else JigsawPuzzleConfig.new()
+	config.resume_state = capture_state()
+	return config
+
 func capture_state() -> JigsawPuzzleState:
 	var state := JigsawPuzzleState.new()
 	state.columns = columns
