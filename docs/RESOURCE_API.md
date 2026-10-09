@@ -14,7 +14,7 @@ El nodo `JigsawBoard` expone **una sola propiedad** en el Inspector: `puzzle_con
 
 Los ajustes de animación incorporados se definen **únicamente** en `JigsawFeedbackSettings`, no en Appearance. `preview_dim` pertenece a Gameplay.
 
-`reactions` es un array de `JigsawReaction`. Puede contener `JigsawAudioReaction`, `JigsawSpawnSceneReaction` o Resources propios derivados de `JigsawReaction`. Estas reacciones reciben los mismos eventos semánticos que la API de señales; consulta [Events & Reactions](EVENTS_AND_REACTIONS.md).
+`reactions` es un array de `JigsawReaction`. Puede contener `JigsawAudioReaction`, `JigsawSpawnSceneReaction` o Resources propios derivados de `JigsawReaction`. Estas reacciones reciben los mismos eventos semánticos que la API de señales. La lista activa se captura al aplicar la configuración, por lo que no cambia a mitad de partida hasta llamar de nuevo a `configure()` / `apply_configuration()`. Consulta [Events & Reactions](EVENTS_AND_REACTIONS.md).
 
 Crea un recurso `JigsawPuzzleConfig` desde el editor y asígnalo directamente al nodo, o utiliza el ejemplo `examples/configs/standard_puzzle.tres`. Los subrecursos se pueden reutilizar como recursos externos entre varios puzles.
 
