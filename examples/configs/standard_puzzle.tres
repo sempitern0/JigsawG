@@ -10,9 +10,17 @@
 
 [sub_resource type="Resource" id="Appearance"]
 script = ExtResource("4")
+highlight_enabled = null
+highlight_color = null
+highlight_width = null
+highlight_shadow_enabled = null
+highlight_shadow_color = null
+highlight_shadow_offset = null
 
 [sub_resource type="Resource" id="Camera"]
 script = ExtResource("3")
+background_pan_delay_ms = null
+background_pan_threshold_px = null
 
 [sub_resource type="Resource" id="Resource_1odl7"]
 script = ExtResource("5")
@@ -21,7 +29,10 @@ connect_animation_duration = 0.31
 [sub_resource type="Resource" id="Gameplay"]
 script = ExtResource("2")
 allow_piece_rotation = true
+enable_multi_select = null
 shuffle_mode = 2
+chaotic_spread = null
+chaotic_max_attempts = null
 show_ghost_board = true
 
 [resource]

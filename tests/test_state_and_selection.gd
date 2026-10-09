@@ -21,19 +21,19 @@ func _verify(board: Node2D, config: JigsawPuzzleConfig) -> void:
 
 	board.select_piece(0)
 	board.select_piece(1, true)
-	var selected := board.get_selected_piece_ids()
+	var selected = board.get_selected_piece_ids()
 	assert(selected.size() == 2)
 	assert(selected.has(0) and selected.has(1))
 
 	board.rotate_piece(0)
-	var snapshot := board.capture_state()
+	var snapshot = board.capture_state()
 	assert(snapshot.get_piece_count() == 4)
 	assert(snapshot.columns == 2 and snapshot.rows == 2)
 	assert(snapshot.piece_rotations[0] == 1)
 
 	board.rebuild()
 	assert(board.restore_state(snapshot))
-	var restored := board.capture_state()
+	var restored = board.capture_state()
 	assert(restored.piece_rotations[0] == 1)
 	assert(restored.piece_positions == snapshot.piece_positions)
 	assert(restored.piece_group_ids == snapshot.piece_group_ids)
