@@ -43,6 +43,7 @@ const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 const GridResolver = preload("res://addons/jigsawg/src/jigsaw_grid_resolver.gd")
 const SelectionLayout = preload("res://addons/jigsawg/src/jigsaw_selection_layout.gd")
 const HitIndex = preload("res://addons/jigsawg/src/jigsaw_hit_index.gd")
+const VirtualCursor = preload("res://addons/jigsawg/src/jigsaw_virtual_cursor.gd")
 const ScatterLayout = preload("res://addons/jigsawg/src/jigsaw_scatter_layout.gd")
 const GroupModel = preload("res://addons/jigsawg/src/jigsaw_group_model.gd")
 const ConnectionResolver = preload("res://addons/jigsawg/src/jigsaw_connection_resolver.gd")
@@ -193,6 +194,21 @@ var _generation_serial := 0
 var _generating := false
 var _generation_total := 0
 
+## Runtime-only input state; never part of JigsawPuzzleState.
+var _device_input: JigsawDeviceInputSettings
+var _device_pointer_active := false
+var _device_pointer_screen := Vector2.ZERO
+var _controller_cursor_active := false
+var _controller_cursor_ready := false
+var _controller_cursor_layer: CanvasLayer
+var _controller_cursor_ui: Control
+var _touch_positions: Dictionary = {}
+var _touch_primary := -1
+var _touch_gesture_active := false
+var _touch_last_center := Vector2.ZERO
+var _touch_last_distance := 0.0
+var _touch_suppress_mouse_until := 0
+
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
@@ -281,6 +297,7 @@ func set_interaction_enabled(enabled: bool) -> void:
 		return
 	if not enabled:
 		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
+		_end_device_pointer()
 		_background_pan_pending = false
 		_camera_pan = false
 		_camera_pan_button = 0
@@ -679,7 +696,7 @@ func _begin_piece_drag(piece_id: int, mouse_position: Vector2) -> void:
 	_dragged_piece = piece_id
 	_drag_root = _groups.root_of(piece_id)
 	_drag_visual_active = false
-	_drag_start_screen = get_viewport().get_mouse_position()
+	_drag_start_screen = _get_pointer_screen()
 	_pointer_offset = _pieces[piece_id].global_position - mouse_position
 	_desired_position = _pieces[piece_id].global_position
 	_refresh_selection_visuals(false)
@@ -790,6 +807,12 @@ func rebuild() -> void:
 			"piece_count": _pieces.size()
 		}))
 	_apply_resource_presets()
+	_end_device_pointer()
+	_touch_positions.clear()
+	_touch_primary = -1
+	_touch_gesture_active = false
+	_controller_cursor_ready = false
+	_setup_controller_overlay()
 	for piece in _pieces:
 		if is_instance_valid(piece):
 			remove_child(piece)
@@ -1210,10 +1233,13 @@ func _process(delta: float) -> void:
 	if _drag_root == -1 or _dragged_piece == -1:
 		return
 	if not _drag_visual_active:
-		if get_viewport().get_mouse_position().distance_to(_drag_start_screen) < 4.0:
+		if _get_pointer_screen().distance_to(_drag_start_screen) < _drag_threshold_screen():
+			return
+		# Pointer moved beyond threshold: the same drag/pack path handles
+		# mouse, touch and virtual cursor interactions.
 			return
 		_activate_drag()
-	_desired_position = get_global_mouse_position() + _pointer_offset
+	_desired_position = _get_pointer_world() + _pointer_offset
 	var factor := 1.0 if reduced_motion else 1.0 - exp(-drag_smoothing * delta)
 	_move_group((_desired_position - _pieces[_dragged_piece].global_position) * factor)
 
@@ -1358,12 +1384,16 @@ func _fit_camera_to(bounds: Rect2) -> void:
 	_camera.zoom = Vector2.ONE * clampf(zoom, min_zoom, max_zoom)
 
 func _zoom_at_cursor(multiplier: float) -> void:
+	_zoom_at_screen(multiplier, _get_pointer_screen())
+
+
+func _zoom_at_screen(multiplier: float, screen_position: Vector2) -> void:
 	_zoom_goal = clampf(_zoom_goal * multiplier, min_zoom, max_zoom)
 	if smooth_zoom and not reduced_motion:
-		_zoom_anchor = get_viewport().get_mouse_position()
+		_zoom_anchor = screen_position
 		_zoom_anchor_valid = true
 	else:
-		_apply_zoom(_zoom_goal, get_viewport().get_mouse_position())
+		_apply_zoom(_zoom_goal, screen_position)
 
 func _update_smooth_zoom(delta: float) -> void:
 	if absf(_camera.zoom.x - _zoom_goal) < 0.0001:
@@ -1387,7 +1417,7 @@ func _update_edge_pan_camera(delta: float) -> void:
 	var desired_velocity := Vector2.ZERO
 	if _drag_root != -1 and _dragged_piece != -1:
 		var viewport_size := get_viewport_rect().size
-		var cursor := get_viewport().get_mouse_position()
+		var cursor := _get_pointer_screen()
 		if cursor.x >= 0.0 and cursor.y >= 0.0 and cursor.x <= viewport_size.x and cursor.y <= viewport_size.y:
 			var movement := Vector2.ZERO
 			if cursor.x < edge_scroll_zone:
@@ -1635,6 +1665,10 @@ func _apply_resource_presets() -> void:
 	highlight_shadow_color = appearance.highlight_shadow_color
 	highlight_shadow_offset = appearance.highlight_shadow_offset
 
+	_device_input = config.device_input
+	if _device_input == null:
+		_device_input = JigsawDeviceInputSettings.new()
+
 	var camera_options := config.camera
 	if camera_options == null:
 		camera_options = JigsawCameraSettings.new()
@@ -1694,7 +1728,7 @@ func _set_piece_quarters(piece_index: int, quarters: int) -> void:
 
 func _rotate_under_cursor() -> bool:
 	var hovered := -1
-	var point := get_global_mouse_position()
+	var point := _get_pointer_world()
 	# Prefer the currently dragged group so rotation doesn't conflict with
 	# the visual order or make the pointer jump to a different piece.
 	if _dragged_piece >= 0:
@@ -1729,7 +1763,7 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 		_set_piece_quarters(id, _rotations[id] + turn)
 		_pieces[id].global_position = next_center - Vector2(_piece_size.x * 0.5, _piece_size.y * 0.5).rotated(_pieces[id].global_rotation)
 	if _dragged_piece >= 0 and _groups.root_of(_dragged_piece) == group_id:
-		_pointer_offset = _pieces[_dragged_piece].global_position - get_global_mouse_position()
+		_pointer_offset = _pieces[_dragged_piece].global_position - _get_pointer_world()
 		_desired_position = _pieces[_dragged_piece].global_position
 	_emit_motion(JigsawMotionContext.Kind.ROTATION, motion_ids, previous)
 	group_rotated.emit(piece_index, _rotations[piece_index], members.size())

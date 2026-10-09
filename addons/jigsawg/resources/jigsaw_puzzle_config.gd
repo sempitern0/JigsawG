@@ -27,6 +27,8 @@ enum GridMode { MANUAL, AUTO }
 @export var appearance: JigsawAppearanceSettings = JigsawAppearanceSettings.new()
 ## Pan, zoom and auto-fit behavior.
 @export var camera: JigsawCameraSettings = JigsawCameraSettings.new()
+## Optional touch and gamepad input; entirely inactive in existing presets.
+@export var device_input: JigsawDeviceInputSettings = JigsawDeviceInputSettings.new()
 ## Selection, successful connection and failed-connection feedback.
 @export var feedback: JigsawFeedbackSettings = JigsawFeedbackSettings.new()
 
