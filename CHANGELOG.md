@@ -15,6 +15,8 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 
 ### Notes
 - Added `docs/ROADMAP.md` to prioritize validation, large-puzzle ergonomics, accessibility and release readiness, and root `AGENTS.md` for AI-assisted development and regression guidance.
+- Accessibility: host-defined InputMap shortcut aliases, reduced-motion Feedback preset and live toggling. Built-in visual tweens are cancelled without altering snap and save semantics.
+- Test maintenance: explicit local/script types in the recent nine GDScript regression scripts to avoid Variant type inference errors in Godot.
 - Accessibility: optional Free/Mosaic extra snap tolerance and viewport-pixel contour picking margin under Gameplay → Accessibility. Existing defaults are unchanged; exact polygon hits and orientation rules remain authoritative. Added broad-phase and end-to-end regression scripts.
 - Batched puzzle generation now preframes and displays the complete mosaic before the first node batch, then restores configured final camera fitting. Host-controlled cameras remain opt-out. Added a regression for first-frame framing and cancellation.
 - Readability: added configurable RGBA piece contour color without changing the default render style.

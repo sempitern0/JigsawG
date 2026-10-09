@@ -268,6 +268,7 @@ The Board validates compatibility and group/rotation invariants before applying 
 `JigsawFeedbackSettings` owns the lightweight feedback shipped with the board:
 
 - `animation_style`
+- `reduce_motion` (default `false`, cancel built-in visual tween effects and use immediate navigation)
 - `connect_animation_duration`
 - `connect_tint`
 - `pickup_tint`

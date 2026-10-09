@@ -82,9 +82,9 @@ Phases are **ordered by dependencies**, not promised calendar dates. Every phase
 **Goal:** a puzzle is playable without relying on tiny visual details or precise mouse gestures.
 
 **Deliverables**
-- Input action layer for remappable select, add/remove selection, rotate, zoom, focus board and overview; evaluate full keyboard play separately from mouse behavior.
+- Input action layer for remappable select, add/remove selection, rotate, zoom, focus board and overview; evaluate full keyboard play separately from mouse behavior. **Optional host InputMap aliases for rotate/preview/zoom/focus added; keyboard-only piece manipulation remains pending.**
 - Touch and gesture prototype (tap/drag, two-finger pan/zoom), with conflicts tested against current drag/rotate behavior.
-- Accessible presentation options: adjustable selection/hover contrast, minimum visible contour width at zoom, color-blind-safe status cues, reduced motion and independent feedback volume.
+- Accessible presentation options: adjustable selection/hover contrast, minimum visible contour width at zoom, color-blind-safe status cues, reduced motion and independent feedback volume. **Reduced-motion Feedback setting and live toggle added; Godot/manual verification pending.**
 - Configurable snap assistance and larger interactive hit regions, clearly separated from the exact geometry needed for joins. **Initial opt-in implementation committed** (`snap_assist_extra_fraction`, `selection_assist_radius_px`); focused regressions written, but Godot runtime and manual usability checks still pending.
 - A short documented usability scenario with controls, error prevention and discoverable camera shortcuts.
 
