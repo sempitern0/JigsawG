@@ -32,6 +32,13 @@ enum Distribution { RANDOM, RADIAL }
 ## Exact hits always win. Zero retains the existing input behavior.
 @export_range(0.0, 24.0, 1.0) var selection_assist_radius_px := 0.0
 
+@export_group("Optional Piece Organizer")
+## Your game's InputMap can bind corner/edge/interior camera browsing.
+## Empty action names disable all organizer shortcuts by default.
+@export var next_corner_action: StringName = &""
+@export var next_edge_action: StringName = &""
+@export var next_interior_action: StringName = &""
+
 @export_group("Shuffle")
 ## Choose where scattered pieces are placed.
 @export var shuffle_mode: Shuffle = Shuffle.AROUND_BOARD

@@ -43,6 +43,7 @@ const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 const GridResolver = preload("res://addons/jigsawg/src/jigsaw_grid_resolver.gd")
 const SelectionLayout = preload("res://addons/jigsawg/src/jigsaw_selection_layout.gd")
 const HitIndex = preload("res://addons/jigsawg/src/jigsaw_hit_index.gd")
+const PieceCatalog = preload("res://addons/jigsawg/src/jigsaw_piece_catalog.gd")
 const VirtualCursor = preload("res://addons/jigsawg/src/jigsaw_virtual_cursor.gd")
 const ScatterLayout = preload("res://addons/jigsawg/src/jigsaw_scatter_layout.gd")
 const GroupModel = preload("res://addons/jigsawg/src/jigsaw_group_model.gd")
@@ -51,6 +52,8 @@ const StateValidator = preload("res://addons/jigsawg/src/jigsaw_state_validator.
 const PreviewOverlay = preload("res://addons/jigsawg/src/jigsaw_preview_overlay.gd")
 
 enum GameMode { FREE, MOSAIC }
+## Grid-topology categories, unaffected by connector shape or rotation.
+enum PieceCategory { CORNER, EDGE, INTERIOR }
 enum ShuffleMode { AROUND_BOARD, CENTER, BOTTOM, CHAOTIC }
 enum DistributionMode { RANDOM, RADIAL }
 enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
@@ -153,6 +156,11 @@ var _hit_index := HitIndex.new()
 ## Node-independent connectivity model, not replicated by this scene controller.
 var _groups := GroupModel.new()
 var _selected_piece_ids: Dictionary = {}
+## Only the organizer browsing cursor; intentionally not saved.
+var _organizer_last_focused: Dictionary = {}
+var _organizer_corner_action: StringName = &""
+var _organizer_edge_action: StringName = &""
+var _organizer_interior_action: StringName = &""
 var _multi_selection_mode := false
 var _drag_visual_active := false
 var _drag_start_screen := Vector2.ZERO
@@ -549,6 +557,7 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 	if _dragged_piece >= 0:
 		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
 	clear_selection()
+	_organizer_last_focused.clear()
 	_groups = restored_groups
 	_hit_index.invalidate()
 	_locked_pieces.clear()
@@ -581,6 +590,64 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 			"piece_count": state.get_piece_count()
 		}))
 	return true
+
+## Return the original grid-based category for a piece, or -1 if invalid.
+## Works after generation, including rotated and connected pieces.
+func get_piece_category(piece_id: int) -> int:
+	if _generating or piece_id < 0 or piece_id >= _pieces.size():
+		return -1
+	return PieceCatalog.category_for(piece_id, columns, rows)
+
+
+## Sorted IDs of corners, border pieces excluding corners, or interior pieces.
+## Locked Mosaic pieces are excluded by default; filtering does not modify them.
+func get_piece_ids_by_category(category: PieceCategory, include_locked: bool = false) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	if _generating or _pieces.size() != columns * rows:
+		return result
+	var ids: PackedInt32Array = PieceCatalog.ids_for_category(columns, rows, int(category))
+	if include_locked or _locked_pieces.is_empty():
+		return ids
+	for piece_id: int in ids:
+		if not _locked_pieces.has(piece_id):
+			result.append(piece_id)
+	return result
+
+
+## Browse detached candidate groups without selecting/dragging or changing
+## the snapshot. Returns the focused representative ID, or -1 if unavailable.
+## A connected group containing multiple pieces in this category is visited
+## only once per cycle, to avoid repetitive focus jumps.
+func focus_next_piece_by_category(category: PieceCategory) -> int:
+	if _camera == null or not _interaction_enabled or _generating or _drag_root >= 0 or is_reference_preview_visible():
+		return -1
+	var ids: PackedInt32Array = get_piece_ids_by_category(category)
+	if ids.is_empty():
+		return -1
+	var visited_roots: Dictionary = {}
+	var representatives := PackedInt32Array()
+	for piece_id: int in ids:
+		var root: int = _groups.root_of(piece_id)
+		if root < 0 or visited_roots.has(root):
+			continue
+		visited_roots[root] = true
+		representatives.append(piece_id)
+	if representatives.is_empty():
+		return -1
+	var last_id: int = int(_organizer_last_focused.get(int(category), -1))
+	var last_position: int = representatives.find(last_id)
+	var focused_id: int = representatives[(last_position + 1) % representatives.size()]
+	var root: int = _groups.root_of(focused_id)
+	var margin: float = maxf(_piece_size.x, _piece_size.y) * selection_focus_padding
+	if restrict_camera:
+		_update_camera_bounds()
+	_fit_camera_to(_group_bounds_local(root).grow(margin))
+	_camera.zoom = Vector2.ONE * maxf(min_zoom, minf(_camera.zoom.x, selection_focus_max_zoom))
+	_limit_camera()
+	_finish_camera_framing()
+	_organizer_last_focused[int(category)] = focused_id
+	return focused_id
+
 
 ## Current multi-selection. Connected groups are always selected/deselected as a unit.
 func get_selected_piece_ids() -> PackedInt32Array:
@@ -840,6 +907,7 @@ func rebuild() -> void:
 	_groups.clear()
 	_rotations.clear()
 	_selected_piece_ids.clear()
+	_organizer_last_focused.clear()
 	_multi_selection_mode = false
 	_drag_visual_active = false
 	_drag_root = -1
@@ -1486,6 +1554,21 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cancel_drag()
 		return
 
+	# The host owns the optional binding. Browsing only reframes the camera,
+	# leaving piece selection, group graph and saved state completely intact.
+	if _matches_input_action(event, _organizer_corner_action):
+		if focus_next_piece_by_category(PieceCategory.CORNER) >= 0:
+			get_viewport().set_input_as_handled()
+		return
+	if _matches_input_action(event, _organizer_edge_action):
+		if focus_next_piece_by_category(PieceCategory.EDGE) >= 0:
+			get_viewport().set_input_as_handled()
+		return
+	if _matches_input_action(event, _organizer_interior_action):
+		if focus_next_piece_by_category(PieceCategory.INTERIOR) >= 0:
+			get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventMouseButton:
 		if enable_camera_navigation and _camera:
 			if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
@@ -1970,6 +2053,9 @@ func _apply_resource_presets() -> void:
 	rotate_action = gameplay.rotate_action
 	random_rotation_on_shuffle = gameplay.random_rotation_on_shuffle
 	enable_multi_select = gameplay.enable_multi_select
+	_organizer_corner_action = gameplay.next_corner_action
+	_organizer_edge_action = gameplay.next_edge_action
+	_organizer_interior_action = gameplay.next_interior_action
 	match gameplay.shuffle_mode:
 		JigsawGameplaySettings.Shuffle.CENTER:
 			shuffle_mode = ShuffleMode.CENTER
