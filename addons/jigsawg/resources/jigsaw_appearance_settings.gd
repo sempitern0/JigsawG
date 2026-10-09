@@ -20,3 +20,17 @@ enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
 ## Thickness of an enabled edge rim in texture pixels.
 @export_range(0.1, 3.0, 0.1) var piece_edge_width := 0.7
 
+@export_group("Selection Highlight")
+## Draw an outline around selected pieces/groups.
+@export var highlight_enabled := true
+## Highlight outline color.
+@export var highlight_color := Color(1.0, 0.84, 0.38, 0.85)
+## Highlight outline width in local image pixels.
+@export_range(0.1, 6.0, 0.1) var highlight_width := 1.2
+## Draw a soft offset shadow below selected pieces.
+@export var highlight_shadow_enabled := true
+## Selected-piece shadow tint.
+@export var highlight_shadow_color := Color(0.0, 0.0, 0.0, 0.24)
+## Selected-piece shadow offset in local pixels.
+@export var highlight_shadow_offset := Vector2(3.0, 4.0)
+
