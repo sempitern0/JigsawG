@@ -49,8 +49,8 @@ static func _cubic(result: PackedVector2Array, a: Vector2, b: Vector2, c: Vector
 	for i in range(1, maxi(3, steps) + 1):
 		result.append(a.bezier_interpolate(b, c, d, float(i) / float(maxi(3, steps))))
 
-static func make_outline(size: Vector2, top: Vector2i, right: Vector2i, bottom: Vector2i, left: Vector2i, detail: int = 8) -> PackedVector2Array:
-	var depth := minf(size.x, size.y) * 0.25
+static func make_outline(size: Vector2, top: Vector2i, right: Vector2i, bottom: Vector2i, left: Vector2i, detail: int = 8, connector_depth: float = 0.25) -> PackedVector2Array:
+	var depth := minf(size.x, size.y) * clampf(connector_depth, 0.12, 0.34)
 	var segments: Array[PackedVector2Array] = [
 		edge_points(Vector2.ZERO, Vector2(size.x, 0.0), Vector2.DOWN, top, depth, detail),
 		edge_points(Vector2(size.x, 0.0), size, Vector2.RIGHT, right, depth, detail),
