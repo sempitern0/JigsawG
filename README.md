@@ -175,7 +175,7 @@ See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md) for detailed Inspector re
 
 ## Event-driven integration
 
-Every important interaction has a semantic `JigsawPuzzleEvent`: puzzle reset/start/completion, drag start/finish/cancel, Mosaic placement success/failure, Free group connection success/failure, group rotation and preview visibility.
+Every important interaction has a semantic `JigsawPuzzleEvent`: puzzle reset/start/completion, restored state, drag start/finish/cancel, Mosaic placement success/failure, Free group connection success/failure, group rotation and preview visibility.
 
 Use whichever integration level matches your project:
 
