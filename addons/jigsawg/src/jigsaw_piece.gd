@@ -1,5 +1,17 @@
 class_name JigsawPiece
 extends Node2D
+## Signals a changed bounding area (including animation-only transforms).
+signal hit_shape_changed
+
+
+func _init() -> void:
+	# Board's spatial lookup must also notice direct Node2D transform changes.
+	set_notify_local_transform(true)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
+		hit_shape_changed.emit()
 ## One GPU-textured Bézier polygon per piece. No per-piece rasterized image.
 
 var id: int
@@ -19,6 +31,7 @@ var display_transform := Transform2D.IDENTITY:
 	set(value):
 		display_transform = value
 		queue_redraw()
+		hit_shape_changed.emit()
 
 var _display_tween: Tween
 
@@ -90,6 +103,7 @@ func configure(
 		_closed_outline.append(point)
 		_shadow_outline.append(point + _highlight_shadow_offset)
 	bounds = Rect2(low, high - low)
+	hit_shape_changed.emit()
 	if polygon.size() >= 3:
 		_closed_outline.append(polygon[0])
 	queue_redraw()

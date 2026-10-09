@@ -42,6 +42,7 @@ const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 const GridResolver = preload("res://addons/jigsawg/src/jigsaw_grid_resolver.gd")
 const SelectionLayout = preload("res://addons/jigsawg/src/jigsaw_selection_layout.gd")
+const HitIndex = preload("res://addons/jigsawg/src/jigsaw_hit_index.gd")
 const ScatterLayout = preload("res://addons/jigsawg/src/jigsaw_scatter_layout.gd")
 const GroupModel = preload("res://addons/jigsawg/src/jigsaw_group_model.gd")
 const ConnectionResolver = preload("res://addons/jigsawg/src/jigsaw_connection_resolver.gd")
@@ -137,6 +138,7 @@ var _preview_overlay: CanvasLayer
 var _ghost_board: Sprite2D
 var _locked_pieces: Dictionary = {}
 var _pieces: Array[JigsawPiece] = []
+var _hit_index := HitIndex.new()
 ## Node-independent connectivity model, not replicated by this scene controller.
 var _groups := GroupModel.new()
 var _selected_piece_ids: Dictionary = {}
@@ -557,16 +559,39 @@ func _refresh_selection_visuals(active_drag: bool = false) -> void:
 		_pieces[i].selected = selected and should_highlight
 		_pieces[i].z_index = 10 if selected and active_drag else (5 if selected and _multi_selection_mode else 0)
 
+## Build the index only after scene geometry changes. Hit queries then inspect
+## nearby piece AABBs, followed by the original precise polygon test.
+func _refresh_hit_index() -> void:
+	if not _hit_index.is_dirty():
+		return
+	var rectangles: Array[Rect2] = []
+	for piece in _pieces:
+		var local_transform: Transform2D = piece.transform * piece.display_transform
+		var corners := [
+			piece.bounds.position,
+			Vector2(piece.bounds.end.x, piece.bounds.position.y),
+			piece.bounds.end,
+			Vector2(piece.bounds.position.x, piece.bounds.end.y)
+		]
+		var bounds := Rect2(local_transform * corners[0], Vector2.ZERO)
+		for i in range(1, corners.size()):
+			bounds = bounds.expand(local_transform * corners[i])
+		rectangles.append(bounds)
+	_hit_index.rebuild(rectangles, maxf(16.0, minf(_piece_size.x, _piece_size.y)))
+
+
 func _find_piece_at(world_position: Vector2) -> int:
-	# Ctrl-selected groups are raised visually; give them hit priority as well.
-	# Ordinary single clicks preserve normal scene draw order.
+	_refresh_hit_index()
+	var candidates := _hit_index.query(to_local(world_position))
+	# Preserve exactly the old visual priority: in Ctrl mode, raised selected
+	# groups win overlap; otherwise the highest-ID (latest drawn) piece wins.
 	if _multi_selection_mode:
-		for i in range(_pieces.size() - 1, -1, -1):
-			if _selected_piece_ids.has(i) and not _locked_pieces.has(i) and _pieces[i].contains(world_position):
-				return i
-	for i in range(_pieces.size() - 1, -1, -1):
-		if not _locked_pieces.has(i) and _pieces[i].contains(world_position):
-			return i
+		for id in candidates:
+			if _selected_piece_ids.has(id) and not _locked_pieces.has(id) and _pieces[id].contains(world_position):
+				return id
+	for id in candidates:
+		if not _locked_pieces.has(id) and _pieces[id].contains(world_position):
+			return id
 	return -1
 
 func _begin_piece_drag(piece_id: int, mouse_position: Vector2) -> void:
@@ -690,6 +715,7 @@ func rebuild() -> void:
 			remove_child(piece)
 			piece.queue_free()
 	_pieces.clear()
+	_hit_index.clear()
 	_locked_pieces.clear()
 	if is_instance_valid(_ghost_board):
 		_ghost_board.queue_free()
@@ -808,6 +834,7 @@ func rebuild() -> void:
 			)
 			if piece_material != null:
 				piece.material = piece_material
+			piece.hit_shape_changed.connect(_hit_index.invalidate)
 			piece.position = home
 			_pieces.append(piece)
 			_rotations.append(0)
