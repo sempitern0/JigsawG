@@ -25,6 +25,10 @@ signal group_rotation_changed(event: JigsawPuzzleEvent)
 signal reference_preview_changed(event: JigsawPuzzleEvent)
 signal puzzle_finished(event: JigsawPuzzleEvent)
 signal puzzle_state_applied(event: JigsawPuzzleEvent)
+## Normalized [0, 1] puzzle assembly progress; connect directly to a HUD.
+signal progress_changed(progress: float)
+## Host can disable player input without pausing scene processing.
+signal interaction_enabled_changed(enabled: bool)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
@@ -141,6 +145,8 @@ var _connector_depth := 0.25
 var _active_feedback: JigsawFeedbackSettings
 var _active_reactions: Array[JigsawReaction] = []
 var _restored_from_state := false
+var _interaction_enabled := true
+var _ghost_visibility_override := -1
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -195,6 +201,91 @@ func get_dragged_piece_id() -> int:
 
 func is_completed() -> bool:
 	return _finished
+
+## Temporarily disable mouse/keyboard puzzle input while keeping the board visible.
+## Useful for pause menus, dialogs and inventory overlays. No config rebuild.
+func set_interaction_enabled(enabled: bool) -> void:
+	if _interaction_enabled == enabled:
+		return
+	if not enabled:
+		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
+		_background_pan_pending = false
+		_camera_pan = false
+		_camera_pan_button = 0
+		_edge_pan_velocity = Vector2.ZERO
+	_interaction_enabled = enabled
+	interaction_enabled_changed.emit(enabled)
+
+func is_interaction_enabled() -> bool:
+	return _interaction_enabled
+
+## Reframe the current scattered/assembled pieces using the configured camera.
+## Returns false if there is no active Camera2D.
+func fit_view() -> bool:
+	if _camera == null:
+		return false
+	_update_camera_bounds()
+	_fit_camera()
+	_sync_camera_target()
+	_zoom_goal = _camera.zoom.x
+	_edge_pan_velocity = Vector2.ZERO
+	_zoom_anchor_valid = false
+	return true
+
+## Fullscreen reference image can also be controlled by an external HUD.
+func toggle_reference_preview() -> void:
+	set_preview_visible(not is_reference_preview_visible())
+
+func is_reference_preview_visible() -> bool:
+	return is_instance_valid(_preview_overlay) and _preview_overlay.is_preview_visible()
+
+## Override automatic ghost visibility at runtime, including in Mosaic mode.
+## Does not modify shared JigsawPuzzleConfig. Reset by rebuild().
+func set_ghost_guide_visible(visible: bool) -> void:
+	_ghost_visibility_override = 1 if visible else 0
+	_update_ghost_board()
+
+func is_ghost_guide_visible() -> bool:
+	return is_instance_valid(_ghost_board) and _ghost_board.visible
+
+## Set runtime alpha without changing the Resource. Reset by rebuild().
+func set_ghost_guide_opacity(opacity: float) -> void:
+	ghost_opacity = clampf(opacity, 0.0, 1.0)
+
+## Count connected groups in Free mode (or unjoined generated groups in Mosaic).
+func get_connected_group_count() -> int:
+	return _members.size()
+
+func get_locked_piece_count() -> int:
+	return _locked_pieces.size()
+
+## Normalized progress based on successful joins (Free) or locked slots (Mosaic).
+## Does not measure time, physical puzzle location, or aesthetic completeness.
+func get_progress() -> float:
+	var total := _pieces.size()
+	if total == 0:
+		return 0.0
+	if game_mode == GameMode.MOSAIC:
+		return float(_locked_pieces.size()) / float(total)
+	if total == 1:
+		return 1.0
+	return clampf(float(total - _members.size()) / float(total - 1), 0.0, 1.0)
+
+## Useful for HUDs without reading private board state.
+func get_progress_info() -> Dictionary:
+	return {
+		"progress": get_progress(),
+		"mode": game_mode,
+		"total_pieces": _pieces.size(),
+		"locked_pieces": _locked_pieces.size(),
+		"group_count": _members.size(),
+		"connections_made": maxi(0, _pieces.size() - _members.size()),
+		"connections_needed": maxi(0, _pieces.size() - 1),
+		"completed": _finished
+	}
+
+func _emit_progress_changed() -> void:
+	progress_changed.emit(get_progress())
 
 ## Capture current positions, rotations, group graph and Mosaic locks into a new Resource.
 ## Persist it with ResourceSaver yourself, or assign it to JigsawPuzzleConfig.resume_state.
@@ -284,6 +375,7 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 		_sync_camera_target()
 
 	if emit_event:
+		_emit_progress_changed()
 		puzzle_state_restored.emit(state)
 		_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_STATE_RESTORED, -1, true, JigsawPuzzleEvent.REASON_RESUMED, {
 			"completed": state.completed,
@@ -384,6 +476,7 @@ func rebuild() -> void:
 	_dragged_piece = -1
 	_finished = false
 	_restored_from_state = false
+	_ghost_visibility_override = -1
 	var source: Image
 	if puzzle_texture != null:
 		source = puzzle_texture.get_image()
@@ -507,6 +600,7 @@ func rebuild() -> void:
 			"completed": puzzle_config.resume_state.completed,
 			"piece_count": puzzle_config.resume_state.get_piece_count()
 		}))
+	_emit_progress_changed()
 
 func _random_edge() -> Vector2i:
 	return Vector2i(1 if _rng.randi_range(0, 1) == 0 else -1, _rng.randi_range(0, silhouette_variants - 1))
@@ -520,7 +614,7 @@ func _make_demo_image() -> Image:
 	return image
 
 func _unhandled_input(event: InputEvent) -> void:
-	if Engine.is_editor_hint():
+	if Engine.is_editor_hint() or not _interaction_enabled:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo and enable_preview and event.keycode == preview_key:
@@ -744,6 +838,8 @@ func _connect_group_from(anchor_piece_id: int) -> bool:
 				break
 			if still_connecting:
 				break
+	if any_connection:
+		_emit_progress_changed()
 	if _members.size() == 1:
 		_finish_puzzle()
 	return any_connection
@@ -978,7 +1074,7 @@ func _scatter_chaotic() -> void:
 func _update_ghost_board() -> void:
 	if not is_instance_valid(_ghost_board):
 		return
-	_ghost_board.visible = show_ghost_board or game_mode == GameMode.MOSAIC
+	_ghost_board.visible = (_ghost_visibility_override == 1) if _ghost_visibility_override != -1 else (show_ghost_board or game_mode == GameMode.MOSAIC)
 	_ghost_board.modulate.a = ghost_opacity
 
 func set_preview_visible(visible: bool) -> void:
@@ -1014,6 +1110,8 @@ func _place_selected_in_mosaic() -> bool:
 		_animate_connection(piece)
 		any_success = true
 
+	if any_success:
+		_emit_progress_changed()
 	if _locked_pieces.size() == _pieces.size():
 		_finish_puzzle()
 	_refresh_selection_visuals(false)
