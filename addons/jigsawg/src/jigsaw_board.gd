@@ -66,6 +66,8 @@ var rows := 4
 var silhouette_variants := 3
 var generation_seed := 4729
 var snap_tolerance := 0.24
+var snap_assist_extra_fraction := 0.0
+var selection_assist_radius_px := 0.0
 var initial_scatter := true
 var auto_fit_camera := true
 var drag_smoothing := 22.0
@@ -1133,6 +1135,14 @@ func _move_root(root: int, offset: Vector2) -> void:
 	for member in _groups.members_of_root(root):
 		_pieces[int(member)].global_position += offset
 
+## Assist changes acceptance radius only: rotation and canonical seams
+## remain untouched, and connected groups keep their authoritative roots.
+func _effective_snap_tolerance_pixels() -> float:
+	return minf(_piece_size.x, _piece_size.y) * clampf(
+		snap_tolerance + snap_assist_extra_fraction, 0.0, 0.5
+	)
+
+
 func _connect_selected_groups() -> bool:
 	var any_connection := false
 	var seen_roots: Dictionary = {}
@@ -1170,7 +1180,7 @@ func _connect_group_from(anchor_piece_id: int) -> bool:
 					_pieces[neighbor].global_position,
 					_rotations[index],
 					_rotations[neighbor],
-					minf(_piece_size.x, _piece_size.y) * snap_tolerance
+					_effective_snap_tolerance_pixels()
 				)
 				if not shift.is_finite():
 					continue
@@ -1387,7 +1397,7 @@ func _place_selected_in_mosaic() -> bool:
 		if _locked_pieces.has(piece_id):
 			continue
 		var piece := _pieces[piece_id]
-		var valid := _rotations[piece_id] == 0 and piece.position.distance_to(piece.home) <= minf(_piece_size.x, _piece_size.y) * snap_tolerance
+		var valid := _rotations[piece_id] == 0 and piece.position.distance_to(piece.home) <= _effective_snap_tolerance_pixels()
 		if not valid:
 			_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED, piece_id, false, JigsawPuzzleEvent.REASON_WRONG_POSITION_OR_ROTATION))
 			_animate_failed_connection(piece)
@@ -1454,6 +1464,8 @@ func _apply_resource_presets() -> void:
 		gameplay = JigsawGameplaySettings.new()
 	game_mode = GameMode.MOSAIC if gameplay.game_mode == JigsawGameplaySettings.Mode.MOSAIC else GameMode.FREE
 	snap_tolerance = gameplay.snap_tolerance
+	snap_assist_extra_fraction = gameplay.snap_assist_extra_fraction
+	selection_assist_radius_px = gameplay.selection_assist_radius_px
 	allow_piece_rotation = gameplay.allow_piece_rotation
 	random_rotation_on_shuffle = gameplay.random_rotation_on_shuffle
 	enable_multi_select = gameplay.enable_multi_select

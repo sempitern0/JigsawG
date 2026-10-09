@@ -13,6 +13,16 @@ enum Distribution { RANDOM, RADIAL }
 @export var game_mode: Mode = Mode.FREE
 ## Accept snapping within this fraction of a piece side.
 @export_range(0.05, 0.5, 0.01) var snap_tolerance := 0.24
+
+@export_group("Accessibility")
+## Additional fraction of the shorter piece side allowed for joining neighbors.
+## Zero retains the current puzzle difficulty without altering join geometry.
+@export_range(0.0, 0.25, 0.01) var snap_assist_extra_fraction := 0.0
+## Extra pointer tolerance just outside a contour, in viewport pixels.
+## Exact hits always win. Zero retains the existing input behavior.
+@export_range(0.0, 24.0, 1.0) var selection_assist_radius_px := 0.0
+
+@export_group("Rules")
 ## Allow right-click quarter-turn rotation of an unlocked piece or connected group.
 @export var allow_piece_rotation := false
 ## Start scattered pieces at random 0°, 90°, 180° or 270° when rotation is enabled.
