@@ -4,6 +4,8 @@ extends Node2D
 ## host games integrate through signals, JigsawPuzzleEvent and JigsawReaction.
 ## Compact compatibility signals. Prefer the rich semantic API below for new integrations.
 signal puzzle_generated(piece_count: int)
+## Incremental generation progress, emitted after each configured piece batch.
+signal generation_progress_changed(generated: int, total: int)
 signal pieces_connected(group_size: int)
 signal puzzle_completed
 signal piece_picked(piece_id: int)
@@ -167,6 +169,10 @@ var _active_reactions: Array[JigsawReaction] = []
 var _restored_from_state := false
 var _interaction_enabled := true
 var _ghost_visibility_override := -1
+var _generation_batch_size := 0
+var _generation_serial := 0
+var _generating := false
+var _generation_total := 0
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -188,6 +194,16 @@ func apply_configuration() -> void:
 
 func get_configuration() -> JigsawPuzzleConfig:
 	return puzzle_config
+
+## True while a batch-based generation job is still building piece nodes.
+func is_generating() -> bool:
+	return _generating
+
+
+## Counts of generated and planned pieces for loading UI.
+func get_generation_progress() -> Vector2i:
+	return Vector2i(_pieces.size(), _generation_total)
+
 
 ## Number of generated runtime pieces (may differ from Auto mode's requested count).
 func get_piece_count() -> int:
@@ -335,6 +351,9 @@ func capture_resume_config() -> JigsawPuzzleConfig:
 	return config
 
 func capture_state() -> JigsawPuzzleState:
+	if _generating:
+		push_warning("JigsawG: capture_state() requires a completed puzzle; await puzzle_generated.")
+		return null
 	var state := JigsawPuzzleState.new()
 	state.columns = columns
 	state.rows = rows
@@ -364,6 +383,8 @@ func capture_state() -> JigsawPuzzleState:
 ## Apply a compatible snapshot to an already generated board.
 ## Returns false and leaves the current puzzle unchanged when validation fails.
 func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_event: bool = true) -> bool:
+	if _generating and update_camera:
+		return false
 	if _pieces.size() != columns * rows:
 		return false
 	var reason: String = StateValidator.validate(
@@ -588,6 +609,11 @@ func _group_bounds_local(root: int) -> Rect2:
 
 
 func rebuild() -> void:
+	# Cancel a prior coroutine on its next frame before changing the scene graph.
+	_generation_serial += 1
+	var build_id := _generation_serial
+	_generating = false
+	_generation_total = 0
 	if not _pieces.is_empty():
 		if _dragged_piece >= 0:
 			_cancel_drag(JigsawPuzzleEvent.REASON_REBUILD)
@@ -656,6 +682,9 @@ func rebuild() -> void:
 	_update_ghost_board()
 	_rng.seed = generation_seed
 	_groups.reset(columns * rows)
+	_generation_total = columns * rows
+	_generating = true
+	generation_progress_changed.emit(0, _generation_total)
 	var horizontal: Dictionary = {}
 	var vertical: Dictionary = {}
 	for r in range(rows - 1):
@@ -707,6 +736,11 @@ func rebuild() -> void:
 			piece.position = home
 			_pieces.append(piece)
 			_rotations.append(0)
+			if _generation_batch_size > 0 and _pieces.size() % _generation_batch_size == 0 and _pieces.size() < _generation_total:
+				generation_progress_changed.emit(_pieces.size(), _generation_total)
+				await get_tree().process_frame
+				if build_id != _generation_serial or not is_inside_tree():
+					return
 	if initial_scatter:
 		_scatter_non_overlapping()
 		if allow_piece_rotation and random_rotation_on_shuffle:
@@ -724,12 +758,19 @@ func rebuild() -> void:
 			push_warning("JigsawG: Camera2D position_smoothing_enabled is also active. Disable it or JigsawCameraSettings.smooth_pan to avoid double smoothing.")
 		_update_camera_bounds()
 		if auto_fit_camera:
-			_fit_camera()
+			if initial_focus == JigsawCameraSettings.InitialFocus.BOARD or (
+				initial_focus == JigsawCameraSettings.InitialFocus.AUTO and _pieces.size() >= large_puzzle_threshold
+			):
+				_fit_camera_to(Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows)))
+			else:
+				_fit_camera()
 		_sync_camera_target()
 		_edge_pan_velocity = Vector2.ZERO
 		_zoom_goal = _camera.zoom.x
 	else:
 		_camera_target_ready = false
+	_generating = false
+	generation_progress_changed.emit(_pieces.size(), _generation_total)
 	puzzle_generated.emit(_pieces.size())
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_STARTED, -1, true, JigsawPuzzleEvent.REASON_GENERATED, {
 		"piece_count": _pieces.size(),
@@ -760,7 +801,7 @@ func _make_demo_image() -> Image:
 	return image
 
 func _unhandled_input(event: InputEvent) -> void:
-	if Engine.is_editor_hint() or not _interaction_enabled:
+	if Engine.is_editor_hint() or not _interaction_enabled or _generating:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo and enable_camera_navigation and _camera != null:
@@ -1273,6 +1314,7 @@ func _apply_resource_presets() -> void:
 	chaotic_spread = gameplay.chaotic_spread
 	chaotic_max_attempts = gameplay.chaotic_max_attempts
 	generation_seed = gameplay.generation_seed
+	_generation_batch_size = gameplay.generation_batch_size
 	show_ghost_board = gameplay.show_ghost_board
 	ghost_opacity = gameplay.ghost_opacity
 	enable_preview = gameplay.enable_preview

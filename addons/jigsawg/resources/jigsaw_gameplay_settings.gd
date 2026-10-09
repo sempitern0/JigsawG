@@ -36,6 +36,11 @@ enum Distribution { RANDOM, RADIAL }
 ## Reproducible profile and scatter seed.
 @export var generation_seed := 4729
 
+@export_group("Large Puzzle Generation")
+## 0 = legacy synchronous rebuild; positive = yield a frame after this many pieces.
+## Allows the host to render loading UI and configure() to cancel a pending build.
+@export_range(0, 512, 1) var generation_batch_size := 0
+
 @export_group("Reference")
 ## Draw the original image faintly under the assembly area.
 @export var show_ghost_board := false
