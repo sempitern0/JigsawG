@@ -20,6 +20,8 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `JigsawCameraSettings` | Auto-fit, pan, zoom, bounds, drag response and edge scrolling |
 | `JigsawFeedbackSettings` | Built-in pickup/connect/failure tint feedback |
 | `JigsawPuzzleState` | Serializable runtime progress: positions, rotations, connected groups and Mosaic locks |
+| `JigsawGroupModel` (internal) | Node-free connected groups, memberships, joins and atomic state restoration |
+| `JigsawConnectionResolver` (internal) | Pure grid-neighbor search, quarter-turn checks and snap offsets |
 | `JigsawReaction[]` | Optional reusable reactions for audio, VFX or game-specific behavior |
 
 ## JigsawPuzzleConfig
@@ -40,6 +42,12 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `reactions` | Array of `JigsawReaction` Resources |
 
 In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image dimensions and `target_piece_count` determine a balanced grid; actual count can differ to avoid elongated pieces and respect minimum source resolution. `board.get_effective_grid()` returns resolved columns and rows; `board.get_piece_count()` returns the generated count. The board never modifies the original configuration Resource.
+
+## Group graph and connection architecture
+
+`JigsawBoard` remains the only scene-facing component. Internally, `addons/jigsawg/src/jigsaw_group_model.gd` owns all parent/root identifiers, member lists and join operations. It does not need the scene tree, and it restores a serialized `piece_group_ids` map atomically. The anchored/dragged group's representative survives each merge, which preserves root IDs and multi-selection behavior.
+
+`addons/jigsawg/src/jigsaw_connection_resolver.gd` independently determines legal grid neighbors and the exact shift needed for matching quarter-turn orientations within tolerance. `JigsawBoard` still controls Node2D transforms, visual motion adapters, snapping orchestration and public events. No host integration needs to access these internal classes; the existing public group/selection/state APIs and `GROUP_CONNECTED` events stay intact.
 
 ## Gameplay settings
 

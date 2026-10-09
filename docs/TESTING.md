@@ -24,6 +24,9 @@
 - [ ] Confirm legacy Classic silhouettes and rejection of incompatible profile snapshots.
 - [ ] Run `godot --headless --path . --script res://tests/test_shape_profiles.gd`.
 - [ ] Left drag, group union and completion work in Free mode.
+- [ ] Run `godot --headless --path . --script res://tests/test_group_model.gd` to verify independent connected components, atomic restores, snapping neighbors and rotated offsets.
+- [ ] Run `godot --headless --path . --script res://tests/test_group_integration.gd` to verify Board selection, merge signals, rotation, progress and resumed groups.
+- [ ] Confirm the dragged group's ID survives joins, and saved `piece_group_ids` remain compatible.
 - [ ] Pieces lock in Mosaic only in the correct position and orientation.
 - [ ] Right-click rotation and shuffle at 90° multiples preserve group connections.
 - [ ] Empty-space left press does not start panning until both `background_pan_delay_ms` and `background_pan_threshold_px` are satisfied.

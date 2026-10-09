@@ -21,7 +21,7 @@ func _initialize() -> void:
 	outside.append(8)
 	assert(graph.members_for(0).size() == 4)
 
-	assert(not graph.restore(PackedInt32Array([1, 1, 1])))
+	assert(not graph.restore(PackedInt32Array([1, 2, 2])))
 	assert(not graph.restore(PackedInt32Array([90, 1, 2])))
 	assert(graph.group_ids() == ids, "Invalid restore cannot mutate current groups.")
 	var other := Model.new()

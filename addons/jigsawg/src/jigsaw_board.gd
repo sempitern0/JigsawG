@@ -425,7 +425,7 @@ func _toggle_group_selection(piece_id: int) -> void:
 	# The first Ctrl+click must add it visibly, not toggle it off.
 	if not _multi_selection_mode:
 		_selected_piece_ids.clear()
-	var members: Array = _groups.members_for(piece_id)
+	var members := _groups.members_for(piece_id)
 	var fully_selected := true
 	for member in members:
 		if not _selected_piece_ids.has(int(member)):

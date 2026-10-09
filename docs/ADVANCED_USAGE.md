@@ -4,6 +4,12 @@ JigsawG is a **puzzle runtime**, not a complete game framework. Its responsibili
 
 You should rarely need to inherit from or edit `jigsaw_board.gd`. Choose the lightest integration level that fits your project.
 
+## Internal group model
+
+The group ownership and snapping checks are independently testable. `JigsawGroupModel` holds the connected component graph without Nodes and provides `reset()`, `members_for()`, `merge()`, `group_ids()` and `restore()`. `JigsawConnectionResolver` computes nearby grid-neighbor IDs and potential positional offsets. The Board is the only code allowed to move piece Nodes, reconcile selection, dispatch reactions or persist state.
+
+Keep using `JigsawBoard.get_group_piece_ids(piece_id)` and `get_connected_group_count()`; do not depend on private group data from host scripts. Animation adapters remain presentation-only.
+
 ## The three integration levels
 
 | Level | Technique | Suitable for |

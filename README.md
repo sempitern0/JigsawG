@@ -36,6 +36,10 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 
 The included `examples/puzzle_lab.tscn` uses a **Mixed** connector-family preset to showcase the new silhouettes immediately. The default connector family for new configurations remains **Classic**, preserving the previous appearance.
 
+## Internal architecture
+
+`JigsawBoard` still provides all public puzzle controls, but group connectivity and joining have been extracted to `JigsawGroupModel` and `JigsawConnectionResolver`. These independent `RefCounted` modules are easier to test and reuse without the scene tree. Saved group IDs, multi-selection, rotation, reaction events and presentation-only motion adapters retain their established behavior. See [Resource API](docs/RESOURCE_API.md) and [Advanced integration](docs/ADVANCED_USAGE.md).
+
 ## Installation
 
 **Requirements:** Godot **4.7**, GDScript and a 2D scene. JigsawG has no dependencies on other addons.
