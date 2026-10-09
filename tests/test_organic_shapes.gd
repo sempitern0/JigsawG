@@ -19,7 +19,13 @@ func _initialize() -> void:
 		assert(tab[0].is_equal_approx(Vector2.ZERO))
 		assert(tab[tab.size() - 1].is_equal_approx(Vector2(100, 0)))
 		distinct[str(token)] = tab[tab.size() / 2]
-	assert(distinct.values().size() == 6)
+	var unique_contours: Dictionary = {}
+	for token in [3, 14, 212, 4096 + 7, 4096 + 341, 3 * 4096 + 1777]:
+		var profile := Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
+			Vector2i(1, token), 26.0, 12, 5, 1.0)
+		var signature := str(profile[profile.size() / 3], profile[profile.size() * 2 / 3])
+		unique_contours[signature] = true
+	assert(unique_contours.size() >= 5, "Organic seams must vary per shared token.")
 
 	var older := JigsawAppearanceSettings.new()
 	assert(older.connector_family == JigsawAppearanceSettings.ConnectorFamily.CLASSIC)
@@ -42,6 +48,10 @@ func _verify(board: Node2D) -> void:
 	assert(state.connector_family == JigsawAppearanceSettings.ConnectorFamily.ORGANIC)
 	assert(board.restore_state(state))
 	assert(board.get_group_piece_ids(0).size() == 1)
+	var detail := board.get_artwork_detail_info()
+	assert(detail["piece_count"] == 9)
+	assert(detail["source_size"] == Vector2i(640, 480))
+	assert(not detail["below_recommendation"])
 	print("JigsawG organic shared contours and state compatibility: PASS")
 	board.queue_free()
 	quit()

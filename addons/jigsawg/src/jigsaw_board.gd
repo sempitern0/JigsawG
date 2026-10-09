@@ -6,6 +6,8 @@ extends Node2D
 signal puzzle_generated(piece_count: int)
 ## Incremental generation progress, emitted after each configured piece batch.
 signal generation_progress_changed(generated: int, total: int)
+## Warning emitted if native source detail per puzzle piece is low.
+signal artwork_detail_warning(info: Dictionary)
 signal pieces_connected(group_size: int)
 signal puzzle_completed
 signal piece_picked(piece_id: int)
@@ -164,6 +166,7 @@ var _rotations: Array[int] = []
 var _connector_depth := 0.25
 var _connector_family := 0
 var _connector_variation := 1.0
+var _recommended_pixels_per_piece := 96
 var _active_feedback: JigsawFeedbackSettings
 var _active_reactions: Array[JigsawReaction] = []
 var _restored_from_state := false
@@ -212,6 +215,25 @@ func get_piece_count() -> int:
 ## Actual grid in use; does not change the shared configuration Resource.
 func get_effective_grid() -> Vector2i:
 	return Vector2i(columns, rows)
+
+
+## Native source texture resolution per piece. No filter can add missing detail.
+func get_artwork_detail_info() -> Dictionary:
+	if _source_size.x <= 0 or _source_size.y <= 0 or columns <= 0 or rows <= 0:
+		return {}
+	var native_width := float(_source_size.x) / float(columns)
+	var native_height := float(_source_size.y) / float(rows)
+	var side := minf(native_width, native_height)
+	return {
+		"source_size": _source_size,
+		"grid": Vector2i(columns, rows),
+		"piece_count": columns * rows,
+		"native_pixels_per_piece": Vector2(native_width, native_height),
+		"minimum_native_side_pixels": side,
+		"recommended_minimum_side_pixels": _recommended_pixels_per_piece,
+		"recommended_source_size": Vector2i(columns * _recommended_pixels_per_piece, rows * _recommended_pixels_per_piece),
+		"below_recommendation": side < float(_recommended_pixels_per_piece)
+	}
 
 ## Read-only integration hook for VFX that need to follow a piece.
 ## Do not change its transform; JigsawBoard owns puzzle positioning.
@@ -663,8 +685,18 @@ func rebuild() -> void:
 		return
 	source.convert(Image.FORMAT_RGBA8)
 	_source_size = source.get_size()
-	if not source.has_mipmaps():
+	# Mipmaps cost extra memory and are used only with the Mipmaps filter.
+	if texture_sampling == 2 and not source.has_mipmaps():
 		source.generate_mipmaps()
+	var info := get_artwork_detail_info()
+	if info.get("below_recommendation", false):
+		var size: Vector2i = info["recommended_source_size"]
+		push_warning("JigsawG: image %dx%d / grid %dx%d yields %.1f native pixels per piece side. Recommended >= %d px/piece (~%dx%d source). Larger contour detail or sampling changes cannot restore missing artwork detail." % [
+			_source_size.x, _source_size.y, columns, rows,
+			info["minimum_native_side_pixels"], _recommended_pixels_per_piece,
+			size.x, size.y
+		])
+		artwork_detail_warning.emit(info)
 	var shared_texture := ImageTexture.create_from_image(source)
 	_piece_size = Vector2(source.get_size()) / Vector2(columns, rows)
 	if not is_instance_valid(_preview_overlay):
@@ -1341,6 +1373,7 @@ func _apply_resource_presets() -> void:
 	_connector_depth = appearance.connector_depth
 	_connector_family = appearance.connector_family
 	_connector_variation = appearance.connector_variation
+	_recommended_pixels_per_piece = appearance.recommended_pixels_per_piece
 	match appearance.visual_style:
 		JigsawAppearanceSettings.VisualStyle.CARDBOARD:
 			visual_style = VisualStyle.CARDBOARD
