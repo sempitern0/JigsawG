@@ -1,12 +1,28 @@
 @tool
 extends Node2D
-## Self-contained prototype: procedural tabs, grouping, smooth drag and deterministic regeneration.
+## Public puzzle component. Persistent behavior comes from JigsawPuzzleConfig;
+## host games integrate through signals, JigsawPuzzleEvent and JigsawReaction.
 signal puzzle_generated(piece_count: int)
 signal pieces_connected(group_size: int)
 signal puzzle_completed
 signal piece_picked(piece_id: int)
 signal piece_released(piece_id: int, connected: bool)
 signal connection_failed(piece_id: int)
+
+## Rich event API. event_emitted receives every semantic puzzle event.
+signal event_emitted(event: JigsawPuzzleEvent)
+signal puzzle_reset(event: JigsawPuzzleEvent)
+signal puzzle_started(event: JigsawPuzzleEvent)
+signal piece_drag_started(event: JigsawPuzzleEvent)
+signal piece_drag_finished(event: JigsawPuzzleEvent)
+signal piece_drag_cancelled(event: JigsawPuzzleEvent)
+signal piece_placement_succeeded(event: JigsawPuzzleEvent)
+signal piece_placement_failed(event: JigsawPuzzleEvent)
+signal group_connection_succeeded(event: JigsawPuzzleEvent)
+signal group_connection_failed(event: JigsawPuzzleEvent)
+signal group_rotation_changed(event: JigsawPuzzleEvent)
+signal reference_preview_changed(event: JigsawPuzzleEvent)
+signal puzzle_finished(event: JigsawPuzzleEvent)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
@@ -119,7 +135,46 @@ func apply_configuration() -> void:
 func get_configuration() -> JigsawPuzzleConfig:
 	return puzzle_config
 
+## Number of generated runtime pieces.
+func get_piece_count() -> int:
+	return _pieces.size()
+
+## Read-only integration hook for VFX that need to follow a piece.
+## Do not change its transform; JigsawBoard owns puzzle positioning.
+func get_piece_node(piece_id: int) -> Node2D:
+	if piece_id < 0 or piece_id >= _pieces.size():
+		return null
+	return _pieces[piece_id]
+
+## Current connected-group membership for a piece.
+func get_group_piece_ids(piece_id: int) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	if piece_id < 0 or piece_id >= _parents.size():
+		return result
+	var root: int = _parents[piece_id]
+	for member in _members.get(root, []):
+		result.append(int(member))
+	return result
+
+func get_piece_world_center(piece_id: int) -> Vector2:
+	if piece_id < 0 or piece_id >= _pieces.size():
+		return global_position
+	var piece := _pieces[piece_id]
+	return piece.global_position + (_piece_size * 0.5).rotated(piece.global_rotation)
+
+func get_dragged_piece_id() -> int:
+	return _dragged_piece
+
+func is_completed() -> bool:
+	return _finished
+
 func rebuild() -> void:
+	if not _pieces.is_empty():
+		if _dragged_piece >= 0:
+			_cancel_drag(&"rebuild")
+		_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_RESET, -1, true, &"rebuild", {
+			"piece_count": _pieces.size()
+		}))
 	_apply_resource_presets()
 	for piece in _pieces:
 		if is_instance_valid(piece):
@@ -220,6 +275,13 @@ func rebuild() -> void:
 			_fit_camera()
 		_zoom_goal = _camera.zoom.x
 	puzzle_generated.emit(_pieces.size())
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_STARTED, -1, true, &"generated", {
+		"piece_count": _pieces.size(),
+		"columns": columns,
+		"rows": rows,
+		"game_mode": game_mode,
+		"rotation_enabled": allow_piece_rotation
+	}))
 
 func _random_edge() -> Vector2i:
 	return Vector2i(1 if _rng.randi_range(0, 1) == 0 else -1, _rng.randi_range(0, silhouette_variants - 1))
@@ -288,6 +350,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						_pieces[member].queue_redraw()
 					_animate_pickup(_members[_drag_root], true)
 					piece_picked.emit(i)
+					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_STARTED, i, true, &"pointer_down"))
 					get_viewport().set_input_as_handled()
 					break
 			if _drag_root == -1 and enable_camera_navigation and _camera:
@@ -303,10 +366,16 @@ func _unhandled_input(event: InputEvent) -> void:
 				_pieces[member].z_index = 0
 				_pieces[member].queue_redraw()
 			_animate_pickup(_members[_parents[_dragged_piece]], false)
+			var released_piece_id := _dragged_piece
 			if not connected:
-				connection_failed.emit(_dragged_piece)
-				_animate_failed_connection(_pieces[_dragged_piece])
-			piece_released.emit(_dragged_piece, connected)
+				connection_failed.emit(released_piece_id)
+				_animate_failed_connection(_pieces[released_piece_id])
+				if game_mode == GameMode.MOSAIC:
+					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED, released_piece_id, false, &"wrong_position_or_rotation"))
+				else:
+					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED, released_piece_id, false, &"no_compatible_neighbor"))
+			piece_released.emit(released_piece_id, connected)
+			_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, &"released"))
 			_drag_root = -1
 			_dragged_piece = -1
 			get_viewport().set_input_as_handled()
@@ -323,15 +392,17 @@ func _process(delta: float) -> void:
 	_move_group((_desired_position - _pieces[_dragged_piece].global_position) * factor)
 
 ## Stop an unfinished drag without snapping (e.g. when preview is opened).
-func _cancel_drag() -> void:
+func _cancel_drag(reason: StringName = &"cancelled") -> void:
 	if _dragged_piece < 0:
 		_camera_pan = false
 		return
+	var cancelled_piece_id := _dragged_piece
 	for member in _members.get(_parents[_dragged_piece], []):
 		var piece := _pieces[int(member)]
 		piece.selected = false
 		piece.z_index = 0
 		piece.modulate = Color.WHITE
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_CANCELLED, cancelled_piece_id, false, reason))
 	_drag_root = -1
 	_dragged_piece = -1
 	_camera_pan = false
@@ -369,15 +440,18 @@ func _connect_adjacent_groups() -> bool:
 					_members[new_root].append(member)
 				_members.erase(old_root)
 				pieces_connected.emit(_members[new_root].size())
+				_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTED, index, true, &"neighbor_snap", {
+					"neighbor_piece_id": neighbor,
+					"group_size": _members[new_root].size()
+				}))
 				_animate_connection(_pieces[index])
 				any_connection = true
 				still_connecting = true
 				break
 			if still_connecting:
 				break
-	if _members.size() == 1 and not _finished:
-		_finished = true
-		puzzle_completed.emit()
+	if _members.size() == 1:
+		_finish_puzzle()
 	return any_connection
 
 func _update_camera_bounds() -> void:
@@ -508,9 +582,12 @@ func set_preview_visible(visible: bool) -> void:
 	if not enable_preview or not is_instance_valid(_preview_overlay):
 		return
 	if visible:
-		_cancel_drag()
+		_cancel_drag(&"preview_opened")
 	_preview_overlay.set_preview_visible(visible)
 	preview_toggled.emit(visible)
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PREVIEW_TOGGLED, -1, true, &"visible" if visible else &"hidden", {
+		"visible": visible
+	}))
 
 func _place_in_mosaic() -> bool:
 	var piece := _pieces[_dragged_piece]
@@ -519,10 +596,10 @@ func _place_in_mosaic() -> bool:
 	_move_group(piece.home - piece.position)
 	_locked_pieces[_dragged_piece] = true
 	piece_placed.emit(_dragged_piece)
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACED, _dragged_piece, true, &"mosaic_slot"))
 	_animate_connection(piece)
-	if _locked_pieces.size() == _pieces.size() and not _finished:
-		_finished = true
-		puzzle_completed.emit()
+	if _locked_pieces.size() == _pieces.size():
+		_finish_puzzle()
 	return true
 
 func _animate_pickup(members: Array, active: bool) -> void:
@@ -675,3 +752,77 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 		_pointer_offset = _pieces[_dragged_piece].global_position - get_global_mouse_position()
 		_desired_position = _pieces[_dragged_piece].global_position
 	group_rotated.emit(piece_index, _rotations[piece_index], members.size())
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_ROTATED, piece_index, true, &"clockwise" if clockwise else &"counter_clockwise", {
+		"quarter_turns": _rotations[piece_index],
+		"group_size": members.size()
+	}))
+
+
+## Build a stable event context from current board state.
+func _make_event(
+	event_type: JigsawPuzzleEvent.Type,
+	piece_id: int = -1,
+	success: bool = false,
+	reason: StringName = &"",
+	metadata: Dictionary = {}
+) -> JigsawPuzzleEvent:
+	var event := JigsawPuzzleEvent.new(event_type)
+	event.board = self
+	event.piece_id = piece_id
+	event.success = success
+	event.reason = reason
+	event.metadata = metadata.duplicate(true)
+	if piece_id >= 0 and piece_id < _pieces.size():
+		event.piece_ids = get_group_piece_ids(piece_id)
+		event.group_size = event.piece_ids.size()
+		event.world_position = get_piece_world_center(piece_id)
+		event.quarter_turns = _rotations[piece_id]
+	else:
+		event.world_position = global_position
+	return event
+
+## Emit the umbrella signal, a semantic signal, then configured Resource reactions.
+## This is the central extension point for host games.
+func _dispatch_event(event: JigsawPuzzleEvent) -> void:
+	event_emitted.emit(event)
+	match event.type:
+		JigsawPuzzleEvent.Type.PUZZLE_RESET:
+			puzzle_reset.emit(event)
+		JigsawPuzzleEvent.Type.PUZZLE_STARTED:
+			puzzle_started.emit(event)
+		JigsawPuzzleEvent.Type.PIECE_DRAG_STARTED:
+			piece_drag_started.emit(event)
+		JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED:
+			piece_drag_finished.emit(event)
+		JigsawPuzzleEvent.Type.PIECE_DRAG_CANCELLED:
+			piece_drag_cancelled.emit(event)
+		JigsawPuzzleEvent.Type.PIECE_PLACED:
+			piece_placement_succeeded.emit(event)
+		JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED:
+			piece_placement_failed.emit(event)
+		JigsawPuzzleEvent.Type.GROUP_CONNECTED:
+			group_connection_succeeded.emit(event)
+		JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED:
+			group_connection_failed.emit(event)
+		JigsawPuzzleEvent.Type.GROUP_ROTATED:
+			group_rotation_changed.emit(event)
+		JigsawPuzzleEvent.Type.PREVIEW_TOGGLED:
+			reference_preview_changed.emit(event)
+		JigsawPuzzleEvent.Type.PUZZLE_COMPLETED:
+			puzzle_finished.emit(event)
+
+	if puzzle_config == null:
+		return
+	for reaction in puzzle_config.reactions:
+		if reaction != null and reaction.accepts(event):
+			reaction.react(self, event)
+
+func _finish_puzzle() -> void:
+	if _finished:
+		return
+	_finished = true
+	puzzle_completed.emit()
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_COMPLETED, -1, true, &"solved", {
+		"piece_count": _pieces.size(),
+		"game_mode": game_mode
+	}))
