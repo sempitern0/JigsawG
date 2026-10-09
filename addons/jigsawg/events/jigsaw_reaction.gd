@@ -25,6 +25,9 @@ extends Resource
 	"Puzzle Completed"
 ) var event_mask := 0
 
+static func mask_for(event_type: JigsawPuzzleEvent.Type) -> int:
+	return 1 << int(event_type)
+
 func accepts(event: JigsawPuzzleEvent) -> bool:
 	if not enabled:
 		return false
