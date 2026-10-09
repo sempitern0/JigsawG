@@ -3,6 +3,21 @@ extends RefCounted
 ## Immutable-by-convention context emitted by JigsawBoard.
 ## Consumers should read this object, not mutate puzzle state through it.
 
+const REASON_REBUILD := &"rebuild"
+const REASON_GENERATED := &"generated"
+const REASON_POINTER_DOWN := &"pointer_down"
+const REASON_RELEASED := &"released"
+const REASON_PREVIEW_OPENED := &"preview_opened"
+const REASON_WRONG_POSITION_OR_ROTATION := &"wrong_position_or_rotation"
+const REASON_NO_COMPATIBLE_NEIGHBOR := &"no_compatible_neighbor"
+const REASON_NEIGHBOR_SNAP := &"neighbor_snap"
+const REASON_MOSAIC_SLOT := &"mosaic_slot"
+const REASON_VISIBLE := &"visible"
+const REASON_HIDDEN := &"hidden"
+const REASON_SOLVED := &"solved"
+const REASON_CLOCKWISE := &"clockwise"
+const REASON_COUNTER_CLOCKWISE := &"counter_clockwise"
+
 enum Type {
 	PUZZLE_RESET,
 	PUZZLE_STARTED,
