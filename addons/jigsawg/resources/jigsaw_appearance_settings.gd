@@ -19,6 +19,9 @@ enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
 @export_range(0.0, 1.0, 0.01) var piece_edge_opacity := 0.0
 ## Thickness of an enabled edge rim in texture pixels.
 @export_range(0.1, 3.0, 0.1) var piece_edge_width := 0.7
+## Optional shared CanvasItem Material/ShaderMaterial applied to generated pieces.
+## Null preserves the default textured polygon renderer; rebuild to apply.
+@export var piece_material: Material
 
 @export_group("Selection Highlight")
 ## Draw an outline around selected pieces/groups.
