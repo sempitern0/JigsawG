@@ -818,7 +818,10 @@ func _dispatch_event(event: JigsawPuzzleEvent) -> void:
 		JigsawPuzzleEvent.Type.PUZZLE_COMPLETED:
 			puzzle_finished.emit(event)
 
-	for reaction in _active_reactions:
+	# Iterate a snapshot so a reaction may schedule/reconfigure safely without
+	# invalidating the current dispatch loop.
+	var reaction_snapshot: Array[JigsawReaction] = _active_reactions.duplicate()
+	for reaction in reaction_snapshot:
 		if reaction.accepts(event):
 			reaction.react(self, event)
 
