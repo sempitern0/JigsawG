@@ -30,7 +30,7 @@ const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 const PreviewOverlay = preload("res://addons/jigsawg/src/jigsaw_preview_overlay.gd")
 
 enum GameMode { FREE, MOSAIC }
-enum ShuffleMode { AROUND_BOARD, CENTER, BOTTOM }
+enum ShuffleMode { AROUND_BOARD, CENTER, BOTTOM, CHAOTIC }
 enum DistributionMode { RANDOM, RADIAL }
 enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
 enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
@@ -87,6 +87,17 @@ var animation_style: AnimationStyle = AnimationStyle.SUBTLE
 var connect_animation_duration := 0.16
 var allow_piece_rotation := false
 var random_rotation_on_shuffle := true
+var enable_multi_select := true
+var chaotic_spread := 2.2
+var chaotic_max_attempts := 64
+var background_pan_delay_ms := 70
+var background_pan_threshold_px := 4.0
+var highlight_enabled := true
+var highlight_color := Color(1.0, 0.84, 0.38, 0.85)
+var highlight_width := 1.2
+var highlight_shadow_enabled := true
+var highlight_shadow_color := Color(0.0, 0.0, 0.0, 0.24)
+var highlight_shadow_offset := Vector2(3.0, 4.0)
 
 signal preview_toggled(visible: bool)
 signal piece_placed(piece_id: int)
@@ -98,15 +109,20 @@ var _locked_pieces: Dictionary = {}
 var _pieces: Array[JigsawPiece] = []
 var _parents: Array[int] = []
 var _members: Dictionary = {}
+var _selected_piece_ids: Dictionary = {}
 var _finished := false
 var _drag_root := -1
 var _dragged_piece := -1
 var _pointer_offset := Vector2.ZERO
 var _desired_position := Vector2.ZERO
 var _piece_size := Vector2.ZERO
+var _source_size := Vector2i.ZERO
 var _rng := RandomNumberGenerator.new()
 var _camera: Camera2D
 var _camera_pan := false
+var _background_pan_pending := false
+var _background_pan_press_msec := 0
+var _background_pan_press_mouse := Vector2.ZERO
 var _camera_target_position := Vector2.ZERO
 var _camera_target_ready := false
 var _edge_pan_velocity := Vector2.ZERO
