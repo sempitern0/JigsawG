@@ -63,6 +63,18 @@
 - [ ] `auto_free_after` removes temporary spawned scenes without leaks.
 - [ ] Run `godot --headless --path . --script res://tests/test_event_api.gd`.
 
+## Host-game integration
+- [ ] `get_progress()` returns 0 for a newly generated 2×2 Free board and updates after successful joins.
+- [ ] `progress_changed(progress)` emits on generation, restoration and successful Free/Mosaic progress.
+- [ ] Disabling `set_interaction_enabled(false)` cancels active drags, stops camera input and does not reset progress.
+- [ ] Enabling interaction restores normal board controls without rebuilding.
+- [ ] `fit_view()` gracefully returns false without an active Camera2D and recenters when one is active.
+- [ ] Reference toggle and ghost visibility/opacity can be controlled by an external HUD; rebuild restores Resource defaults.
+- [ ] `JigsawPlayAnimationReaction` plays an AnimationPlayer clip found relative to the Board.
+- [ ] `JigsawCallMethodReaction` invokes a no-argument host method and an event-argument method.
+- [ ] Invalid Resource target paths do not crash puzzle gameplay.
+- [ ] Run `godot --headless --path . --script res://tests/test_public_integration.gd`.
+
 ## Publication
 - [ ] Godot parser and import logs show no GDScript warnings/errors.
 - [ ] Measure large-image memory and the performance of a 300-piece puzzle.
