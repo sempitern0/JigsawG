@@ -144,6 +144,8 @@ var _pan_last_mouse := Vector2.ZERO
 var _pan_bounds := Rect2()
 var _fit_bounds := Rect2()
 var _rotations: Array[int] = []
+var _connector_depth := 0.25
+var _active_feedback: JigsawFeedbackSettings
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -215,7 +217,7 @@ func rebuild() -> void:
 				horizontal.get(Vector2i(c, r), Vector2i.ZERO) if r < rows - 1 else Vector2i.ZERO,
 				vertical.get(Vector2i(c - 1, r), Vector2i.ZERO) if c > 0 else Vector2i.ZERO
 			]
-			var polygon: PackedVector2Array = Geometry.make_outline(_piece_size, sides[0], sides[1], sides[2], sides[3], bezier_detail)
+			var polygon: PackedVector2Array = Geometry.make_outline(_piece_size, sides[0], sides[1], sides[2], sides[3], bezier_detail, _connector_depth)
 			var piece: JigsawPiece = PieceScript.new()
 			piece.name = "Piece_%d_%d" % [c, r]
 			add_child(piece)
@@ -331,6 +333,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_animate_pickup(_members[_parents[_dragged_piece]], false)
 			if not connected:
 				connection_failed.emit(_dragged_piece)
+				_animate_failed_connection(_pieces[_dragged_piece])
 			piece_released.emit(_dragged_piece, connected)
 			_drag_root = -1
 			_dragged_piece = -1
@@ -536,15 +539,22 @@ func _place_in_mosaic() -> bool:
 
 func _animate_pickup(members: Array, active: bool) -> void:
 	# Tint only: scaling the nodes would change their visible seams and pointer hit test.
-	var tint := Color(1.12, 1.09, 1.02, 1.0) if active and animation_style == AnimationStyle.PLAYFUL else Color.WHITE
+	var tint := (_active_feedback.pickup_tint if _active_feedback != null else Color(1.12, 1.09, 1.02, 1.0)) if active and animation_style == AnimationStyle.PLAYFUL else Color.WHITE
 	for member in members:
 		var piece := _pieces[int(member)]
 		_tween_piece_tint(piece, tint)
 
+func _animate_failed_connection(piece: JigsawPiece) -> void:
+	if _active_feedback == null or not _active_feedback.enable_failure_feedback:
+		return
+	var tween := create_tween()
+	tween.tween_property(piece, "modulate", _active_feedback.failure_tint, _active_feedback.failure_animation_duration * 0.5)
+	tween.tween_property(piece, "modulate", Color.WHITE, _active_feedback.failure_animation_duration * 0.5)
+
 func _animate_connection(piece: JigsawPiece) -> void:
 	if animation_style == AnimationStyle.NONE:
 		return
-	var peak := Color(1.22, 1.18, 0.93, 1.0) if animation_style == AnimationStyle.PLAYFUL else Color(1.10, 1.10, 1.02, 1.0)
+	var peak := _active_feedback.connect_tint if _active_feedback != null else (Color(1.22, 1.18, 0.93, 1.0) if animation_style == AnimationStyle.PLAYFUL else Color(1.10, 1.10, 1.02, 1.0))
 	_tween_piece_tint(piece, peak)
 	var tween := create_tween()
 	tween.tween_property(piece, "modulate", Color.WHITE, connect_animation_duration)
@@ -559,6 +569,8 @@ func _tween_piece_tint(piece: JigsawPiece, tint: Color) -> void:
 ## A Resource is a shared preset. Do not mutate it while applying it:
 ## assign only the board instance's properties.
 func _apply_resource_presets() -> void:
+	_connector_depth = 0.25
+	_active_feedback = null
 	# Root config owns image, board dimensions, and optional subresources.
 	# No Resource is ever modified by this method.
 	if puzzle_config != null:
@@ -582,6 +594,7 @@ func _apply_resource_presets() -> void:
 			edge_scroll_zone = camera_preset.edge_scroll_zone
 			edge_scroll_speed = camera_preset.edge_scroll_speed
 		if puzzle_config.feedback != null:
+			_active_feedback = puzzle_config.feedback
 			var fx := puzzle_config.feedback
 			animation_style = fx.animation_style
 			connect_animation_duration = fx.connect_animation_duration
@@ -614,6 +627,7 @@ func _apply_gameplay_and_appearance(active_gameplay: JigsawGameplaySettings, act
 		preview_key = s.preview_key
 	if active_appearance != null:
 		var a := active_appearance
+		_connector_depth = a.connector_depth
 		match a.visual_style:
 			JigsawAppearanceSettings.VisualStyle.CARDBOARD:
 				visual_style = VisualStyle.CARDBOARD
