@@ -327,8 +327,12 @@ func focus_selection() -> bool:
 	if not has_bounds:
 		return false
 	var margin := maxf(_piece_size.x, _piece_size.y) * selection_focus_padding
+	# Piece groups can move beyond the scatter bounds during play. Recalculate
+	# before clamping so restricted cameras can still reach those groups.
+	if restrict_camera:
+		_update_camera_bounds()
 	_fit_camera_to(combined.grow(margin))
-	_camera.zoom = Vector2.ONE * minf(_camera.zoom.x, selection_focus_max_zoom)
+	_camera.zoom = Vector2.ONE * maxf(min_zoom, minf(_camera.zoom.x, selection_focus_max_zoom))
 	_limit_camera()
 	_finish_camera_framing()
 	return true

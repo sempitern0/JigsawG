@@ -14,6 +14,7 @@ func _initialize() -> void:
 	cfg.gameplay.initial_scatter = false
 	cfg.camera.selection_focus_max_zoom = 1.5
 	cfg.camera.selection_focus_padding = 0.75
+	cfg.camera.restrict_camera = true
 	cfg.camera.focus_selection_key = KEY_F
 	var board := BoardScript.new()
 	board.puzzle_config = cfg
