@@ -24,6 +24,7 @@ signal group_connection_failed(event: JigsawPuzzleEvent)
 signal group_rotation_changed(event: JigsawPuzzleEvent)
 signal reference_preview_changed(event: JigsawPuzzleEvent)
 signal puzzle_finished(event: JigsawPuzzleEvent)
+signal puzzle_state_applied(event: JigsawPuzzleEvent)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
@@ -230,7 +231,7 @@ func capture_state() -> JigsawPuzzleState:
 
 ## Apply a compatible snapshot to an already generated board.
 ## Returns false and leaves the current puzzle unchanged when validation fails.
-func restore_state(state: JigsawPuzzleState, update_camera: bool = true) -> bool:
+func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_event: bool = true) -> bool:
 	if state == null:
 		return false
 	if state.schema_version != JigsawPuzzleState.SCHEMA_VERSION:
@@ -282,7 +283,12 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true) -> bool
 			_fit_camera()
 		_sync_camera_target()
 
-	puzzle_state_restored.emit(state)
+	if emit_event:
+		puzzle_state_restored.emit(state)
+		_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_STATE_RESTORED, -1, true, JigsawPuzzleEvent.REASON_RESUMED, {
+			"completed": state.completed,
+			"piece_count": state.get_piece_count()
+		}))
 	return true
 
 ## Current multi-selection. Connected groups are always selected/deselected as a unit.
@@ -472,7 +478,7 @@ func rebuild() -> void:
 				_pieces[i].position = center_before - (_piece_size * 0.5).rotated(_pieces[i].rotation)
 
 	if puzzle_config != null and puzzle_config.resume_state != null:
-		_restored_from_state = restore_state(puzzle_config.resume_state, false)
+		_restored_from_state = restore_state(puzzle_config.resume_state, false, false)
 
 	_camera = get_viewport().get_camera_2d()
 	if _camera:
@@ -495,6 +501,12 @@ func rebuild() -> void:
 		"rotation_enabled": allow_piece_rotation,
 		"resumed": _restored_from_state
 	}))
+	if _restored_from_state and puzzle_config != null and puzzle_config.resume_state != null:
+		puzzle_state_restored.emit(puzzle_config.resume_state)
+		_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_STATE_RESTORED, -1, true, JigsawPuzzleEvent.REASON_RESUMED, {
+			"completed": puzzle_config.resume_state.completed,
+			"piece_count": puzzle_config.resume_state.get_piece_count()
+		}))
 
 func _random_edge() -> Vector2i:
 	return Vector2i(1 if _rng.randi_range(0, 1) == 0 else -1, _rng.randi_range(0, silhouette_variants - 1))
@@ -1228,6 +1240,8 @@ func _dispatch_event(event: JigsawPuzzleEvent) -> void:
 			reference_preview_changed.emit(event)
 		JigsawPuzzleEvent.Type.PUZZLE_COMPLETED:
 			puzzle_finished.emit(event)
+		JigsawPuzzleEvent.Type.PUZZLE_STATE_RESTORED:
+			puzzle_state_applied.emit(event)
 
 	# Iterate a snapshot so a reaction may schedule/reconfigure safely without
 	# invalidating the current dispatch loop.
