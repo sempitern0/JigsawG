@@ -11,6 +11,8 @@ static func validate(
 	silhouette_variants: int,
 	connector_family: int,
 	connector_variation: float,
+	connector_depth: float,
+	bezier_detail: int,
 	game_mode: int
 ) -> String:
 	if state == null:
@@ -23,6 +25,12 @@ static func validate(
 		return "generation seed or silhouette count does not match"
 	if state.connector_family != connector_family or not is_equal_approx(state.connector_variation, connector_variation):
 		return "connector profile settings do not match"
+	if state.connector_depth >= 0.0 and not is_equal_approx(state.connector_depth, connector_depth):
+		return "connector depth does not match"
+	if state.bezier_detail >= 0 and state.bezier_detail != bezier_detail:
+		return "Bézier sampling detail does not match"
+	if state.game_mode >= 0 and state.game_mode != game_mode:
+		return "puzzle game mode does not match"
 	var count := columns * rows
 	if state.piece_positions.size() != count or state.piece_rotations.size() != count or state.piece_group_ids.size() != count:
 		return "piece array lengths do not match"

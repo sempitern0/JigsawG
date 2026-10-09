@@ -34,6 +34,8 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 | Natural shuffle | Deterministic grid layouts or a non-grid Chaotic mode with collision-aware random placement |
 | Event/reaction API | Typed events plus sound, VFX scenes, AnimationPlayer and method-call Resources; no Board overrides |
 
+The included `examples/puzzle_lab.tscn` uses a **Mixed** connector-family preset to showcase the new silhouettes immediately. The default connector family for new configurations remains **Classic**, preserving the previous appearance.
+
 ## Installation
 
 **Requirements:** Godot **4.7**, GDScript and a 2D scene. JigsawG has no dependencies on other addons.

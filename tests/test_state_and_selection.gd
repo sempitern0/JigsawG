@@ -62,6 +62,14 @@ func _verify(board: Node2D, config: JigsawPuzzleConfig) -> void:
 	assert(board.get_piece_count() == 4)
 	assert(not board.restore_state(snapshot), "Different geometry must reject incompatible saved state.")
 	assert(board.capture_state().connector_family == JigsawAppearanceSettings.ConnectorFamily.ANGULAR)
+	var other_depth := alternative.duplicate(true) as JigsawPuzzleConfig
+	other_depth.appearance.connector_depth = 0.31
+	board.configure(other_depth)
+	assert(not board.restore_state(snapshot))
+	# A saved state captures the active geometry and gameplay mode.
+	var active := board.capture_state()
+	assert(is_equal_approx(active.connector_depth, 0.31))
+	assert(active.game_mode == JigsawGameplaySettings.Mode.FREE)
 
 	var chaotic := JigsawPuzzleConfig.new()
 	chaotic.columns = 3

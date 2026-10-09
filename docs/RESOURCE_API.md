@@ -140,7 +140,7 @@ If the host `Camera2D` already has Godot's own `position_smoothing_enabled`, dis
 - connected-group ids
 - Mosaic locked-piece ids
 - completion state
-- compatibility metadata (rows/columns, source dimensions, seed, silhouette count and connector family/variation)
+- compatibility metadata (rows/columns, source dimensions, seed, silhouette count, connector family/variation, depth, tessellation detail and game mode). Legacy states lacking the last three values remain readable.
 
 Capture:
 

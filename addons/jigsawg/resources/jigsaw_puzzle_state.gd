@@ -21,6 +21,10 @@ const SCHEMA_VERSION := 1
 ## Defaults preserve schema-1 saves produced with classic silhouettes.
 @export var connector_family := 0
 @export var connector_variation := 1.0
+## -1 means absent in a legacy save, so older snapshots remain loadable.
+@export var connector_depth := -1.0
+@export var bezier_detail := -1
+@export var game_mode := -1
 
 @export_group("Runtime State")
 ## Local JigsawBoard positions, one entry per piece.

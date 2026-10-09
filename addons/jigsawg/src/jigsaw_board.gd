@@ -313,6 +313,9 @@ func capture_state() -> JigsawPuzzleState:
 	state.silhouette_variants = silhouette_variants
 	state.connector_family = _connector_family
 	state.connector_variation = _connector_variation
+	state.connector_depth = _connector_depth
+	state.bezier_detail = bezier_detail
+	state.game_mode = game_mode
 	state.completed = _finished
 
 	for i in range(_pieces.size()):
@@ -333,7 +336,7 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 		return false
 	var reason: String = StateValidator.validate(
 		state, columns, rows, _source_size, generation_seed, silhouette_variants,
-		_connector_family, _connector_variation, game_mode
+		_connector_family, _connector_variation, _connector_depth, bezier_detail, game_mode
 	)
 	if not reason.is_empty():
 		push_warning("JigsawG: cannot restore state: " + reason)
