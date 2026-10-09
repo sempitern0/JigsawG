@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://w6f6tiqdak2g" path="res://addons/jigsawg/resources/jigsaw_camera_settings.gd" id="3"]
 [ext_resource type="Script" uid="uid://b33ccw454ni08" path="res://addons/jigsawg/resources/jigsaw_appearance_settings.gd" id="4"]
 [ext_resource type="Script" uid="uid://daipbmwlnkyaw" path="res://addons/jigsawg/resources/jigsaw_feedback_settings.gd" id="5"]
+[ext_resource type="Script" path="res://addons/jigsawg/events/jigsaw_motion_adapter.gd" id="7"]
 [ext_resource type="Texture2D" uid="uid://dakki2nwckxx4" path="res://examples/images/383471.jpg" id="5_dqwao"]
 [ext_resource type="Script" uid="uid://cf4vc3wwnu80f" path="res://addons/jigsawg/events/jigsaw_reaction.gd" id="6_d687h"]
 
@@ -19,8 +20,14 @@ bezier_detail = 16
 [sub_resource type="Resource" id="Camera"]
 script = ExtResource("3")
 
+[sub_resource type="Resource" id="Motion"]
+script = ExtResource("7")
+rotation_duration = 0.18
+arrangement_duration = 0.22
+
 [sub_resource type="Resource" id="Resource_1odl7"]
 script = ExtResource("5")
+motion_adapter = SubResource("Motion")
 animation_style = 2
 connect_animation_duration = 0.4
 

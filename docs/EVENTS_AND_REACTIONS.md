@@ -10,6 +10,35 @@ There are three ways to react:
 
 The compact legacy signals such as `piece_picked`, `pieces_connected` and `puzzle_completed` remain available for compatibility.
 
+## Custom motion adapter: rotation and group arrangement
+
+`JigsawPlayAnimationReaction` already plays host `AnimationPlayer` clips after events (including `GROUP_ROTATED`). It does **not** interpolate the JigsawPiece positions or rotation. To animate those movements, set **JigsawPuzzleConfig → Feedback → Motion Adapter** to a **New JigsawMotionAdapter** Resource. The included demo preset uses one, with separate rotation and arrangement timings, transition and easing. A null adapter retains instantaneous legacy gameplay.
+
+The Board commits authoritative Node2D transforms immediately, then calls `motion_adapter.animate(board, motion)`. Each `JigsawMotionContext` describes the affected piece IDs, exact prior visual transforms, exact final logical transforms and `Kind.ROTATION` / `Kind.ARRANGEMENT`. The default adapter tweens only `JigsawPiece.display_transform` in `_draw()`. This preserves group adjacency, snapping, saved positions and rotation quantization. Piece hit tests follow the displayed silhouette while the tween runs. Overlapping tweens are replaced per piece and cleaned up when pieces are freed.
+
+Custom example (save the script as a Resource, create an instance in the Inspector):
+
+```gdscript
+@tool
+class_name GentleJigsawMotion
+extends JigsawMotionAdapter
+
+func animate(board: Node2D, motion: JigsawMotionContext) -> void:
+    super.animate(board, motion)
+    if motion.kind == JigsawMotionContext.Kind.ARRANGEMENT:
+        # Add project-specific feedback here; all affected IDs are available.
+        for piece_id in motion.piece_ids:
+            var piece := board.get_piece_node(piece_id)
+            if piece != null:
+                piece.queue_redraw()
+```
+
+For a central handler without a Resource, connect `board.motion_requested.connect(func(motion): ...)`. For regular gameplay signals, `group_rotation_changed` and the new `selection_arranged` typed signal use `JigsawPuzzleEvent`, and both are emitted through `event_emitted` and available to `JigsawReaction` Resources. The `SELECTION_ARRANGED` event provides `metadata.selected_piece_ids` and `metadata.group_roots`. This event is emitted only when two or more detached groups are packed on drag start.
+
+Avoid animating `JigsawPiece.position`, `rotation` or `global_transform` in custom effects: these are owned by JigsawBoard. Use `display_transform`, colors, shader parameters, particle scenes or other presentation-only properties. The motion adapter is a stateless Resource definition shared safely across boards.
+
+---
+
 ---
 
 ## No-code quick start

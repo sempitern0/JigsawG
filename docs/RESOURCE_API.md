@@ -183,8 +183,9 @@ The Board validates compatibility and group/rotation invariants before applying 
 - `enable_failure_feedback`
 - `failure_tint`
 - `failure_animation_duration`
+- `motion_adapter` (optional `JigsawMotionAdapter`; rotation/arrangement timing and easing or custom subclass)
 
-For project-specific sound, particles, UI or scoring, prefer the reaction/event API instead of extending built-in feedback. See [Events & Reactions](EVENTS_AND_REACTIONS.md).
+For project-specific sound, particles, UI or scoring, prefer the reaction/event API instead of extending built-in feedback. For **motion** effects, assign a `JigsawMotionAdapter` Resource to `feedback.motion_adapter`. The default (null) preserves instantaneous movement; the supplied adapter interpolates piece rendering independently of logical transforms. Custom Resources can override `animate(board, motion)`; `motion_requested` is the corresponding public signal. See [Events & Reactions](EVENTS_AND_REACTIONS.md). See [Events & Reactions](EVENTS_AND_REACTIONS.md).
 
 ## Reactions
 

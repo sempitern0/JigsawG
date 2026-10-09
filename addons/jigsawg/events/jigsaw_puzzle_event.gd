@@ -19,6 +19,7 @@ const REASON_SOLVED := &"solved"
 const REASON_CLOCKWISE := &"clockwise"
 const REASON_COUNTER_CLOCKWISE := &"counter_clockwise"
 const REASON_RESUMED := &"resumed"
+const REASON_SELECTION_PACKED := &"selection_packed"
 
 enum Type {
 	PUZZLE_RESET,
@@ -34,6 +35,7 @@ enum Type {
 	PREVIEW_TOGGLED,
 	PUZZLE_COMPLETED,
 	PUZZLE_STATE_RESTORED,
+	SELECTION_ARRANGED, # Appended to preserve saved event-mask bit indices.
 }
 
 var type: Type = Type.PUZZLE_STARTED

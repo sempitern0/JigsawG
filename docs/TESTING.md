@@ -29,10 +29,15 @@
 - [ ] Empty-space left press does not start panning until both `background_pan_delay_ms` and `background_pan_threshold_px` are satisfied.
 - [ ] Quick clicks on empty space clear selection without visible camera movement.
 - [ ] Ctrl+click adds/removes complete connected groups from multi-selection.
+- [ ] After a plain click, the first Ctrl+click immediately highlights the piece (not toggles off a hidden selection).
+- [ ] Turning Ctrl selection off removes the highlight, while a plain click stays unhighlighted.
 - [ ] Normal single click produces no lingering highlight, click-without-drag does not trigger failure feedback, and actual drag highlights only while moving.
 - [ ] Dragging distant Ctrl-selected groups packs them without overlap while preserving rigid already-connected groups and their rotations.
 - [ ] Auto grid chooses balanced rows/columns near the target piece count; manual dimensions remain unchanged.
 - [ ] Run `godot --headless --path . --script res://tests/test_selection_and_auto_grid.gd`.
+- [ ] Run `godot --headless --path . --script res://tests/test_motion_adapter.gd`; verify animated rotation and packed selection with the demo's Motion Adapter.
+- [ ] Confirm that `capture_state()`, `restore_state()`, snap and group membership are unaffected by presentation tweens.
+- [ ] Confirm custom Motion Adapter subclasses receive motion context and can animate without changing the logical transforms.
 - [ ] Dragging any selected group moves every selected group together and preserves their internal connections.
 - [ ] Releasing a multi-selection can snap selected groups independently without breaking already connected groups.
 - [ ] Chaotic shuffle produces deterministic results for the same seed, avoids overlaps, and does not visibly align pieces to a regular grid.

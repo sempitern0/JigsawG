@@ -23,13 +23,13 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 | Feature | What it provides |
 | --- | --- |
 | Procedural puzzle pieces | Complementary Bézier tabs and sockets; Classic/Rounded/Angular/Compact/Mixed connector families and variation for puzzle difficulty |
-| Group-aware assembly | Normal clicks stay unhighlighted until dragged; Ctrl-selection packs distant groups into compact rows while preserving joins |
+| Group-aware assembly | Normal clicks stay unhighlighted until dragged; Ctrl-click immediately highlights; multi-selection packs distant groups while preserving joins |
 | Resumable puzzle state | Capture progress into a Resource and resume later without adopting a save-game framework |
 | Rotation difficulty | Optional right-click quarter-turns and seeded random 90° rotations on shuffle |
 | Two gameplay modes | **Free:** assemble groups anywhere; **Mosaic:** place each piece in its matching position |
 | Guided play | Semi-transparent image mat and a fullscreen reference preview |
 | Large-puzzle navigation | Mouse-wheel zoom, background/middle-button pan and edge scrolling |
-| Visual feedback | Clean/Cardboard/High Contrast styles, configurable pickup/connection/failure tint effects |
+| Visual feedback | Clean/Cardboard/High Contrast styles, tint effects and optional swappable motion adapters for rotation and multi-group arrangement |
 | Resource-first API | Manual columns × rows or automatic balanced grid from an approximate piece count; reuse `JigsawPuzzleConfig` presets |
 | Natural shuffle | Deterministic grid layouts or a non-grid Chaotic mode with collision-aware random placement |
 | Event/reaction API | Typed events plus sound, VFX scenes, AnimationPlayer and method-call Resources; no Board overrides |
@@ -57,11 +57,15 @@ PuzzleScene (Node2D)
 
 **Note:** Without a source image JigsawG shows a generated checkerboard useful for diagnostics. Supply your own licensed artwork for published games.
 
+## Animated movement (optional)
+
+JigsawG already supports `JigsawPlayAnimationReaction` for playing AnimationPlayer clips, including on rotation events. To animate the **actual appearance of pieces moving**, create a `JigsawMotionAdapter` under **Puzzle Config → Feedback → Motion Adapter**. Its timings and easing can be customized in the Inspector; custom Resource subclasses can override `animate(board, motion)`. The sample `examples/puzzle_lab.tscn` configuration includes a motion adapter for rotation and multi-selection arrangement. If the field is empty, transitions remain instantaneous as before. Snap calculations, collision groups and save data always use exact logical transforms. See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md).
+
 ## Automatic grid and compact multi-selection
 
 Set `JigsawPuzzleConfig.grid_mode` to **Auto** and choose `target_piece_count`. JigsawG selects columns/rows using source-image proportions and keeps pieces reasonably square (minimum 14 image pixels per cell). The **actual count can differ from the requested count**, particularly for prime numbers or very narrow images; query `board.get_piece_count()` or `board.get_effective_grid()` after generation. The old Manual mode remains the default.
 
-Clicking a single loose piece without Ctrl does not leave a selected outline. Its outline appears during a real drag and disappears on release. **Ctrl+click** toggles selected connected groups; when you drag a multi-selection, distant groups are packed into nearby non-overlapping rows without breaking already-connected pieces. A simple click without moving does not reorganize the selection.
+Clicking a single loose piece without Ctrl does not leave a selected outline. Its outline appears during a real drag and disappears on release. **Ctrl+click** immediately highlights and toggles selected connected groups; when you drag a multi-selection, distant groups are packed into nearby non-overlapping rows without breaking already-connected pieces. A simple click without moving does not reorganize the selection.
 
 ## Quick start: reusable puzzle asset
 

@@ -23,7 +23,8 @@ extends Resource
 	"Group Rotated",
 	"Preview Toggled",
 	"Puzzle Completed",
-	"Puzzle State Restored"
+	"Puzzle State Restored",
+	"Selection Arranged"
 ) var event_mask := 0
 
 static func mask_for(event_type: JigsawPuzzleEvent.Type) -> int:

@@ -22,6 +22,8 @@ signal piece_placement_failed(event: JigsawPuzzleEvent)
 signal group_connection_succeeded(event: JigsawPuzzleEvent)
 signal group_connection_failed(event: JigsawPuzzleEvent)
 signal group_rotation_changed(event: JigsawPuzzleEvent)
+## Emitted when independent selected groups are compacted for dragging.
+signal selection_arranged(event: JigsawPuzzleEvent)
 signal reference_preview_changed(event: JigsawPuzzleEvent)
 signal puzzle_finished(event: JigsawPuzzleEvent)
 signal puzzle_state_applied(event: JigsawPuzzleEvent)
@@ -29,6 +31,8 @@ signal puzzle_state_applied(event: JigsawPuzzleEvent)
 signal progress_changed(progress: float)
 ## Host can disable player input without pausing scene processing.
 signal interaction_enabled_changed(enabled: bool)
+## One typed snapshot for each animated gameplay movement (rotation/arrangement).
+signal motion_requested(motion: JigsawMotionContext)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
@@ -418,6 +422,10 @@ func select_piece(piece_id: int, additive: bool = false) -> void:
 func _toggle_group_selection(piece_id: int) -> void:
 	if piece_id < 0 or piece_id >= _pieces.size() or _locked_pieces.has(piece_id):
 		return
+	# A previous normal click may have left an invisible drag target.
+	# The first Ctrl+click must add it visibly, not toggle it off.
+	if not _multi_selection_mode:
+		_selected_piece_ids.clear()
 	var members: Array = _members.get(_parents[piece_id], [])
 	var fully_selected := true
 	for member in members:
@@ -435,7 +443,7 @@ func _toggle_group_selection(piece_id: int) -> void:
 
 func _refresh_selection_visuals(active_drag: bool = false) -> void:
 	# Normal single selection stays visually neutral until the pointer actually moves.
-	var should_highlight := active_drag or _multi_selection_mode
+	var should_highlight := active_drag or (_multi_selection_mode and not _selected_piece_ids.is_empty())
 	for i in range(_pieces.size()):
 		var selected := _selected_piece_ids.has(i) and not _locked_pieces.has(i)
 		_pieces[i].selected = selected and should_highlight
@@ -493,6 +501,8 @@ func _compact_selected_groups() -> void:
 		return
 	roots.erase(_drag_root)
 	roots.push_front(_drag_root)
+	var moved_ids := get_selected_piece_ids()
+	var previous := _capture_display_transforms(moved_ids)
 	var rectangles: Array[Rect2] = []
 	for root in roots:
 		rectangles.append(_group_bounds_local(root))
@@ -501,9 +511,38 @@ func _compact_selected_groups() -> void:
 		for member_variant in _members[roots[i]]:
 			var piece_id := int(member_variant)
 			_pieces[piece_id].position += offsets[i]
+	_emit_motion(JigsawMotionContext.Kind.ARRANGEMENT, moved_ids, previous)
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.SELECTION_ARRANGED, _dragged_piece, true, JigsawPuzzleEvent.REASON_SELECTION_PACKED, {
+		"selected_piece_ids": moved_ids,
+		"group_roots": roots,
+		"group_count": roots.size()
+	}))
 
 
 ## Bounds include rotated Bézier tabs, not just the original image cell.
+## Capture currently displayed local transforms, including a previous in-flight tween.
+func _capture_display_transforms(piece_ids: PackedInt32Array) -> Array[Transform2D]:
+	var result: Array[Transform2D] = []
+	for id in piece_ids:
+		var piece: JigsawPiece = _pieces[id]
+		result.append(piece.transform * piece.display_transform)
+	return result
+
+
+## Dispatch a motion snapshot after logical transforms have been committed.
+## Custom adapters animate presentation only; save/snap positions never interpolate.
+func _emit_motion(kind: JigsawMotionContext.Kind, piece_ids: PackedInt32Array, previous: Array[Transform2D]) -> void:
+	var motion := JigsawMotionContext.new()
+	motion.kind = kind
+	motion.piece_ids = piece_ids
+	motion.before_transforms = previous
+	for id in piece_ids:
+		motion.after_transforms.append(_pieces[id].transform)
+	if _active_feedback != null and _active_feedback.motion_adapter != null:
+		_active_feedback.motion_adapter.animate(self, motion)
+	motion_requested.emit(motion)
+
+
 func _group_bounds_local(root: int) -> Rect2:
 	var first_point := true
 	var rect := Rect2()
@@ -1380,6 +1419,10 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 	var pivot := _pieces[piece_index].global_position + Vector2(_piece_size.x * 0.5, _piece_size.y * 0.5).rotated(_pieces[piece_index].global_rotation)
 	var group_id := _parents[piece_index]
 	var members: Array = _members[group_id]
+	var motion_ids := PackedInt32Array()
+	for member in members:
+		motion_ids.append(int(member))
+	var previous := _capture_display_transforms(motion_ids)
 	for member in members:
 		var id: int = int(member)
 		var old_center := _pieces[id].global_position + Vector2(_piece_size.x * 0.5, _piece_size.y * 0.5).rotated(_pieces[id].global_rotation)
@@ -1389,6 +1432,7 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 	if _dragged_piece >= 0 and _parents[_dragged_piece] == group_id:
 		_pointer_offset = _pieces[_dragged_piece].global_position - get_global_mouse_position()
 		_desired_position = _pieces[_dragged_piece].global_position
+	_emit_motion(JigsawMotionContext.Kind.ROTATION, motion_ids, previous)
 	group_rotated.emit(piece_index, _rotations[piece_index], members.size())
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_ROTATED, piece_index, true, JigsawPuzzleEvent.REASON_CLOCKWISE if clockwise else JigsawPuzzleEvent.REASON_COUNTER_CLOCKWISE, {
 		"quarter_turns": _rotations[piece_index],
@@ -1445,6 +1489,8 @@ func _dispatch_event(event: JigsawPuzzleEvent) -> void:
 			group_connection_failed.emit(event)
 		JigsawPuzzleEvent.Type.GROUP_ROTATED:
 			group_rotation_changed.emit(event)
+		JigsawPuzzleEvent.Type.SELECTION_ARRANGED:
+			selection_arranged.emit(event)
 		JigsawPuzzleEvent.Type.PREVIEW_TOGGLED:
 			reference_preview_changed.emit(event)
 		JigsawPuzzleEvent.Type.PUZZLE_COMPLETED:

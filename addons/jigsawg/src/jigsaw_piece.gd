@@ -13,6 +13,15 @@ var selected := false:
 		selected = value
 		queue_redraw()
 
+## Draw-only transform. The actual Node2D position/rotation remain authoritative.
+## Custom motion adapters can animate this without corrupting snap, save or groups.
+var display_transform := Transform2D.IDENTITY:
+	set(value):
+		display_transform = value
+		queue_redraw()
+
+var _display_tween: Tween
+
 var _source_texture: Texture2D
 var _uvs := PackedVector2Array()
 var _closed_outline := PackedVector2Array()
@@ -82,13 +91,32 @@ func configure(
 		_closed_outline.append(polygon[0])
 	queue_redraw()
 
+## Start/replace a presentation tween while retaining the final logical transform.
+## previous_board_transform must be in the same board-local coordinate system.
+func animate_display_from(
+	previous_board_transform: Transform2D,
+	duration: float,
+	transition: Tween.TransitionType = Tween.TRANS_CUBIC,
+	easing: Tween.EaseType = Tween.EASE_OUT
+) -> void:
+	if _display_tween != null and _display_tween.is_valid():
+		_display_tween.kill()
+	display_transform = transform.affine_inverse() * previous_board_transform
+	if duration <= 0.0:
+		display_transform = Transform2D.IDENTITY
+		return
+	_display_tween = create_tween()
+	_display_tween.tween_property(self, "display_transform", Transform2D.IDENTITY, duration).set_trans(transition).set_ease(easing)
+
+
 func contains(world_point: Vector2) -> bool:
-	var local := to_local(world_point)
+	var local := display_transform.affine_inverse() * to_local(world_point)
 	return bounds.has_point(local) and Geometry2D.is_point_in_polygon(local, polygon)
 
 func _draw() -> void:
 	if _source_texture == null or polygon.size() < 3:
 		return
+	draw_set_transform_matrix(display_transform)
 	if selected and _highlight_enabled and _highlight_shadow_enabled:
 		draw_colored_polygon(_shadow_outline, _highlight_shadow_color)
 
