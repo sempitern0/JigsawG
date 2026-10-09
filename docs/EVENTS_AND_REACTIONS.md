@@ -93,6 +93,15 @@ Add Resources to `JigsawPuzzleConfig.reactions`.
 
 Create **JigsawAudioReaction**, select its event flags and assign an `AudioStream`. It can play globally or as 2D audio at `event.world_position`, with volume, bus and pitch variation.
 
+Programmatic setup:
+
+```gdscript
+var snap_sound := JigsawAudioReaction.new()
+snap_sound.stream = load("res://audio/puzzle_snap.ogg")
+snap_sound.event_mask = JigsawReaction.mask_for(JigsawPuzzleEvent.Type.GROUP_CONNECTED)
+config.reactions.append(snap_sound)
+```
+
 Examples:
 - `GROUP_CONNECTED` → cardboard click
 - `PIECE_PLACEMENT_FAILED` + `GROUP_CONNECTION_FAILED` → soft error sound
