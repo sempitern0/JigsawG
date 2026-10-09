@@ -23,6 +23,13 @@
 - [ ] Left drag, group union and completion work in Free mode.
 - [ ] Pieces lock in Mosaic only in the correct position and orientation.
 - [ ] Right-click rotation and shuffle at 90° multiples preserve group connections.
+- [ ] Empty-space left press does not start panning until both `background_pan_delay_ms` and `background_pan_threshold_px` are satisfied.
+- [ ] Quick clicks on empty space clear selection without visible camera movement.
+- [ ] Ctrl+click adds/removes complete connected groups from multi-selection.
+- [ ] Dragging any selected group moves every selected group together and preserves their internal connections.
+- [ ] Releasing a multi-selection can snap selected groups independently without breaking already connected groups.
+- [ ] Chaotic shuffle produces deterministic results for the same seed, avoids overlaps, and does not visibly align pieces to a regular grid.
+- [ ] Highlight enable/color/width/shadow settings update all selected pieces consistently.
 - [ ] Preview shortcut, ghost image transparency and full-image overlay render correctly.
 - [ ] Camera drag follows the pointer smoothly without visible jumps.
 - [ ] `smooth_pan=false` restores direct camera movement.
@@ -34,11 +41,15 @@
 - [ ] Enabling both Camera2D position smoothing and JigsawG smooth_pan produces the documented warning.
 - [ ] Style edge alpha, connector depth, texture sampling and profile resolution work.
 - [ ] Connect success/failure/pickup animations use JigsawFeedbackSettings.
+- [ ] `capture_state()` followed by `restore_state()` restores piece positions, rotations, group membership and Mosaic locks.
+- [ ] Incompatible state (grid/source size/seed/silhouette count) is rejected without mutating the current board.
+- [ ] `capture_resume_config()` can be saved with ResourceSaver and loaded/configured later to resume the puzzle.
+- [ ] Run `godot --headless --path . --script res://tests/test_state_and_selection.gd`.
 
 ## Event and reaction API
 - [ ] `PUZZLE_STARTED` fires once after a valid board generation.
 - [ ] Rebuilding an existing board emits `PUZZLE_RESET` followed by a fresh `PUZZLE_STARTED`.
-- [ ] Pickup/release emits drag started/finished with the correct primary piece and complete group membership.
+- [ ] Pickup/release emits drag started/finished with the correct primary piece/group and `metadata.selected_piece_ids` for multi-selection.
 - [ ] Opening preview during drag emits `PIECE_DRAG_CANCELLED` and leaves no selected/z-raised piece.
 - [ ] Mosaic success/failure emits `PIECE_PLACED` / `PIECE_PLACEMENT_FAILED`.
 - [ ] Free-mode snap/failure emits `GROUP_CONNECTED` / `GROUP_CONNECTION_FAILED`.
