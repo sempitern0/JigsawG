@@ -47,7 +47,7 @@ func _run() -> void:
 	assert(is_equal_approx(camera.zoom.x, expected_zoom), "Camera must fit both dimensions before the first yield.")
 	assert(board._camera_target_ready)
 	assert(is_equal_approx(board._zoom_goal, camera.zoom.x))
-	assert(board._ghost_board.texture.get_size() == Vector2i(640, 480))
+	assert(board._ghost_board.texture.get_size() == Vector2(640, 480))
 	assert(board_size.x * camera.zoom.x <= bounds.x + 0.5)
 	assert(board_size.y * camera.zoom.y <= bounds.y + 0.5)
 

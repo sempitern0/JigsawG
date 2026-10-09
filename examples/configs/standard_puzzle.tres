@@ -34,9 +34,9 @@ motion_adapter = SubResource("Motion")
 
 [sub_resource type="Resource" id="Gameplay"]
 script = ExtResource("2")
+allow_piece_rotation = true
 snap_assist_extra_fraction = 0.08
 selection_assist_radius_px = 8.0
-allow_piece_rotation = true
 shuffle_mode = 2
 generation_batch_size = 5
 show_ghost_board = true
