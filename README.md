@@ -23,13 +23,15 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 | Feature | What it provides |
 | --- | --- |
 | Procedural puzzle pieces | Complementary Bézier tabs and sockets; configurable piece count, connector depth and shape variety |
-| Group-aware assembly | Build independent groups and join them later, with orientation-aware snapping |
+| Group-aware assembly | Build independent groups, Ctrl-select several groups and move them together |
+| Resumable puzzle state | Capture progress into a Resource and resume later without adopting a save-game framework |
 | Rotation difficulty | Optional right-click quarter-turns and seeded random 90° rotations on shuffle |
 | Two gameplay modes | **Free:** assemble groups anywhere; **Mosaic:** place each piece in its matching position |
 | Guided play | Semi-transparent image mat and a fullscreen reference preview |
 | Large-puzzle navigation | Mouse-wheel zoom, background/middle-button pan and edge scrolling |
 | Visual feedback | Clean/Cardboard/High Contrast styles, configurable pickup/connection/failure tint effects |
 | Resource-first API | One `JigsawPuzzleConfig` asset on `JigsawBoard`; reuse configurations across puzzles |
+| Natural shuffle | Deterministic grid layouts or a non-grid Chaotic mode with collision-aware random placement |
 | Event/reaction API | Typed semantic events plus reusable audio/scene/custom Resource reactions |
 
 ## Installation
@@ -102,10 +104,11 @@ func start_beginner(image: Texture2D) -> void:
 | Resource | Configure |
 | --- | --- |
 | **JigsawPuzzleConfig** | Source texture, grid rows/columns and number of connector silhouette families |
-| **JigsawGameplaySettings** | Free/Mosaic, snapping tolerance, 90° rotation, seeded shuffle, ghost mat, preview key |
-| **JigsawAppearanceSettings** | Bézier depth and detail, edge styles, border width/opacity, texture sampling |
-| **JigsawCameraSettings** | Initial framing, smooth pan/zoom, panning direction, optional bounds and eased edge scrolling |
+| **JigsawGameplaySettings** | Free/Mosaic, snapping, multi-select, 90° rotation, grid/chaotic shuffle, ghost mat, preview |
+| **JigsawAppearanceSettings** | Bézier shape, edge rendering, texture sampling and selection-highlight styling |
+| **JigsawCameraSettings** | Initial framing, smooth pan/zoom, empty-board pan grace, optional bounds and eased edge scrolling |
 | **JigsawFeedbackSettings** | None/Subtle/Playful built-in animation preset, pickup/connect/failure tint and timing |
+| **JigsawPuzzleState** | Serializable piece positions, rotations, connected groups and Mosaic locks |
 | **JigsawReaction[]** | Optional reusable host-game reactions: audio, VFX scenes or custom Resource scripts |
 
 Nested Resources can be saved as external `.tres` assets and reused between levels. `board.configure(config)`, `board.apply_configuration()` and `board.rebuild()` regenerate the puzzle **and discard the current assembly progress**. The board reads but does not intentionally modify your Resources. Reaction lists are snapshotted when a configuration is applied, so live edits only take effect on the next apply/rebuild.
@@ -152,9 +155,10 @@ See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md) for detailed Inspector re
 
 | Mouse/key | Behavior |
 | --- | --- |
-| Left drag on piece | Move that piece or its connected group |
+| Left drag on piece | Move that piece/group; if it belongs to a multi-selection, move all selected groups |
+| Ctrl + left-click | Toggle a piece's whole connected group in the current multi-selection |
 | Right-click on piece | Rotate the piece/group by 90° when enabled |
-| Left drag empty space or middle drag | Pan; direction optionally inverted |
+| Left drag empty space or middle drag | Pan; empty-space left drag uses configurable delay/threshold to avoid accidental panning |
 | Mouse wheel | Zoom around cursor; smoothing is configurable |
 | Drag a piece near the screen edge | Automatically pan the camera |
 | **P** (configurable) | Show/hide the full reference image |
@@ -163,9 +167,9 @@ See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md) for detailed Inspector re
 
 **Relaxed picture puzzle:** choose `MOSAIC`, turn rotation off, enable the ghost mat and allow a larger snap tolerance. Players place each piece into the original image.
 
-**Classic tabletop puzzle:** choose `FREE`, disable the ghost mat, allow groups to be assembled independently, and shuffle around the board.
+**Classic tabletop puzzle:** choose `FREE`, disable the ghost mat, allow groups to be assembled independently, and shuffle around the board. Enable Ctrl multi-selection when players should be able to reorganize several loose groups at once.
 
-**Challenging puzzle:** enable random 90° orientation during shuffle, increase the number of connector families and reduce the snap tolerance. Piece rotation preserves assembled groups.
+**Challenging puzzle:** enable random 90° orientation, choose **Chaotic** shuffle, increase connector families and reduce snap tolerance. Chaotic shuffle keeps conservative spacing but removes the obvious slot-grid presentation.
 
 **Embedded mini-game / education / gallery:** host the board inside your existing scene, use a reusable preset per image, and connect JigsawBoard signals to your own HUD, score, timer, sound or achievements. The plugin intentionally does not impose a game menu or campaign system.
 
@@ -212,6 +216,8 @@ Camera behavior lives in `JigsawCameraSettings`. The default setup aims to remai
 | `zoom_smoothing` | 12 | Zoom response speed |
 | `edge_scroll_speed` | 900 | Maximum auto-pan speed while carrying pieces |
 | `edge_scroll_smoothing` | 12 | Acceleration/deceleration of edge scrolling |
+| `background_pan_delay_ms` | 70 | Short grace before an empty-space click can become a pan |
+| `background_pan_threshold_px` | 4 | Minimum pointer travel before that pan starts |
 
 Suggested starting points:
 
@@ -220,6 +226,38 @@ Suggested starting points:
 - **Fully direct:** disable `smooth_pan` and/or `smooth_zoom`.
 
 If the host `Camera2D` already has Godot's own **Position Smoothing** enabled, disable either that setting or JigsawG's `smooth_pan` to avoid applying smoothing twice.
+
+## Resume a puzzle without a save framework
+
+JigsawG exposes progress as a Resource. It does **not** impose slots, UI, filenames or save policies.
+
+Capture only the runtime state:
+
+```gdscript
+var state: JigsawPuzzleState = $JigsawBoard.capture_state()
+ResourceSaver.save(state, "user://forest_progress.tres")
+```
+
+Restore it on a compatible generated board:
+
+```gdscript
+var state := ResourceLoader.load("user://forest_progress.tres") as JigsawPuzzleState
+$JigsawBoard.restore_state(state)
+```
+
+Or persist one complete resumable puzzle configuration:
+
+```gdscript
+# Save:
+var resume_config := $JigsawBoard.capture_resume_config()
+ResourceSaver.save(resume_config, "user://forest_resume.tres")
+
+# Load later:
+var resume_config := ResourceLoader.load("user://forest_resume.tres") as JigsawPuzzleConfig
+$JigsawBoard.configure(resume_config)
+```
+
+`JigsawPuzzleState` stores positions, 90° rotations, connected-group ids, Mosaic locks and completion state. It validates grid dimensions, source-image size, seed and silhouette settings before applying. UI and save-slot management remain entirely in the host game.
 
 ## Image quality and performance
 
@@ -247,7 +285,7 @@ docs/
 
 ## Known limitations and release readiness
 
-This is a **preview**, not a certified stable release. Current priorities include regression tests for group merging and rotation, clean-project installation, memory/performance measurement, reconfiguration lifecycle and verifying the redistribution rights for demo assets. Input support currently focuses on mouse and keyboard; touchscreen/controller and save/load are outside the documented support scope.
+This is a **preview**, not a certified stable release. Current priorities include regression tests for group merging and rotation, clean-project installation, memory/performance measurement, reconfiguration lifecycle and verifying the redistribution rights for demo assets. Input support currently focuses on mouse and keyboard; touchscreen/controller support is not yet certified. Puzzle progress can be captured/restored as Resources, while save-slot UI and persistence policy remain the host game’s responsibility.
 
 Found a bug? Please open an [issue](https://github.com/sempitern0/JigsawG/issues) with your Godot version, operating system, minimal reproduction scene, relevant Resource settings and engine logs. See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md), [Testing](docs/TESTING.md), [Changelog](CHANGELOG.md) and [Contributing](CONTRIBUTING.md).
 
