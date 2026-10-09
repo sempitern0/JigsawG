@@ -176,7 +176,7 @@ func _on_puzzle_completed() -> void:
 
 ```text
 addons/jigsawg/              # Distributable plugin: copy this directory
-  icon.svg                   # Bundled node icon
+  icon.svg                   # Bundled node icon, decoded by plugin.gd without SVG preload
   plugin.cfg / plugin.gd
   resources/                 # Public .tres resource types
   src/                       # Internal puzzle runtime
