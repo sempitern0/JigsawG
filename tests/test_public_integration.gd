@@ -6,6 +6,10 @@ const BoardScript = preload("res://addons/jigsawg/src/jigsaw_board.gd")
 const ReceiverScript = preload("res://tests/fixtures/reaction_receiver.gd")
 
 var progress_values: Array[float] = []
+var preview_events := 0
+
+func _on_preview_toggled(_visible: bool) -> void:
+	preview_events += 1
 
 func _initialize() -> void:
 	var host := Node2D.new()
@@ -47,10 +51,13 @@ func _verify(board, receiver: Node, host: Node2D) -> void:
 	assert(not board.is_ghost_guide_visible())
 	board.set_ghost_guide_opacity(0.4)
 
+	board.preview_toggled.connect(_on_preview_toggled)
 	board.set_preview_visible(true)
 	assert(board.is_reference_preview_visible())
+	board.set_preview_visible(true) # Idempotent; must not notify twice.
 	board.toggle_reference_preview()
 	assert(not board.is_reference_preview_visible())
+	assert(preview_events == 2)
 
 	var event := JigsawPuzzleEvent.new(JigsawPuzzleEvent.Type.PUZZLE_COMPLETED)
 	event.board = board
