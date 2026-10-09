@@ -146,6 +146,10 @@ Use the inherited **Event Mask** to avoid receiving unrelated events. An empty m
 
 Reaction Resources may be shared by many boards, so treat them as **stateless definitions**. Keep session state in Nodes/autoloads. Do not store current combo, timer or piece references inside a shared Resource.
 
+The Board snapshots the reaction list when a configuration is applied. Editing the Resource during play does not silently change the current event routing; call `apply_configuration()` or `configure()` to start a new puzzle with the new list. `PUZZLE_RESET` is delivered to the reactions that belonged to the puzzle being closed, while `PUZZLE_STARTED` is delivered to the newly applied list.
+
+If a reaction needs to regenerate or switch puzzles in response to an event, defer that lifecycle change (for example with `call_deferred`) to avoid deeply nested rebuilds.
+
 ## Public helper queries
 
 For custom systems JigsawBoard exposes:
