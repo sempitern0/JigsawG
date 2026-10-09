@@ -22,7 +22,8 @@ extends Resource
 	"Group Connection Failed",
 	"Group Rotated",
 	"Preview Toggled",
-	"Puzzle Completed"
+	"Puzzle Completed",
+	"Puzzle State Restored"
 ) var event_mask := 0
 
 static func mask_for(event_type: JigsawPuzzleEvent.Type) -> int:
