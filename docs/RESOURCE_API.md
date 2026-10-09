@@ -77,12 +77,15 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 - `bezier_detail`
 - `piece_edge_opacity`
 - `piece_edge_width`
+- `piece_material`
 - `highlight_enabled`
 - `highlight_color`
 - `highlight_width`
 - `highlight_shadow_enabled`
 - `highlight_shadow_color`
 - `highlight_shadow_offset`
+
+`piece_material` accepts an optional CanvasItem `Material`/`ShaderMaterial` shared by every generated piece; null uses the built-in renderer. Apply changes with `rebuild()`. Because the material is shared, set per-piece shader instance parameters through custom integrations if necessary.
 
 `bezier_detail` changes contour tessellation, not source-image resolution. The highlight settings affect selected/multi-selected pieces only; they do not change snap geometry.
 
