@@ -91,6 +91,16 @@
 - [ ] Invalid Resource target paths do not crash puzzle gameplay.
 - [ ] Run `godot --headless --path . --script res://tests/test_public_integration.gd`.
 
+## 200/500/2000 stress scenarios
+
+- [ ] Run `godot --headless --path . --script res://tests/test_large_scatter_layout.gd` for exact layout count, deterministic seeding and collision-free footprints.
+- [ ] Run `godot --headless --path . --script res://tests/benchmark_large_puzzles.gd` for actual Godot node generation, camera fit and cancellation at **200, 500 and 2000 pieces**.
+- [ ] Compare `generation_batch_size = 0` (synchronous) and `96` (yielding) with a progress HUD and verify that a new `configure()` cancels the old build.
+- [ ] At 2000 pieces, test `focus_board()` / Home versus `fit_view()` / End on 1080p and 1440p screens.
+- [ ] Test Chaotic and Around Board scatter, grouping, rotated drag and snapping at 2000 pieces.
+- [ ] Record build time, 1% low FPS, draw calls, allocation memory and pointer input latency on target hardware. Pure planner results alone do **not** measure scene-build performance.
+- [ ] Verify that too-small source textures reject unresolvable 2000-piece grids without a crash.
+
 ## Publication
 - [ ] Godot parser and import logs show no GDScript warnings/errors.
 - [ ] Measure large-image memory and the performance of a 300-piece puzzle.

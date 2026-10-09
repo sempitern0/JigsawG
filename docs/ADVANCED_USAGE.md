@@ -4,6 +4,14 @@ JigsawG is a **puzzle runtime**, not a complete game framework. Its responsibili
 
 You should rarely need to inherit from or edit `jigsaw_board.gd`. Choose the lightest integration level that fits your project.
 
+## Large puzzle workflow
+
+Set `JigsawPuzzleConfig.grid_mode = AUTO` and choose a count from 200 to 2000 or higher with a sufficiently detailed texture. The camera automatically focuses on the assembly board when the actual count reaches `camera.large_puzzle_threshold`. Call `board.fit_view()` to see all scattered pieces and `board.focus_board()` to return to the mat.
+
+Set `config.gameplay.generation_batch_size = 96` for a responsive multi-frame build and display loading progress using `generation_progress_changed(generated, total)`. The Board is ready for gameplay, capture and restore only after its existing `puzzle_generated` signal. This is frame batching, **not** background multithreading or a strict per-frame time cap.
+
+The optional scripts `tests/test_large_scatter_layout.gd` and `tests/benchmark_large_puzzles.gd` evaluate layout correctness and real board construction separately.
+
 ## Internal group model
 
 The group ownership and snapping checks are independently testable. `JigsawGroupModel` holds the connected component graph without Nodes and provides `reset()`, `members_for()`, `merge()`, `group_ids()` and `restore()`. `JigsawConnectionResolver` computes nearby grid-neighbor IDs and potential positional offsets. The Board is the only code allowed to move piece Nodes, reconcile selection, dispatch reactions or persist state.

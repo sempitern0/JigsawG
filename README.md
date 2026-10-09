@@ -36,6 +36,25 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 
 The included `examples/puzzle_lab.tscn` uses a **Mixed** connector-family preset to showcase the new silhouettes immediately. The default connector family for new configurations remains **Classic**, preserving the previous appearance.
 
+## Large puzzles (200 / 500 / 2000)
+
+**Auto Grid** supports a requested count of up to **4000** pieces, with up to 80 rows/columns, provided the artwork resolution permits at least 14 source pixels per piece side. Use high-resolution artwork; the built-in diagnostic checkerboard is deliberately too small for a 2000-piece puzzle.
+
+The **Around Board**, **Bottom** and **Center** shuffle layouts generate nearby positions using concentric rings, without sorting thousands of candidates. **Chaotic** uses spatial buckets to find empty positions without comparing every piece against all earlier ones.
+
+With 200 or more pieces, the default **Camera → Initial Focus = Auto** starts framed on the assembly board. **Home** focuses the board; **End** displays all scattered pieces. Both shortcuts can be changed. Host UI can call `board.focus_board()` and the existing `board.fit_view()` respectively.
+
+For more responsive loading, set `Gameplay → Large Puzzle Generation → Generation Batch Size` to **64–128**. Positive values yield a frame between batches and emit `generation_progress_changed(generated, total)`; the old default `0` builds synchronously. A new `configure()` cancels a previous batch job, and host code can check `is_generating()`. Wait for the existing `puzzle_generated` event before attempting to capture saved state. Batching does not provide a strict millisecond budget per frame.
+
+Stress tests (require Godot and a machine able to handle 2000 pieces):
+
+```bash
+godot --headless --path . --script res://tests/test_large_scatter_layout.gd
+godot --headless --path . --script res://tests/benchmark_large_puzzles.gd
+```
+
+The second test generates actual 200/500/2000-piece scenes and prints elapsed times and camera zooms for your hardware; no results are claimed without running it.
+
 ## Internal architecture
 
 `JigsawBoard` still provides all public puzzle controls, but group connectivity and joining have been extracted to `JigsawGroupModel` and `JigsawConnectionResolver`. These independent `RefCounted` modules are easier to test and reuse without the scene tree. Saved group IDs, multi-selection, rotation, reaction events and presentation-only motion adapters retain their established behavior. See [Resource API](docs/RESOURCE_API.md) and [Advanced integration](docs/ADVANCED_USAGE.md).

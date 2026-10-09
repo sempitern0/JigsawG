@@ -30,7 +30,7 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | --- | --- |
 | `puzzle_texture` | Image used by the puzzle; null uses the diagnostic checkerboard |
 | `grid_mode` | Manual columns/rows (default) or Auto piece-count-driven grid |
-| `target_piece_count` | Approximate desired count in Auto mode; may differ from generated count |
+| `target_piece_count` | Approximate desired count in Auto mode (4–4000); may differ from generated count |
 | `columns` | Number of puzzle columns in Manual mode |
 | `rows` | Number of puzzle rows in Manual mode |
 | `silhouette_variants` | Number of connector profile families used during generation |
@@ -65,6 +65,7 @@ In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image di
 - `chaotic_spread`
 - `chaotic_max_attempts`
 - `generation_seed`
+- `generation_batch_size` (0 synchronous, positive = pieces per yielded frame)
 - `show_ghost_board`
 - `ghost_opacity`
 - `enable_preview`
@@ -103,6 +104,12 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 
 `bezier_detail` changes contour tessellation, not source-image resolution. The highlight settings affect selected/multi-selected pieces only; they do not change snap geometry.
 
+## Large puzzle generation
+
+Set `gameplay.generation_batch_size > 0` to generate a puzzle across multiple frames without a background thread. Listen to `generation_progress_changed(generated, total)` or `puzzle_generated(piece_count)` for completion; `board.is_generating()` and `board.get_generation_progress()` provide pollable state. The prior synchronous contract remains the default at `generation_batch_size = 0`.
+
+Starting a second `rebuild()` or `configure()` invalidates the previous build's coroutine, discards partial pieces, and starts a new one. `capture_state()` is not supported during generation; wait for `puzzle_generated`. The deterministic scatter planner is based on concentric structured rings or a spatial hash for Chaotic mode.
+
 ## Camera settings
 
 `JigsawCameraSettings` owns:
@@ -110,6 +117,10 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 - `enable_camera_navigation`
 - `invert_background_pan`
 - `auto_fit_camera`
+- `initial_focus` (Auto, All Pieces or Board)
+- `large_puzzle_threshold` (200 pieces by default)
+- `focus_board_key` (Home by default)
+- `overview_key` (End by default)
 - `smooth_pan`
 - `pan_smoothing`
 - `restrict_camera`
@@ -267,7 +278,10 @@ If a nested Resource is null, JigsawG creates runtime defaults for that section.
 | `get_progress_info()` | Read counts, game mode and completion |
 | `set_interaction_enabled(enabled)` | Suspend puzzle mouse/keyboard input while a menu is open |
 | `is_interaction_enabled()` | Check whether puzzle input is enabled |
-| `fit_view()` | Recenter and refit the active `Camera2D`; returns false without a camera |
+| `fit_view()` | Recenter on all scattered pieces; returns false without a camera |
+| `focus_board()` | Frame only the assembly board for readable large puzzles |
+| `is_generating()` | Whether a batched generation is in progress |
+| `get_generation_progress()` | Generated and total piece counts as `Vector2i` |
 | `toggle_reference_preview()` | Open/close the reference overlay |
 | `is_reference_preview_visible()` | Read overlay state |
 | `set_ghost_guide_visible(visible)` | Runtime ghost toggle, including Mosaic mode |
