@@ -12,7 +12,7 @@
 [![GDScript](https://img.shields.io/badge/Language-GDScript-478CBF)](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/)
 [![Issues](https://img.shields.io/badge/Feedback-Issues-blue)](https://github.com/sempitern0/JigsawG/issues)
 
-Turn an image into a playable jigsaw board, then customize generation, difficulty, interaction, camera and feedback with reusable Godot Resources.
+Turn an image into a playable jigsaw board, then customize generation, difficulty, interaction, camera and feedback with reusable Godot Resources. **JigsawG handles puzzle mechanics; your project owns art direction, UI, sound and progression.**
 
 </div>
 
@@ -32,7 +32,7 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 | Visual feedback | Clean/Cardboard/High Contrast styles, configurable pickup/connection/failure tint effects |
 | Resource-first API | One `JigsawPuzzleConfig` asset on `JigsawBoard`; reuse configurations across puzzles |
 | Natural shuffle | Deterministic grid layouts or a non-grid Chaotic mode with collision-aware random placement |
-| Event/reaction API | Typed semantic events plus reusable audio/scene/custom Resource reactions |
+| Event/reaction API | Typed events plus sound, VFX scenes, AnimationPlayer and method-call Resources; no Board overrides |
 
 ## Installation
 
@@ -121,7 +121,7 @@ No scripting is required for common audio and VFX.
 
 1. Select the `JigsawPuzzleConfig` used by your board.
 2. Expand **Reactions** and add an array element.
-3. Choose **New JigsawAudioReaction** or **New JigsawSpawnSceneReaction**.
+3. Choose **New JigsawAudioReaction**, **JigsawSpawnSceneReaction**, **JigsawPlayAnimationReaction**, or **JigsawCallMethodReaction**.
 4. Tick the desired **Event Mask** entries.
 5. Assign the sound or PackedScene and run the puzzle.
 
@@ -148,6 +148,8 @@ JigsawSpawnSceneReaction
 ```
 
 Reactions can be stacked, saved as reusable `.tres` files and shared by many puzzle presets. For pickup effects that must follow a moving piece, use **Parent Mode → Primary Piece**.
+
+**No-script examples for host scenes:** Add a `JigsawPlayAnimationReaction` listening to **Puzzle Completed** and target `../WinAnimationPlayer`, animation `celebrate`. Or add a `JigsawCallMethodReaction`, choose **Puzzle Completed**, target `../ResultsPanel`, method `show` and leave **Pass Event** off. Paths are relative to JigsawBoard.
 
 See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md) for detailed Inspector recipes, event definitions, custom reactions and lifecycle rules.
 
@@ -203,6 +205,41 @@ func _on_jigsaw_event(event: JigsawPuzzleEvent) -> void:
 The context exposes `piece_id`, all `piece_ids` in the current group, `group_size`, `world_position`, rotation, success, a documented reason and event-specific metadata. JigsawG intentionally avoids per-frame drag events; custom trails can follow `board.get_piece_node(piece_id)` between drag-start and drag-end events.
 
 Full reference: [Events & Reactions](docs/EVENTS_AND_REACTIONS.md).
+
+## Plug into your own game without overriding Board
+
+The Board exposes a small integration facade for HUDs and menus, independent of internal puzzle logic.
+
+```gdscript
+@onready var board = $JigsawBoard
+
+func _ready() -> void:
+    board.progress_changed.connect(_on_progress)
+    _on_progress(board.get_progress())
+
+func _on_progress(progress: float) -> void:
+    $HUD/ProgressBar.value = progress * 100.0
+
+func open_pause_menu() -> void:
+    board.set_interaction_enabled(false)
+    $PauseMenu.show()
+
+func close_pause_menu() -> void:
+    $PauseMenu.hide()
+    board.set_interaction_enabled(true)
+
+func _on_reference_pressed() -> void:
+    board.toggle_reference_preview()
+
+func _on_recenter_pressed() -> void:
+    board.fit_view()
+```
+
+For accessibility/guide controls use `set_ghost_guide_visible(bool)` and `set_ghost_guide_opacity(float)`. These are runtime overrides, not modifications to shared `.tres` assets.
+
+Free-mode progress counts completed group joins; Mosaic progress counts locked pieces. Use `get_progress_info()` for detailed HUD data.
+
+**Advanced users:** [Advanced integration and public API boundaries](docs/ADVANCED_USAGE.md) explains custom reactions, state ownership, multiple Boards, scene routing and lifecycle rules.
 
 ## Camera feel
 
