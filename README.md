@@ -110,7 +110,7 @@ func start_beginner(image: Texture2D) -> void:
 
 Nested Resources can be saved as external `.tres` assets and reused between levels. `board.configure(config)`, `board.apply_configuration()` and `board.rebuild()` regenerate the puzzle **and discard the current assembly progress**. The board reads but does not intentionally modify your Resources. Reaction lists are snapshotted when a configuration is applied, so live edits only take effect on the next apply/rebuild.
 
-More detail: [Resource API and migration guide](docs/RESOURCE_API.md).
+More detail: [Resource API reference](docs/RESOURCE_API.md).
 
 ## Add feedback in under a minute
 
