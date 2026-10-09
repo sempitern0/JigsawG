@@ -113,6 +113,7 @@ var _fit_bounds := Rect2()
 var _rotations: Array[int] = []
 var _connector_depth := 0.25
 var _active_feedback: JigsawFeedbackSettings
+var _active_reactions: Array[JigsawReaction] = []
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -712,6 +713,11 @@ func _apply_resource_presets() -> void:
 			animation_style = AnimationStyle.SUBTLE
 	connect_animation_duration = _active_feedback.connect_animation_duration
 
+	_active_reactions.clear()
+	for reaction in config.reactions:
+		if reaction != null:
+			_active_reactions.append(reaction)
+
 func _set_piece_quarters(piece_index: int, quarters: int) -> void:
 	_rotations[piece_index] = posmod(quarters, 4)
 	_pieces[piece_index].rotation = float(_rotations[piece_index]) * PI * 0.5
@@ -812,10 +818,8 @@ func _dispatch_event(event: JigsawPuzzleEvent) -> void:
 		JigsawPuzzleEvent.Type.PUZZLE_COMPLETED:
 			puzzle_finished.emit(event)
 
-	if puzzle_config == null:
-		return
-	for reaction in puzzle_config.reactions:
-		if reaction != null and reaction.accepts(event):
+	for reaction in _active_reactions:
+		if reaction.accepts(event):
 			reaction.react(self, event)
 
 func _finish_puzzle() -> void:
