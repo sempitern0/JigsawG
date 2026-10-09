@@ -1126,7 +1126,7 @@ func _device_vector(left: StringName, right: StringName, up: StringName, down: S
 func _process_controller(delta: float) -> void:
 	if _device_input == null or not _device_input.enable_controller or not _interaction_enabled or _generating:
 		return
-	if _touch_primary >= 0 or _touch_gesture_active:
+	if is_reference_preview_visible() or _touch_primary >= 0 or _touch_gesture_active:
 		return
 	var movement: Vector2 = _device_vector(
 		_device_input.cursor_left_action, _device_input.cursor_right_action,
@@ -1211,7 +1211,7 @@ func _handle_joypad_button(event: InputEventJoypadButton) -> bool:
 
 
 func _handle_controller_action(event: InputEvent) -> bool:
-	if _device_input == null or not _device_input.enable_controller:
+	if _device_input == null or not _device_input.enable_controller or is_reference_preview_visible():
 		return false
 	if event is InputEventJoypadButton and _handle_joypad_button(event as InputEventJoypadButton):
 		return true
@@ -1280,6 +1280,8 @@ func _finish_pointer_drag(pointer_screen: Vector2, pointer_world: Vector2) -> vo
 func _handle_touch_event(event: InputEvent) -> bool:
 	if _device_input == null or not _device_input.enable_touch:
 		return false
+	if is_reference_preview_visible():
+		return event is InputEventScreenTouch or event is InputEventScreenDrag
 	if event is InputEventScreenTouch:
 		var touch: InputEventScreenTouch = event as InputEventScreenTouch
 		_touch_suppress_mouse_until = Time.get_ticks_msec() + 250
@@ -1559,9 +1561,8 @@ func _process(delta: float) -> void:
 	if not _drag_visual_active:
 		if _get_pointer_screen().distance_to(_drag_start_screen) < _drag_threshold_screen():
 			return
-		# Pointer moved beyond threshold: the same drag/pack path handles
-		# mouse, touch and virtual cursor interactions.
-			return
+		# Pointer moved beyond threshold: mouse, touch and virtual
+		# cursor share the same selection/packing path.
 		_activate_drag()
 	_desired_position = _get_pointer_world() + _pointer_offset
 	var factor := 1.0 if reduced_motion else 1.0 - exp(-drag_smoothing * delta)
@@ -1855,6 +1856,10 @@ func set_preview_visible(visible: bool) -> void:
 		return
 	if visible:
 		_cancel_drag(JigsawPuzzleEvent.REASON_PREVIEW_OPENED)
+		_touch_positions.clear()
+		_touch_primary = -1
+		_touch_gesture_active = false
+		_device_pointer_active = _controller_cursor_active
 	_preview_overlay.set_preview_visible(visible)
 	preview_toggled.emit(visible)
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PREVIEW_TOGGLED, -1, true, JigsawPuzzleEvent.REASON_VISIBLE if visible else JigsawPuzzleEvent.REASON_HIDDEN, {
