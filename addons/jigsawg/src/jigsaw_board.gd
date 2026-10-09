@@ -277,6 +277,8 @@ func rebuild() -> void:
 				_pieces[i].position = center_before - (_piece_size * 0.5).rotated(_pieces[i].rotation)
 	_camera = get_viewport().get_camera_2d()
 	if _camera:
+		if smooth_pan and _camera.position_smoothing_enabled:
+			push_warning("JigsawG: Camera2D position_smoothing_enabled is also active. Disable it or JigsawCameraSettings.smooth_pan to avoid double smoothing.")
 		_update_camera_bounds()
 		if auto_fit_camera:
 			_fit_camera()
@@ -558,11 +560,13 @@ func _update_smooth_pan(delta: float) -> void:
 	_camera_target_position = _clamp_camera_position(_camera_target_position)
 	if not smooth_pan:
 		_camera.global_position = _camera_target_position
+		_camera.force_update_scroll()
 		return
 	var factor := 1.0 - exp(-pan_smoothing * delta)
 	_camera.global_position = _camera.global_position.lerp(_camera_target_position, factor)
 	if _camera.global_position.distance_squared_to(_camera_target_position) < 0.01:
 		_camera.global_position = _camera_target_position
+	_camera.force_update_scroll()
 
 func _clamp_camera_position(position: Vector2) -> Vector2:
 	if _camera == null or not restrict_camera:
