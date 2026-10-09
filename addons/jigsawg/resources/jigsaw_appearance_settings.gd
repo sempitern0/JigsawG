@@ -8,6 +8,8 @@ enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
 enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 
 @export_group("Artwork")
+## Tab depth as a fraction of the shortest piece side (rebuild required).
+@export_range(0.12, 0.34, 0.01) var connector_depth := 0.25
 ## Clean has no rim; Cardboard adds a soft border; High Contrast adds a dark one.
 @export var visual_style: VisualStyle = VisualStyle.CLEAN
 ## Linear favors smooth pixels, Nearest is sharp/blocky, Mipmaps favors distance.
