@@ -283,6 +283,18 @@ func set_interaction_enabled(enabled: bool) -> void:
 func is_interaction_enabled() -> bool:
 	return _interaction_enabled
 
+
+## Runtime accessibility override for an options menu. Does not rebuild,
+## modify the shared JigsawPuzzleConfig or touch puzzle state. The configured
+## Resource defaults are restored on the next rebuild/apply_configuration().
+func set_accessibility_assists(extra_snap_fraction: float, pointer_radius_px: float) -> void:
+	snap_assist_extra_fraction = clampf(extra_snap_fraction, 0.0, 0.25)
+	selection_assist_radius_px = clampf(pointer_radius_px, 0.0, 24.0)
+
+
+func get_accessibility_assists() -> Vector2:
+	return Vector2(snap_assist_extra_fraction, selection_assist_radius_px)
+
 ## Reframe the current scattered/assembled pieces using the configured camera.
 ## Returns false if there is no active Camera2D.
 func fit_view() -> bool:

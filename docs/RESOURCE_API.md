@@ -84,6 +84,15 @@ In Gameplay → Accessibility, **Snap Assist Extra Fraction** adds to the existi
 
 Both settings default to `0`: old Resource presets, procedural geometry, group IDs and puzzle save snapshots remain compatible. These settings are intended for optional ergonomic presets, not as an automatic puzzle solver. A practical starting point is `0.08` extra snap and `8` screen pixels for easier picking.
 
+A host options menu can change both **without restarting the puzzle**:
+
+```gdscript
+$JigsawBoard.set_accessibility_assists(0.10, 10.0)
+var active_assists: Vector2 = $JigsawBoard.get_accessibility_assists()
+```
+
+This runtime override changes neither the shared `JigsawPuzzleConfig` Resource nor saved positions/groups. A subsequent `rebuild()` or `apply_configuration()` restores the Resource's configured values.
+
 With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in the current selection. Dragging a multi-selection automatically packs disconnected groups into compact, separated rows near the grabbed group while retaining existing connections and rotations. A simple click does not rearrange anything. Normal single clicks are visually unhighlighted; the highlight appears only after actual pointer motion during a drag, and disappears on release. Ctrl-selections stay highlighted to indicate intentional selection.
 
 `Shuffle.CHAOTIC` uses continuous random placement with conservative collision footprints instead of visible grid slots. `chaotic_spread` controls the available area; `chaotic_max_attempts` controls how hard the placer tries before using a safe fallback.

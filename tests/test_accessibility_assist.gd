@@ -52,6 +52,13 @@ func _run() -> void:
 	near_left = first.to_global(local_outside)
 	assert(board._find_piece_at(near_left) == 0)
 	assert(board._find_piece_at(first.to_global(Vector2(-30, board._piece_size.y * 0.15))) == -1)
+	board.set_accessibility_assists(0.0, 0.0)
+	assert(board._find_piece_at(near_left) == -1, "Runtime opt-out must not require rebuilding.")
+	assert(board.get_accessibility_assists() == Vector2.ZERO)
+	assert(is_equal_approx(easy.gameplay.snap_assist_extra_fraction, 0.12), "Runtime override changed a shared Resource.")
+	board.set_accessibility_assists(0.12, 8.0)
+	assert(board._find_piece_at(near_left) == 0)
+	assert(board.get_accessibility_assists().is_equal_approx(Vector2(0.12, 8.0)))
 
 	# An actual hit on another piece MUST win over a fuzzy hit near this one.
 	var second := board.get_piece_node(1) as JigsawPiece
