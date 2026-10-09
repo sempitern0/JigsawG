@@ -55,6 +55,7 @@
 - [ ] Free-mode snap/failure emits `GROUP_CONNECTED` / `GROUP_CONNECTION_FAILED`.
 - [ ] Right-click rotation emits `GROUP_ROTATED` with group members and quarter turns.
 - [ ] Completion emits the legacy `puzzle_completed`, rich `puzzle_finished` and umbrella `event_emitted` exactly once.
+- [ ] Loading a config with `resume_state` emits `PUZZLE_STARTED` followed by `PUZZLE_STATE_RESTORED`.
 - [ ] `JigsawReaction.event_mask` filters correctly; empty mask receives all event types.
 - [ ] `JigsawAudioReaction` cleans up one-shot players after playback.
 - [ ] `JigsawSpawnSceneReaction` places Node2D roots at event.world_position and calls optional `setup_jigsaw_event`.
