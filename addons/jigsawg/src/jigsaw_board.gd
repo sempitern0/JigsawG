@@ -211,6 +211,7 @@ func rebuild() -> void:
 	_parents.clear()
 	_rotations.clear()
 	_members.clear()
+	_selected_piece_ids.clear()
 	_drag_root = -1
 	_dragged_piece = -1
 	_finished = false
@@ -229,6 +230,7 @@ func rebuild() -> void:
 		push_warning("JigsawG: image is too small for the selected grid. Use fewer pieces or a larger image.")
 		return
 	source.convert(Image.FORMAT_RGBA8)
+	_source_size = source.get_size()
 	if not source.has_mipmaps():
 		source.generate_mipmaps()
 	var shared_texture := ImageTexture.create_from_image(source)
@@ -278,7 +280,21 @@ func rebuild() -> void:
 				VisualStyle.HIGH_CONTRAST:
 					rim_opacity = maxf(rim_opacity, 0.55)
 					rim_width = maxf(rim_width, 1.3)
-			piece.configure(piece_id, home, polygon, shared_texture, texture_sampling, rim_opacity, rim_width)
+			piece.configure(
+				piece_id,
+				home,
+				polygon,
+				shared_texture,
+				texture_sampling,
+				rim_opacity,
+				rim_width,
+				highlight_enabled,
+				highlight_color,
+				highlight_width,
+				highlight_shadow_enabled,
+				highlight_shadow_color,
+				highlight_shadow_offset
+			)
 			piece.position = home
 			_pieces.append(piece)
 			_rotations.append(0)
@@ -291,6 +307,10 @@ func rebuild() -> void:
 				var center_before := _pieces[i].position + _piece_size * 0.5
 				_set_piece_quarters(i, _rng.randi_range(0, 3))
 				_pieces[i].position = center_before - (_piece_size * 0.5).rotated(_pieces[i].rotation)
+
+	if puzzle_config != null and puzzle_config.resume_state != null:
+		restore_state(puzzle_config.resume_state, false)
+
 	_camera = get_viewport().get_camera_2d()
 	if _camera:
 		if smooth_pan and _camera.position_smoothing_enabled:
@@ -727,16 +747,21 @@ func _apply_resource_presets() -> void:
 	snap_tolerance = gameplay.snap_tolerance
 	allow_piece_rotation = gameplay.allow_piece_rotation
 	random_rotation_on_shuffle = gameplay.random_rotation_on_shuffle
+	enable_multi_select = gameplay.enable_multi_select
 	match gameplay.shuffle_mode:
 		JigsawGameplaySettings.Shuffle.CENTER:
 			shuffle_mode = ShuffleMode.CENTER
 		JigsawGameplaySettings.Shuffle.BOTTOM:
 			shuffle_mode = ShuffleMode.BOTTOM
+		JigsawGameplaySettings.Shuffle.CHAOTIC:
+			shuffle_mode = ShuffleMode.CHAOTIC
 		_:
 			shuffle_mode = ShuffleMode.AROUND_BOARD
 	distribution_mode = DistributionMode.RADIAL if gameplay.distribution_mode == JigsawGameplaySettings.Distribution.RADIAL else DistributionMode.RANDOM
 	initial_scatter = gameplay.initial_scatter
 	shuffle_spacing = gameplay.shuffle_spacing
+	chaotic_spread = gameplay.chaotic_spread
+	chaotic_max_attempts = gameplay.chaotic_max_attempts
 	generation_seed = gameplay.generation_seed
 	show_ghost_board = gameplay.show_ghost_board
 	ghost_opacity = gameplay.ghost_opacity
@@ -759,6 +784,12 @@ func _apply_resource_presets() -> void:
 	bezier_detail = appearance.bezier_detail
 	piece_edge_opacity = appearance.piece_edge_opacity
 	piece_edge_width = appearance.piece_edge_width
+	highlight_enabled = appearance.highlight_enabled
+	highlight_color = appearance.highlight_color
+	highlight_width = appearance.highlight_width
+	highlight_shadow_enabled = appearance.highlight_shadow_enabled
+	highlight_shadow_color = appearance.highlight_shadow_color
+	highlight_shadow_offset = appearance.highlight_shadow_offset
 
 	var camera_options := config.camera
 	if camera_options == null:
@@ -770,6 +801,8 @@ func _apply_resource_presets() -> void:
 	pan_smoothing = camera_options.pan_smoothing
 	restrict_camera = camera_options.restrict_camera
 	camera_outer_margin = camera_options.camera_outer_margin
+	background_pan_delay_ms = camera_options.background_pan_delay_ms
+	background_pan_threshold_px = camera_options.background_pan_threshold_px
 	smooth_zoom = camera_options.smooth_zoom
 	zoom_smoothing = camera_options.zoom_smoothing
 	wheel_zoom_factor = camera_options.wheel_zoom_factor
