@@ -10,6 +10,10 @@ extends Resource
 @export var invert_background_pan := false
 ## Fit board and scattered pieces when generated.
 @export var auto_fit_camera := true
+## Smooth camera position toward drag/edge-scroll targets instead of snapping each input sample.
+@export var smooth_pan := true
+## Exponential pan response per second; higher follows the pointer more immediately.
+@export_range(1.0, 60.0, 0.5) var pan_smoothing := 26.0
 ## Stop pan at bounds, expanded by camera_outer_margin.
 @export var restrict_camera := false
 ## Additional pan space outside content, in longest piece sides.
@@ -34,3 +38,5 @@ extends Resource
 @export_range(8.0, 128.0, 1.0) var edge_scroll_zone := 64.0
 ## Edge-pan speed expressed as viewport pixels per second.
 @export_range(100.0, 2500.0, 25.0) var edge_scroll_speed := 900.0
+## Edge-pan acceleration/deceleration response; higher reaches target speed sooner.
+@export_range(1.0, 40.0, 0.5) var edge_scroll_smoothing := 12.0
