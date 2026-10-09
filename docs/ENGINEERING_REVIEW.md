@@ -21,7 +21,7 @@ The developer-facing model (one `JigsawBoard.puzzle_config`, nested Resources, o
 
 ## Completed for this review
 - README restructured with honest Preview badges, installation, API examples, configuration, limitations and contribution flow.
-- Editor addon icon bundled and referenced through `res://addons/jigsawg/icon.svg`; no dependency on host project's root icon.
+- Editor addon icon bundled inside the addon and referenced through Godot UID/import metadata; no dependency on the host project root icon.
 - Source-image dimension guard before allocation and generation to avoid invalid tiny pieces.
 - Preview-opening drag cancellation to avoid stuck active-drag state.
 - Fixed canonical default depth in the existing seam regression test.
