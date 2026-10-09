@@ -88,7 +88,7 @@ A few recipes:
 
 - **For natural pieces:** choose **Organic**, raise `connector_variation` and use a balanced Auto grid.
 - **For dark images:** use a lighter **Piece Edge Color**, plus a moderate **Piece Edge Opacity** and width. These change rendering only, never the snap geometry.
-- **For large puzzles:** use high-resolution *original* artwork, set **Generation Batch Size** to 64–128 and keep **Camera → Initial Focus** on Auto.
+- **For large puzzles:** use high-resolution *original* artwork, set **Generation Batch Size** to 64–128 and keep **Camera → Initial Focus** on Auto. When batching is enabled, JigsawG first fits and displays the **whole mosaic/assembly guide** for one frame, before spawning the first piece batch; it then applies the final camera framing after scattering.
 - **For custom animations:** assign a `JigsawMotionAdapter` under Feedback; its subclasses can animate rotation and multi-group arrangement without changing logical transforms.
 
 ### Source image quality matters

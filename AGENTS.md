@@ -158,7 +158,7 @@ docs/                                      # User API, events, testing, roadmap
 - `JigsawPuzzleState` carries piece positions, quarter-turns, group IDs, locks, completion and compatibility metadata. Restore validates first; incompatible states must not partially mutate a live game.
 - Do not silently renumber serialized enum/event-mask members. Append new event kinds where possible; update version/migration logic if a format change is unavoidable.
 - Seeded generation and layouts should be deterministic for the same config and image. Auto grid count is **approximate**, because image aspect ratio and native pixels per piece matter.
-- During batched generation, report progress accurately; rebuilding/reconfiguring cancels superseded jobs. Do not treat a partially built board as gameplay-ready. Host integrations should wait for `puzzle_generated`.
+- During batched generation, first frame the full mosaic/assembly guide before yielding or building piece nodes; then apply final camera framing when complete. Progress starts at `(0, total)` and rebuilding/reconfiguring cancels superseded jobs. Respect `camera.auto_fit_camera = false`. Do not treat a partially built board as gameplay-ready. Host integrations should wait for `puzzle_generated`.
 - Emit existing compact signals **and** rich typed `JigsawPuzzleEvent` equivalents as expected; reactions are reusable stateless Resources, not places to store per-session scores.
 - The puzzle requires a sufficiently resolved source image (minimum ~14 original pixels per piece axis to generate; recommendation is higher). Do not bypass the limit to falsely claim blurry images become crisp.
 
@@ -199,6 +199,7 @@ godot --headless --path . --script res://tests/test_hit_index_board.gd
 godot --headless --path . --script res://tests/test_camera_selection_focus.gd
 godot --headless --path . --script res://tests/test_motion_adapter.gd
 godot --headless --path . --script res://tests/test_generation_batching.gd
+godot --headless --path . --script res://tests/test_batch_camera_framing.gd
 godot --headless --path . --script res://tests/test_event_api.gd
 godot --headless --path . --script res://tests/test_board_events.gd
 godot --headless --path . --script res://tests/test_public_integration.gd

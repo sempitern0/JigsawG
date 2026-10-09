@@ -114,7 +114,9 @@ The runner rejects non-zero exits, script/import errors and missing PASS markers
 
 - [ ] Run `godot --headless --path . --script res://tests/test_large_scatter_layout.gd` for exact layout count, deterministic seeding and collision-free footprints.
 - [ ] Run `godot --headless --path . --script res://tests/benchmark_large_puzzles.gd` for actual Godot node generation, camera fit and cancellation at **200, 500 and 2000 pieces**.
-- [ ] Run `godot --headless --path . --script res://tests/test_generation_batching.gd` to confirm piece-batch progress, old-job cancellation and synchronous compatibility.
+- [ ] Run `godot --headless --path . --script res://tests/test_generation_batching.gd` to confirm piece-batch progress (starting at zero), old-job cancellation and synchronous compatibility.
+- [ ] Run `godot --headless --path . --script res://tests/test_batch_camera_framing.gd`; assert a complete visible Mosaic guide and correct zoom/center **before** the first piece batch, no unexpected changes mid-batch, camera opt-out and cancellation before the first frame.
+- [ ] In the actual viewport, start a 2000-piece Mosaic puzzle with a remote initial camera position and batch size 64–128. Confirm the complete guide is visible first, pieces appear progressively, and camera fitting after completion follows Camera settings.
 - [ ] Compare `generation_batch_size = 0` (synchronous) and `96` (yielding) with a progress HUD and verify that a new `configure()` cancels the old build.
 - [ ] At 2000 pieces, test `focus_board()` / Home versus `fit_view()` / End on 1080p and 1440p screens.
 - [ ] Test Chaotic and Around Board scatter, grouping, rotated drag and snapping at 2000 pieces.

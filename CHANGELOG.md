@@ -15,6 +15,7 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 
 ### Notes
 - Added `docs/ROADMAP.md` to prioritize validation, large-puzzle ergonomics, accessibility and release readiness, and root `AGENTS.md` for AI-assisted development and regression guidance.
+- Batched puzzle generation now preframes and displays the complete mosaic before the first node batch, then restores configured final camera fitting. Host-controlled cameras remain opt-out. Added a regression for first-frame framing and cancellation.
 - Readability: added configurable RGBA piece contour color without changing the default render style.
 - Auto piece-count grid, Organic connectors, standalone group graph, optional motion adapter, cancellable batch generation and improved large-puzzle camera/chaotic scatter are documented in their respective references.
 - Consolidated overlapping advanced-guide examples into the Resource API and Events guides, and streamlined README navigation.

@@ -112,6 +112,8 @@ For visually dark or noisy artwork, use **Appearance → Piece Edge Color** with
 
 Set `gameplay.generation_batch_size > 0` to generate a puzzle across multiple frames without a background thread. Listen to `generation_progress_changed(generated, total)` or `puzzle_generated(piece_count)` for completion; `board.is_generating()` and `board.get_generation_progress()` provide pollable state. The prior synchronous contract remains the default at `generation_batch_size = 0`.
 
+**First frame:** with automatic camera fitting enabled, the Board creates and displays the **entire mosaic guide**, centers the camera using the full source-image/grid dimensions, and yields one presentation frame **before the first piece batch**. During the build, the guide remains fully framed. When all pieces have been generated, scattered and optionally restored, the camera applies its normal configured final framing (Board, All Pieces or Auto). This avoids showing a cropped corner while pieces are loading. The initial frame reports progress `(0, total)`; the first nonzero batch appears after that frame. When `camera.auto_fit_camera = false`, the host camera is left alone. A synchronous `generation_batch_size = 0` keeps the previous immediate generation behavior.
+
 Starting a second `rebuild()` or `configure()` invalidates the previous build's coroutine, discards partial pieces, and starts a new one. `capture_state()` is not supported during generation; wait for `puzzle_generated`. The deterministic scatter planner is based on concentric structured rings or a spatial hash for Chaotic mode.
 
 ## Artwork resolution and readable 2000-piece puzzles

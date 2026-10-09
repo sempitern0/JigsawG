@@ -22,7 +22,7 @@
 - Classic, Rounded, Angular, Compact, Mixed and Organic complementary procedural connector families.
 - Manual grid and approximate piece-count Auto grid (up to 4000 requested; dependent on source resolution).
 - Board/overview camera framing, smooth navigation, seeded scatter with a spatial hash in Chaotic mode.
-- Optional frame-batched puzzle generation, generation progress, cancellation and image-detail diagnostics.
+- Optional frame-batched puzzle generation, generation progress, cancellation and image-detail diagnostics. **The early complete-mosaic camera fit is implemented, with in-engine testing pending.**
 - State capture/restore; typed gameplay events, reusable reactions and pluggable presentation-only motion adapters.
 - Headless scripts and a separate heavy benchmark in `tests/`. Their **existence is not evidence that they all pass**; the Godot engine and target hardware are required to verify them.
 
