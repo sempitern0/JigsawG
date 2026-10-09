@@ -4,6 +4,21 @@ All notable changes to JigsawG will be documented here.
 
 JigsawG is currently in preview; public API may still evolve before 1.0, but breaking changes should be called out explicitly.
 
+## 0.4.0-dev
+
+### Added
+- Empty-board pan grace: configurable delay and screen-space drag threshold reduce accidental camera movement.
+- Ctrl+click multi-selection of complete connected groups, with joint dragging and selection helper API.
+- Chaotic shuffle mode using deterministic continuous random placement rather than visible grid slots.
+- `JigsawPuzzleState` Resource plus `capture_state()`, `restore_state()` and `capture_resume_config()` for resumable puzzles without a built-in save UI.
+- Configurable selection highlight outline, color, width, shadow color and offset.
+
+### Changed
+- Drag lifecycle rich events include `metadata.selected_piece_ids` for multi-selection-aware integrations.
+- Mosaic release can evaluate several selected pieces in one drag.
+- Free-mode snapping can process several selected groups without breaking group rigidity.
+- Plugin metadata version bumped to `0.4.0-dev`.
+
 ## 0.3.0-dev
 
 ### Added
