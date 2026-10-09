@@ -1080,6 +1080,8 @@ func _update_ghost_board() -> void:
 func set_preview_visible(visible: bool) -> void:
 	if not enable_preview or not is_instance_valid(_preview_overlay):
 		return
+	if is_reference_preview_visible() == visible:
+		return
 	if visible:
 		_cancel_drag(JigsawPuzzleEvent.REASON_PREVIEW_OPENED)
 	_preview_overlay.set_preview_visible(visible)
