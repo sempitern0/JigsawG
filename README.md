@@ -257,7 +257,7 @@ var resume_config := ResourceLoader.load("user://forest_resume.tres") as JigsawP
 $JigsawBoard.configure(resume_config)
 ```
 
-`JigsawPuzzleState` stores positions, 90° rotations, connected-group ids, Mosaic locks and completion state. It validates grid dimensions, source-image size, seed and silhouette settings before applying. UI and save-slot management remain entirely in the host game.
+`JigsawPuzzleState` stores positions, 90° rotations, connected-group ids, Mosaic locks and completion state. It validates grid dimensions, source-image size, seed and silhouette settings before applying. `JigsawBoard.puzzle_state_restored(state)` is emitted after a successful restore. UI and save-slot management remain entirely in the host game.
 
 ## Image quality and performance
 
