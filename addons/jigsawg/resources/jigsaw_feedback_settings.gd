@@ -8,6 +8,9 @@ enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 @export_group("Animation")
 ## None disables built-in tint tweens; an explicit Motion Adapter remains independent.
 @export var animation_style: AnimationStyle = AnimationStyle.SUBTLE
+## Disables built-in tweening/flashes while retaining authoritative transforms,
+## puzzle events, selection highlighting and gameplay completion.
+@export var reduce_motion := false
 ## Total connect feedback duration in seconds.
 @export_range(0.04, 0.8, 0.01) var connect_animation_duration := 0.16
 ## Flash color on a successful snap (RGB can exceed 1 for emphasis).

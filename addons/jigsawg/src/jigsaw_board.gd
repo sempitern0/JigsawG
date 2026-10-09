@@ -122,6 +122,7 @@ var preview_dim := 0.82
 var enable_preview := true
 var visual_style: VisualStyle = VisualStyle.CLEAN
 var animation_style: AnimationStyle = AnimationStyle.SUBTLE
+var reduced_motion := false
 var connect_animation_duration := 0.16
 var allow_piece_rotation := false
 var random_rotation_on_shuffle := true
@@ -301,6 +302,31 @@ func set_accessibility_assists(extra_snap_fraction: float, pointer_radius_px: fl
 
 func get_accessibility_assists() -> Vector2:
 	return Vector2(snap_assist_extra_fraction, selection_assist_radius_px)
+
+
+## Changes in an options menu take effect immediately and do not reset the
+## puzzle or mutate the shared Feedback Resource. Rebuild restores the preset.
+func set_reduced_motion(enabled: bool) -> void:
+	if reduced_motion == enabled:
+		return
+	reduced_motion = enabled
+	if not enabled:
+		return
+	for piece in _pieces:
+		if is_instance_valid(piece):
+			piece.cancel_visual_animations()
+	if _camera != null:
+		if not is_equal_approx(_camera.zoom.x, _zoom_goal):
+			_apply_zoom(_zoom_goal, _zoom_anchor if _zoom_anchor_valid else get_viewport_rect().size * 0.5)
+		if _camera_target_ready:
+			_camera.global_position = _camera_target_position
+			_camera.force_update_scroll()
+	_zoom_anchor_valid = false
+	_edge_pan_velocity = Vector2.ZERO
+
+
+func is_reduced_motion() -> bool:
+	return reduced_motion
 
 ## Reframe the current scattered/assembled pieces using the configured camera.
 ## Returns false if there is no active Camera2D.
@@ -725,7 +751,7 @@ func _emit_motion(kind: JigsawMotionContext.Kind, piece_ids: PackedInt32Array, p
 	motion.before_transforms = previous
 	for id in piece_ids:
 		motion.after_transforms.append(_pieces[id].transform)
-	if _active_feedback != null and _active_feedback.motion_adapter != null:
+	if not reduced_motion and _active_feedback != null and _active_feedback.motion_adapter != null:
 		_active_feedback.motion_adapter.animate(self, motion)
 	motion_requested.emit(motion)
 
@@ -1177,7 +1203,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	if enable_camera_navigation and _camera:
-		if smooth_zoom:
+		if smooth_zoom and not reduced_motion:
 			_update_smooth_zoom(delta)
 		_update_edge_pan_camera(delta)
 		_update_smooth_pan(delta)
@@ -1188,7 +1214,7 @@ func _process(delta: float) -> void:
 			return
 		_activate_drag()
 	_desired_position = get_global_mouse_position() + _pointer_offset
-	var factor := 1.0 - exp(-drag_smoothing * delta)
+	var factor := 1.0 if reduced_motion else 1.0 - exp(-drag_smoothing * delta)
 	_move_group((_desired_position - _pieces[_dragged_piece].global_position) * factor)
 
 ## Stop an unfinished drag without snapping (e.g. when preview is opened).
@@ -1333,7 +1359,7 @@ func _fit_camera_to(bounds: Rect2) -> void:
 
 func _zoom_at_cursor(multiplier: float) -> void:
 	_zoom_goal = clampf(_zoom_goal * multiplier, min_zoom, max_zoom)
-	if smooth_zoom:
+	if smooth_zoom and not reduced_motion:
 		_zoom_anchor = get_viewport().get_mouse_position()
 		_zoom_anchor_valid = true
 	else:
@@ -1375,7 +1401,7 @@ func _update_edge_pan_camera(delta: float) -> void:
 			if movement != Vector2.ZERO:
 				desired_velocity = movement.limit_length(1.0) * edge_scroll_speed / maxf(_camera.zoom.x, 0.001)
 
-	var velocity_factor := 1.0 - exp(-edge_scroll_smoothing * delta)
+	var velocity_factor := 1.0 if reduced_motion else 1.0 - exp(-edge_scroll_smoothing * delta)
 	_edge_pan_velocity = _edge_pan_velocity.lerp(desired_velocity, velocity_factor)
 	if _edge_pan_velocity.length_squared() < 0.01:
 		_edge_pan_velocity = Vector2.ZERO
@@ -1395,7 +1421,7 @@ func _offset_camera_target(offset: Vector2) -> void:
 	if not _camera_target_ready:
 		_sync_camera_target()
 	_camera_target_position = _clamp_camera_position(_camera_target_position + offset)
-	if not smooth_pan:
+	if not smooth_pan or reduced_motion:
 		_camera.global_position = _camera_target_position
 		_camera.force_update_scroll()
 
@@ -1403,7 +1429,7 @@ func _update_smooth_pan(delta: float) -> void:
 	if _camera == null or not _camera_target_ready:
 		return
 	_camera_target_position = _clamp_camera_position(_camera_target_position)
-	if not smooth_pan:
+	if not smooth_pan or reduced_motion:
 		_camera.global_position = _camera_target_position
 		_camera.force_update_scroll()
 		return
@@ -1512,32 +1538,29 @@ func _place_selected_in_mosaic() -> bool:
 
 func _animate_pickup(members: Array, active: bool) -> void:
 	# Tint only: scaling the nodes would change their visible seams and pointer hit test.
+	if reduced_motion:
+		return
 	var tint := (_active_feedback.pickup_tint if _active_feedback != null else Color(1.12, 1.09, 1.02, 1.0)) if active and animation_style == AnimationStyle.PLAYFUL else Color.WHITE
 	for member in members:
 		var piece := _pieces[int(member)]
 		_tween_piece_tint(piece, tint)
 
 func _animate_failed_connection(piece: JigsawPiece) -> void:
-	if _active_feedback == null or not _active_feedback.enable_failure_feedback:
+	if reduced_motion or _active_feedback == null or not _active_feedback.enable_failure_feedback:
 		return
-	var tween := create_tween()
-	tween.tween_property(piece, "modulate", _active_feedback.failure_tint, _active_feedback.failure_animation_duration * 0.5)
-	tween.tween_property(piece, "modulate", Color.WHITE, _active_feedback.failure_animation_duration * 0.5)
+	piece.tween_tint(_active_feedback.failure_tint, _active_feedback.failure_animation_duration, true)
 
 func _animate_connection(piece: JigsawPiece) -> void:
-	if animation_style == AnimationStyle.NONE:
+	if reduced_motion or animation_style == AnimationStyle.NONE:
 		return
 	var peak := _active_feedback.connect_tint if _active_feedback != null else (Color(1.22, 1.18, 0.93, 1.0) if animation_style == AnimationStyle.PLAYFUL else Color(1.10, 1.10, 1.02, 1.0))
-	_tween_piece_tint(piece, peak)
-	var tween := create_tween()
-	tween.tween_property(piece, "modulate", Color.WHITE, connect_animation_duration)
+	piece.tween_tint(peak, connect_animation_duration * 1.5, true)
 
 func _tween_piece_tint(piece: JigsawPiece, tint: Color) -> void:
-	if animation_style == AnimationStyle.NONE:
+	if reduced_motion or animation_style == AnimationStyle.NONE:
 		piece.modulate = Color.WHITE
 		return
-	var tween := create_tween()
-	tween.tween_property(piece, "modulate", tint, connect_animation_duration * 0.5)
+	piece.tween_tint(tint, connect_animation_duration * 0.5)
 
 ## A Resource is a shared preset. Do not mutate it while applying it:
 ## assign only the board instance's properties.
@@ -1657,6 +1680,7 @@ func _apply_resource_presets() -> void:
 		_:
 			animation_style = AnimationStyle.SUBTLE
 	connect_animation_duration = _active_feedback.connect_animation_duration
+	reduced_motion = _active_feedback.reduce_motion
 
 	_active_reactions.clear()
 	for reaction in config.reactions:

@@ -34,6 +34,7 @@ var display_transform := Transform2D.IDENTITY:
 		hit_shape_changed.emit()
 
 var _display_tween: Tween
+var _tint_tween: Tween
 
 var _source_texture: Texture2D
 var _uvs := PackedVector2Array()
@@ -124,6 +125,29 @@ func animate_display_from(
 		return
 	_display_tween = create_tween()
 	_display_tween.tween_property(self, "display_transform", Transform2D.IDENTITY, duration).set_trans(transition).set_ease(easing)
+
+
+## Cancel only presentation tweens; never modify logical piece state.
+func cancel_visual_animations() -> void:
+	if _display_tween != null and _display_tween.is_valid():
+		_display_tween.kill()
+	if _tint_tween != null and _tint_tween.is_valid():
+		_tint_tween.kill()
+	display_transform = Transform2D.IDENTITY
+	modulate = Color.WHITE
+
+
+## Track built-in feedback tint tweens for live reduced-motion opt-out.
+func tween_tint(target: Color, seconds: float, fade_back: bool = false) -> void:
+	if _tint_tween != null and _tint_tween.is_valid():
+		_tint_tween.kill()
+	if seconds <= 0.0:
+		modulate = Color.WHITE if fade_back else target
+		return
+	_tint_tween = create_tween()
+	_tint_tween.tween_property(self, "modulate", target, seconds * 0.5 if fade_back else seconds)
+	if fade_back:
+		_tint_tween.tween_property(self, "modulate", Color.WHITE, seconds * 0.5)
 
 
 ## Squared distance from a viewport-space point to the visible silhouette.
