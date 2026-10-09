@@ -24,6 +24,11 @@ extends Resource
 ## Selection, successful connection and failed-connection feedback.
 @export var feedback: JigsawFeedbackSettings = JigsawFeedbackSettings.new()
 
+@export_group("Resume")
+## Optional session snapshot applied after generation. Null starts a fresh puzzle.
+## JigsawBoard never mutates this Resource; capture_state() returns a new snapshot.
+@export var resume_state: JigsawPuzzleState
+
 @export_group("Reactions")
 ## Optional reusable event handlers. Empty means signals-only integration.
 ## Shared reactions should be stateless and must not mutate this config.
