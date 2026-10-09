@@ -794,11 +794,14 @@ func rebuild() -> void:
 	_generating = true
 	generation_progress_changed.emit(0, _generation_total)
 	if _generation_batch_size > 0:
-		# Render at least one complete frame of the correctly framed mosaic
-		# before materializing individual piece nodes.
-		await get_tree().process_frame
-		if build_id != _generation_serial or not is_inside_tree():
-			return
+		# process_frame is emitted BEFORE drawing the next frame. Two
+		# yields guarantee at least one real frame with only the complete
+		# assembly guide before creating the first piece batch. Verify the
+		# generation token after each yield to support immediate cancellation.
+		for frame_index in range(2):
+			await get_tree().process_frame
+			if build_id != _generation_serial or not is_inside_tree():
+				return
 	var horizontal: Dictionary = {}
 	var vertical: Dictionary = {}
 	for r in range(rows - 1):
@@ -913,8 +916,6 @@ func _prepare_batch_camera() -> void:
 	if _camera == null:
 		_camera_target_ready = false
 		return
-	if smooth_pan and _camera.position_smoothing_enabled:
-		push_warning("JigsawG: Camera2D position_smoothing_enabled and JigsawCameraSettings.smooth_pan are both active. Avoid double smoothing.")
 	var board_rect := Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
 	_fit_bounds = board_rect
 	_pan_bounds = board_rect.grow(maxf(_piece_size.x, _piece_size.y) * camera_outer_margin)

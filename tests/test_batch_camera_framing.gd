@@ -51,8 +51,15 @@ func _run() -> void:
 	assert(board_size.x * camera.zoom.x <= bounds.x + 0.5)
 	assert(board_size.y * camera.zoom.y <= bounds.y + 0.5)
 
-	# At least one process_frame is reserved for displaying the mosaic.
+	# After the first process frame, the entire mosaic still renders by
+	# itself: individual piece creation starts only on the following frame.
 	await process_frame
+	assert(board.is_generating())
+	assert(board.get_piece_count() == 0)
+	assert(is_instance_valid(board._ghost_board) and board._ghost_board.visible)
+	await process_frame
+	if board.get_piece_count() == 0:
+		await process_frame
 	assert(board.is_generating())
 	assert(board.get_piece_count() > 0 and board.get_piece_count() < 24)
 	assert(camera.global_position.is_equal_approx(focus))
@@ -76,6 +83,19 @@ func _run() -> void:
 	await board.puzzle_generated
 	assert(camera.global_position.is_equal_approx(unmanaged_position))
 	assert(is_equal_approx(camera.zoom.x, 0.4))
+
+	# Free mode must still apply its requested ALL_PIECES framing after
+	# the scatter step, even though the first frame focuses the full board.
+	var scattered := _config()
+	scattered.gameplay.game_mode = JigsawGameplaySettings.Mode.FREE
+	scattered.camera.initial_focus = JigsawCameraSettings.InitialFocus.ALL_PIECES
+	board.configure(scattered)
+	var initial_scattered_focus := board.to_global(board._piece_size * Vector2(3, 2))
+	assert(camera.global_position.is_equal_approx(initial_scattered_focus))
+	assert(board.get_piece_count() == 0)
+	await board.puzzle_generated
+	assert(camera.global_position.is_equal_approx(board.to_global(board._fit_bounds.get_center())))
+	assert(board.get_piece_count() == 24)
 
 	# Cancel while still in the initial, empty pre-batch presentation frame.
 	var cancelled := _config()
