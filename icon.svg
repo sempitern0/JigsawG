@@ -1,1 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="124" height="124" x="2" y="2" fill="#363d52" stroke="#212532" stroke-width="4" rx="14"/><g fill="#fff" transform="translate(12.322 12.322)scale(.101)"><path d="M105 673v33q407 354 814 0v-33z"/><path fill="#478cbf" d="m105 673 152 14q12 1 15 14l4 67 132 10 8-61q2-11 15-15h162q13 4 15 15l8 61 132-10 4-67q3-13 15-14l152-14V427q30-39 56-81-35-59-83-108-43 20-82 47-40-37-88-64 7-51 8-102-59-28-123-42-26 43-46 89-49-7-98 0-20-46-46-89-64 14-123 42 1 51 8 102-48 27-88 64-39-27-82-47-48 49-83 108 26 42 56 81zm0 33v39c0 276 813 276 814 0v-39l-134 12-5 69q-2 10-14 13l-162 11q-12 0-16-11l-10-65H446l-10 65q-4 11-16 11l-162-11q-12-3-14-13l-5-69z"/><path d="M483 600c0 34 58 34 58 0v-86c0-34-58-34-58 0z"/><circle cx="725" cy="526" r="90"/><circle cx="299" cy="526" r="90"/></g><g fill="#414042" transform="translate(12.322 12.322)scale(.101)"><circle cx="307" cy="532" r="60"/><circle cx="717" cy="532" r="60"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">JigsawG — jigsaw puzzle piece and configuration gear</title>
+  <defs>
+    <linearGradient id="puzzle" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#61CFF0"/>
+      <stop offset="1" stop-color="#368FC8"/>
+    </linearGradient>
+    <linearGradient id="gear" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3E8ECE"/>
+      <stop offset="1" stop-color="#24568B"/>
+    </linearGradient>
+  </defs>
+  <path d="M31 29H49C46 22 50 13 60 13C71 13 76 22 72 29H86C93 29 98 34 98 41V51C90 47 82 51 82 60C82 68 90 72 98 68V85C98 92 93 98 86 98H73C77 91 72 83 63 83C53 83 48 91 52 98H31C23 98 20 92 20 85V70C13 74 6 69 6 60C6 51 13 47 20 51V40C20 33 24 29 31 29Z" fill="url(#puzzle)" stroke="#102C4D" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M34 37H49M35 46H53" fill="none" stroke="#A8EDFF" stroke-width="4" opacity=".58" stroke-linecap="round"/>
+  <path d="M26 79L43 62L56 75L71 55L88 78V89H26Z" fill="#35B898" opacity=".9"/>
+  <circle cx="71" cy="44" r="7" fill="#FFCC69"/>
+  <path d="M37 84L51 71L62 81" fill="none" stroke="#87E4BA" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="88.72,69.08 91.62,68.39 92.61,63.19 99.39,63.19 100.38,68.39 103.28,69.08 104.17,69.37 106.93,70.51 110.78,66.89 116.26,70.87 114.01,75.66 115.94,77.93 116.50,78.69 118.06,81.23 123.30,80.57 125.40,87.01 120.76,89.56 121.00,92.53 121.00,93.47 120.76,96.44 125.40,98.99 123.30,105.43 118.06,104.77 116.50,107.31 115.94,108.07 114.01,110.34 116.26,115.13 110.78,119.11 106.93,115.49 104.17,116.63 103.28,116.92 100.38,117.61 99.39,122.81 92.61,122.81 91.62,117.61 88.72,116.92 87.83,116.63 85.07,115.49 81.22,119.11 75.74,115.13 77.99,110.34 76.06,108.07 75.50,107.31 73.94,104.77 68.70,105.43 66.60,98.99 71.24,96.44 71.00,93.47 71.00,92.53 71.24,89.56 66.60,87.01 68.70,80.57 73.94,81.23 75.50,78.69 76.06,77.93 77.99,75.66 75.74,70.87 81.22,66.89 85.07,70.51 87.83,69.37" fill="url(#gear)" stroke="#102C4D" stroke-width="5.5" stroke-linejoin="round"/>
+  <circle cx="96" cy="93" r="15" fill="#163A62" stroke="#A4E8FA" stroke-width="5"/>
+  <circle cx="96" cy="93" r="4" fill="#FFCC69"/>
+</svg>
