@@ -168,6 +168,14 @@ The built-in Board uses `_unhandled_input` and the viewport's current `Camera2D`
 
 Safe approaches: one interactive Board per viewport, separate `SubViewport` containers, or enabling input on only one Board at a time with `set_interaction_enabled()`. Test routing before shipping split-screen or multiplayer puzzle scenes.
 
+## Custom piece materials without replacing the renderer
+
+Assign an optional `CanvasItemMaterial` or `ShaderMaterial` to `JigsawAppearanceSettings.piece_material`. JigsawG applies it to every generated piece after polygon setup; the original texture/UV source and Bézier geometry are preserved.
+
+The `Material` Resource is **shared** across pieces. Prefer material uniforms for effects common to the whole puzzle. If different pieces need independent shader values, use CanvasItem instance shader parameters from your own presentation controller and reapply them when pieces are regenerated. Avoid changing `JigsawPiece`'s transform or outline data.
+
+With `piece_material = null`, the normal renderer remains unchanged. See [Resource API](RESOURCE_API.md) for the exported field.
+
 ## Rendering and performance
 
 The source image is a shared texture; silhouette geometry is procedurally triangulated. Source-image size, texture filtering, curve sampling (`bezier_detail`) and piece count have different performance costs. Increasing curve detail does not increase texture resolution. Benchmark large configurations on the actual renderers/devices.
