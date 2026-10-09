@@ -33,7 +33,7 @@ func _initialize() -> void:
 		Vector2i(1, 12974), 26.0, 12, 5, 1.0)
 	for i in range(pathological.size() - 1):
 		for j in range(i + 2, pathological.size() - 1):
-			var intersection := Geometry2D.segment_intersects_segment(
+			var intersection = Geometry2D.segment_intersects_segment(
 				pathological[i], pathological[i + 1],
 				pathological[j], pathological[j + 1]
 			)
@@ -56,11 +56,11 @@ func _initialize() -> void:
 
 func _verify(board: Node2D) -> void:
 	assert(board.get_piece_count() == 9)
-	var state := board.capture_state()
+	var state = board.capture_state()
 	assert(state.connector_family == JigsawAppearanceSettings.ConnectorFamily.ORGANIC)
 	assert(board.restore_state(state))
 	assert(board.get_group_piece_ids(0).size() == 1)
-	var detail := board.get_artwork_detail_info()
+	var detail = board.get_artwork_detail_info()
 	assert(detail["piece_count"] == 9)
 	assert(detail["source_size"] == Vector2i(640, 480))
 	assert(not detail["below_recommendation"])

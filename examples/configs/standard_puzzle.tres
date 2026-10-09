@@ -11,7 +11,7 @@
 
 [sub_resource type="Resource" id="Appearance"]
 script = ExtResource("4")
-connector_family = 5
+connector_family = 2
 connector_variation = 0.8
 visual_style = 1
 texture_sampling = 1
@@ -33,7 +33,6 @@ motion_adapter = SubResource("Motion")
 script = ExtResource("2")
 allow_piece_rotation = true
 shuffle_mode = 2
-generation_batch_size = 2
 show_ghost_board = true
 ghost_opacity = 0.2
 
@@ -41,7 +40,7 @@ ghost_opacity = 0.2
 script = ExtResource("1")
 puzzle_texture = ExtResource("5_dqwao")
 grid_mode = 1
-target_piece_count = 2000
+target_piece_count = 500
 silhouette_variants = 6
 gameplay = SubResource("Gameplay")
 appearance = SubResource("Appearance")
