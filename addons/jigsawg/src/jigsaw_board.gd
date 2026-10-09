@@ -200,6 +200,7 @@ var _device_pointer_active := false
 var _device_pointer_screen := Vector2.ZERO
 var _controller_cursor_active := false
 var _controller_cursor_ready := false
+var _controller_hover_delay := 0.0
 var _controller_cursor_layer: CanvasLayer
 var _controller_cursor_ui: VirtualCursor
 var _touch_positions: Dictionary = {}
@@ -310,6 +311,16 @@ func set_interaction_enabled(enabled: bool) -> void:
 
 func is_interaction_enabled() -> bool:
 	return _interaction_enabled
+
+
+## Host HUDs can display their own controller cursor; coordinates are in
+## viewport pixels and are not stored in puzzle snapshots.
+func is_controller_cursor_active() -> bool:
+	return _controller_cursor_active
+
+
+func get_controller_cursor_screen_position() -> Vector2:
+	return _device_pointer_screen
 
 
 ## Runtime accessibility override for an options menu. Does not rebuild,
@@ -1078,6 +1089,7 @@ func _drag_threshold_screen() -> float:
 func _end_device_pointer() -> void:
 	_device_pointer_active = false
 	_controller_cursor_active = false
+	_controller_hover_delay = 0.0
 	if is_instance_valid(_controller_cursor_ui):
 		_controller_cursor_ui.visible = false
 
@@ -1132,7 +1144,7 @@ func _process_controller(delta: float) -> void:
 		_device_input.cursor_left_action, _device_input.cursor_right_action,
 		_device_input.cursor_up_action, _device_input.cursor_down_action
 	)
-	if _device_input.use_joypad_defaults and movement.length_squared() <= 0.001:
+	if _device_input.use_joypad_defaults and Input.get_connected_joypads().has(_device_input.joypad_device) and movement.length_squared() <= 0.001:
 		var raw_cursor: Vector2 = Vector2(
 			Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_LEFT_X),
 			Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_LEFT_Y)
@@ -1146,14 +1158,17 @@ func _process_controller(delta: float) -> void:
 		)
 	if _controller_cursor_active and is_instance_valid(_controller_cursor_ui):
 		_controller_cursor_ui.cursor_position = _device_pointer_screen
-		_controller_cursor_ui.over_piece = _find_piece_at(_get_pointer_world()) >= 0
+		_controller_hover_delay -= delta
+		if movement.length_squared() > 0.001 or _hit_index.is_dirty() or _controller_hover_delay <= 0.0:
+			_controller_cursor_ui.over_piece = _find_piece_at(_get_pointer_world()) >= 0
+			_controller_hover_delay = 0.10
 	if not enable_camera_navigation or _camera == null:
 		return
 	var camera_vector: Vector2 = _device_vector(
 		_device_input.camera_left_action, _device_input.camera_right_action,
 		_device_input.camera_up_action, _device_input.camera_down_action
 	)
-	if _device_input.use_joypad_defaults and camera_vector.length_squared() <= 0.001:
+	if _device_input.use_joypad_defaults and Input.get_connected_joypads().has(_device_input.joypad_device) and camera_vector.length_squared() <= 0.001:
 		var raw_camera: Vector2 = Vector2(
 			Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_RIGHT_X),
 			Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_RIGHT_Y)
@@ -1161,7 +1176,7 @@ func _process_controller(delta: float) -> void:
 		camera_vector = raw_camera if raw_camera.length() > _device_input.stick_deadzone else Vector2.ZERO
 	if camera_vector.length_squared() > 0.001:
 		_offset_camera_target(camera_vector * _device_input.camera_pan_speed_px * delta / maxf(_camera.zoom.x, 0.001))
-	if _device_input.use_joypad_defaults:
+	if _device_input.use_joypad_defaults and Input.get_connected_joypads().has(_device_input.joypad_device):
 		var left_trigger: float = maxf(0.0, Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_TRIGGER_LEFT))
 		var right_trigger: float = maxf(0.0, Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_TRIGGER_RIGHT))
 		var zoom_input: float = right_trigger - left_trigger
@@ -1170,7 +1185,7 @@ func _process_controller(delta: float) -> void:
 			_zoom_at_screen(powf(wheel_zoom_factor, zoom_input * delta * 5.0), _device_pointer_screen)
 
 
-## Standard joypad: A grab, B cancel, X group toggle, shoulders rotate,
+## Standard joypad: A grab, B cancel, X group toggle, Y preview, shoulders rotate,
 ## triggers zoom, left stick / D-pad cursor, right stick pan.
 func _handle_joypad_button(event: InputEventJoypadButton) -> bool:
 	if not _device_input.use_joypad_defaults or event.device != _device_input.joypad_device:
@@ -1211,7 +1226,16 @@ func _handle_joypad_button(event: InputEventJoypadButton) -> bool:
 
 
 func _handle_controller_action(event: InputEvent) -> bool:
-	if _device_input == null or not _device_input.enable_controller or is_reference_preview_visible():
+	if _device_input == null or not _device_input.enable_controller:
+		return false
+	# Y opens/closes the fullscreen reference even while that overlay is up.
+	if event is InputEventJoypadButton:
+		var joypad: InputEventJoypadButton = event as InputEventJoypadButton
+		if _device_input.use_joypad_defaults and joypad.device == _device_input.joypad_device and joypad.button_index == JOY_BUTTON_Y:
+			if joypad.pressed and enable_preview:
+				toggle_reference_preview()
+			return true
+	if is_reference_preview_visible():
 		return false
 	if event is InputEventJoypadButton and _handle_joypad_button(event as InputEventJoypadButton):
 		return true

@@ -4,11 +4,15 @@ extends Control
 
 var cursor_position := Vector2.ZERO:
 	set(value):
+		if cursor_position == value:
+			return
 		cursor_position = value
 		queue_redraw()
 
 var over_piece := false:
 	set(value):
+		if over_piece == value:
+			return
 		over_piece = value
 		queue_redraw()
 

@@ -126,6 +126,11 @@ func _run() -> void:
 	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_B, true)))
 	assert(board.get_dragged_piece_id() == -1)
 	assert(_events.has("cancelled"))
+	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_Y, true)))
+	assert(board.is_reference_preview_visible())
+	assert(not board._handle_controller_action(_joypad_button(JOY_BUTTON_A, true)), "Preview must block piece interaction.")
+	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_Y, true)))
+	assert(not board.is_reference_preview_visible())
 	var prior_quarters: int = board._rotations[0]
 	assert(board._handle_controller_action(_joypad_button(JOY_BUTTON_RIGHT_SHOULDER, true)))
 	assert(board._rotations[0] == posmod(prior_quarters + 1, 4))
