@@ -1,11 +1,10 @@
 @tool
 class_name JigsawAppearanceSettings
 extends Resource
-## Reusable visual preset. These overrides apply when JigsawBoard.rebuild()
-## is called; VFX signals remain available for a custom presentation layer.
+## Reusable jigsaw silhouette and rendering options for JigsawPuzzleConfig.
+## Animation controls live exclusively in JigsawFeedbackSettings.
 
 enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
-enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 
 @export_group("Artwork")
 ## Tab depth as a fraction of the shortest piece side (rebuild required).
@@ -21,8 +20,3 @@ enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 ## Thickness of an enabled edge rim in texture pixels.
 @export_range(0.1, 3.0, 0.1) var piece_edge_width := 0.7
 
-@export_group("Feedback")
-## None disables tweens; Subtle/Playful vary tint intensity.
-@export var animation_style: AnimationStyle = AnimationStyle.SUBTLE
-## Feedback animation duration in seconds.
-@export_range(0.04, 0.6, 0.01) var connect_animation_duration := 0.16
