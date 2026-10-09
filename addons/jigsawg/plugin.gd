@@ -2,7 +2,7 @@
 extends EditorPlugin
 
 func _enter_tree() -> void:
-	add_custom_type("JigsawBoard", "Node2D", preload("src/jigsaw_board.gd"), preload("res://icon.svg"))
+	add_custom_type("JigsawBoard", "Node2D", preload("src/jigsaw_board.gd"), preload("res://addons/jigsawg/icon.svg"))
 
 func _exit_tree() -> void:
 	remove_custom_type("JigsawBoard")
