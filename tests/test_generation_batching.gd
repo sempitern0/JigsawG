@@ -28,7 +28,9 @@ func _initialize() -> void:
 	)
 	get_root().add_child(board)
 	assert(board.is_generating())
-	assert(board.get_generation_progress().x == 7)
+	# The mosaic has an entire presentation frame before the first piece batch.
+	assert(board.get_generation_progress() == Vector2i(0, 36))
+	assert(board.get_piece_count() == 0)
 	call_deferred("_verify_async", board)
 
 
