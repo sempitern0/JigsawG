@@ -30,6 +30,20 @@ The resource-first refactor requires local Godot 4.7 verification. The authoring
 - [ ] Style edge alpha, connector depth, texture sampling and profile resolution work.
 - [ ] Connect success/failure/pickup animations use JigsawFeedbackSettings.
 
+## Event and reaction API
+- [ ] `PUZZLE_STARTED` fires once after a valid board generation.
+- [ ] Rebuilding an existing board emits `PUZZLE_RESET` followed by a fresh `PUZZLE_STARTED`.
+- [ ] Pickup/release emits drag started/finished with the correct primary piece and complete group membership.
+- [ ] Opening preview during drag emits `PIECE_DRAG_CANCELLED` and leaves no selected/z-raised piece.
+- [ ] Mosaic success/failure emits `PIECE_PLACED` / `PIECE_PLACEMENT_FAILED`.
+- [ ] Free-mode snap/failure emits `GROUP_CONNECTED` / `GROUP_CONNECTION_FAILED`.
+- [ ] Right-click rotation emits `GROUP_ROTATED` with group members and quarter turns.
+- [ ] Completion emits the legacy `puzzle_completed`, rich `puzzle_finished` and umbrella `event_emitted` exactly once.
+- [ ] `JigsawReaction.event_mask` filters correctly; empty mask receives all event types.
+- [ ] `JigsawAudioReaction` cleans up one-shot players after playback.
+- [ ] `JigsawSpawnSceneReaction` places Node2D roots at event.world_position and calls optional `setup_jigsaw_event`.
+- [ ] Run `godot --headless --path . --script res://tests/test_event_api.gd`.
+
 ## Publication
 - [ ] Godot parser and import logs show no GDScript warnings/errors.
 - [ ] Measure large-image memory and the performance of a 300-piece puzzle.
