@@ -1,12 +1,12 @@
 @tool
 class_name JigsawFeedbackSettings
 extends Resource
-## Interaction animation presets. Never modifies piece geometry or transforms.
+## Interaction feedback presets. Motion animation is presentation-only; logical transforms stay authoritative.
 
 enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 
 @export_group("Animation")
-## None disables tweens, Subtle/Playful tint the piece on interactions.
+## None disables built-in tint tweens; an explicit Motion Adapter remains independent.
 @export var animation_style: AnimationStyle = AnimationStyle.SUBTLE
 ## Total connect feedback duration in seconds.
 @export_range(0.04, 0.8, 0.01) var connect_animation_duration := 0.16

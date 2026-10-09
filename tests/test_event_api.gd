@@ -23,6 +23,13 @@ func _initialize() -> void:
 	var completed := JigsawPuzzleEvent.new(JigsawPuzzleEvent.Type.PUZZLE_COMPLETED)
 	assert(reaction.accepts(completed), "Filtered reaction rejected its configured event.")
 
+	# The new event is appended, preserving legacy event-mask assignments.
+	var arranged := JigsawPuzzleEvent.new(JigsawPuzzleEvent.Type.SELECTION_ARRANGED)
+	reaction.event_mask = JigsawReaction.mask_for(JigsawPuzzleEvent.Type.SELECTION_ARRANGED)
+	assert(reaction.accepts(arranged))
+	assert(not reaction.accepts(completed))
+	assert(int(JigsawPuzzleEvent.Type.SELECTION_ARRANGED) > int(JigsawPuzzleEvent.Type.PUZZLE_STATE_RESTORED))
+
 	var config := JigsawPuzzleConfig.new()
 	config.reactions = [reaction]
 	assert(config.reactions.size() == 1)

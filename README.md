@@ -59,7 +59,7 @@ PuzzleScene (Node2D)
 
 ## Animated movement (optional)
 
-JigsawG already supports `JigsawPlayAnimationReaction` for playing AnimationPlayer clips, including on rotation events. To animate the **actual appearance of pieces moving**, create a `JigsawMotionAdapter` under **Puzzle Config → Feedback → Motion Adapter**. Its timings and easing can be customized in the Inspector; custom Resource subclasses can override `animate(board, motion)`. The sample `examples/puzzle_lab.tscn` configuration includes a motion adapter for rotation and multi-selection arrangement. If the field is empty, transitions remain instantaneous as before. Snap calculations, collision groups and save data always use exact logical transforms. See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md).
+JigsawG already supports `JigsawPlayAnimationReaction` for playing AnimationPlayer clips, including on rotation events. To animate the **actual appearance of pieces moving**, create a `JigsawMotionAdapter` under **Puzzle Config → Feedback → Motion Adapter**. Its timings and easing can be customized in the Inspector independently of the existing tint feedback style; custom Resource subclasses can override `animate(board, motion)`. The sample `examples/puzzle_lab.tscn` configuration includes a motion adapter for rotation and multi-selection arrangement. If the field is empty, transitions remain instantaneous as before. Snap calculations, collision groups and save data always use exact logical transforms. See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md).
 
 ## Automatic grid and compact multi-selection
 

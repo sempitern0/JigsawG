@@ -33,6 +33,8 @@ func animate(board: Node2D, motion: JigsawMotionContext) -> void:
                 piece.queue_redraw()
 ```
 
+The motion adapter works independently of `JigsawFeedbackSettings.animation_style`, which controls the older pickup/connect tint presets. Setting `motion_adapter = null` disables motion interpolation without disabling audio, VFX or event reactions.
+
 For a central handler without a Resource, connect `board.motion_requested.connect(func(motion): ...)`. For regular gameplay signals, `group_rotation_changed` and the new `selection_arranged` typed signal use `JigsawPuzzleEvent`, and both are emitted through `event_emitted` and available to `JigsawReaction` Resources. The `SELECTION_ARRANGED` event provides `metadata.selected_piece_ids` and `metadata.group_roots`. This event is emitted only when two or more detached groups are packed on drag start.
 
 Avoid animating `JigsawPiece.position`, `rotation` or `global_transform` in custom effects: these are owned by JigsawBoard. Use `display_transform`, colors, shader parameters, particle scenes or other presentation-only properties. The motion adapter is a stateless Resource definition shared safely across boards.
