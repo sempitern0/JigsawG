@@ -1,11 +1,13 @@
 # Security Policy
 
-## Supported Versions
+JigsawG is an experimental Godot plugin distributed as GDScript source.
 
-| Version | Godot Version | Branch      | Supported          |
-| ------- | ------------- | ----------- | ------------------ |
-| 1.x     | 4.x           | `godot-4.x` | :white_check_mark: |
+## Supported versions
 
-## Reporting a Vulnerability
+There is no stable security-supported release series yet. Preview/beta versions are best-effort and should be reviewed before inclusion in sensitive applications.
 
-Please [raise an issue](https://github.com/sempitern0/[PLUGIN]/issues) in case you find a security issue.
+## Reporting vulnerabilities
+
+Prefer [GitHub's private security reporting](https://github.com/sempitern0/JigsawG/security/advisories/new) when available. If unavailable, open a minimal non-exploitative issue requesting a private contact channel. Avoid posting exploit code or private data in public issues.
+
+Do not treat example images or untrusted external Resources as vetted user content.
