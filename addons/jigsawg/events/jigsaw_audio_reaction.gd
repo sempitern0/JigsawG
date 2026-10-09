@@ -20,7 +20,7 @@ extends JigsawReaction
 func react(board: Node2D, event: JigsawPuzzleEvent) -> void:
 	if stream == null or not is_instance_valid(board):
 		return
-	var parent := board.get_tree().current_scene
+	var parent: Node = board.get_tree().current_scene
 	if parent == null:
 		parent = board
 	var low := minf(pitch_min, pitch_max)
@@ -28,21 +28,21 @@ func react(board: Node2D, event: JigsawPuzzleEvent) -> void:
 	var pitch := randf_range(low, high)
 
 	if spatial:
-		var player := AudioStreamPlayer2D.new()
-		parent.add_child(player)
-		player.global_position = event.world_position
-		player.stream = stream
-		player.bus = bus
-		player.volume_db = volume_db
-		player.pitch_scale = pitch
-		player.finished.connect(player.queue_free)
-		player.play()
+		var player_2d := AudioStreamPlayer2D.new()
+		parent.add_child(player_2d)
+		player_2d.global_position = event.world_position
+		player_2d.stream = stream
+		player_2d.bus = bus
+		player_2d.volume_db = volume_db
+		player_2d.pitch_scale = pitch
+		player_2d.finished.connect(player_2d.queue_free)
+		player_2d.play()
 	else:
-		var player := AudioStreamPlayer.new()
-		parent.add_child(player)
-		player.stream = stream
-		player.bus = bus
-		player.volume_db = volume_db
-		player.pitch_scale = pitch
-		player.finished.connect(player.queue_free)
-		player.play()
+		var player_global := AudioStreamPlayer.new()
+		parent.add_child(player_global)
+		player_global.stream = stream
+		player_global.bus = bus
+		player_global.volume_db = volume_db
+		player_global.pitch_scale = pitch
+		player_global.finished.connect(player_global.queue_free)
+		player_global.play()
