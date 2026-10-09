@@ -4,6 +4,18 @@ All notable changes to JigsawG will be documented here.
 
 JigsawG is currently in preview; public API may still evolve before 1.0, but breaking changes should be called out explicitly.
 
+## Unreleased (public integration improvements)
+
+### Added
+- Public Board facade for HUD progress, interaction pause, reference/ghost controls and camera refit.
+- `progress_changed` and `interaction_enabled_changed` signals.
+- `JigsawPlayAnimationReaction` and `JigsawCallMethodReaction` to reuse host-scene functionality without Board overrides.
+- Advanced integration guide and public API smoke test.
+
+### Notes
+- Existing puzzle geometry, game modes, Resource-based configuration and saved-state formats remain unchanged.
+- Godot editor/runtime regression validation remains required before tagging a stable release.
+
 ## 0.4.0-dev
 
 ### Added
