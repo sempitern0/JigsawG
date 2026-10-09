@@ -9,7 +9,7 @@ El nodo `JigsawBoard` expone **una sola propiedad** en el Inspector: `puzzle_con
 | `JigsawPuzzleConfig` | `puzzle_texture`, `columns`, `rows`, `silhouette_variants`, `gameplay`, `appearance`, `camera`, `feedback`, `reactions` |
 | `JigsawGameplaySettings` | `game_mode`, `snap_tolerance`, `allow_piece_rotation`, `random_rotation_on_shuffle`, `shuffle_mode`, `distribution_mode`, `initial_scatter`, `shuffle_spacing`, `generation_seed`, `show_ghost_board`, `ghost_opacity`, `enable_preview`, `preview_key`, `preview_dim` |
 | `JigsawAppearanceSettings` | `connector_depth`, `visual_style`, `texture_sampling`, `bezier_detail`, `piece_edge_opacity`, `piece_edge_width` |
-| `JigsawCameraSettings` | `enable_camera_navigation`, `invert_background_pan`, `auto_fit_camera`, `restrict_camera`, `camera_outer_margin`, `smooth_zoom`, `zoom_smoothing`, `wheel_zoom_factor`, `min_zoom`, `max_zoom`, `drag_smoothing`, `edge_scroll_zone`, `edge_scroll_speed` |
+| `JigsawCameraSettings` | `enable_camera_navigation`, `invert_background_pan`, `auto_fit_camera`, `smooth_pan`, `pan_smoothing`, `restrict_camera`, `camera_outer_margin`, `smooth_zoom`, `zoom_smoothing`, `wheel_zoom_factor`, `min_zoom`, `max_zoom`, `drag_smoothing`, `edge_scroll_zone`, `edge_scroll_speed`, `edge_scroll_smoothing` |
 | `JigsawFeedbackSettings` | `animation_style`, `connect_animation_duration`, `connect_tint`, `pickup_tint`, `enable_failure_feedback`, `failure_tint`, `failure_animation_duration` |
 
 Los ajustes de animación incorporados se definen **únicamente** en `JigsawFeedbackSettings`, no en Appearance. `preview_dim` pertenece a Gameplay.
@@ -54,3 +54,21 @@ Los Resources son la única fuente de opciones. `JigsawBoard` conserva una copia
 **Cambio incompatible en escenas antiguas:** propiedades como `puzzle_texture`, `columns`, `show_ghost_board` o `animation_style` ya no se exportan en el nodo. Crea un `JigsawPuzzleConfig` y traslada sus valores antes de actualizar. No deben persistir asignaciones antiguas en `.tscn`.
 
 Las señales públicas y `JigsawReaction` permiten añadir HUD, efectos, sonido, puntuación y sistemas externos sin modificar el Board: `puzzle_generated`, `piece_picked`, `piece_released`, `pieces_connected`, `piece_placed`, `group_rotated`, `preview_toggled`, `connection_failed`, `puzzle_completed`.
+
+
+## Ajuste de cámara
+
+La cámara utiliza dos interpolaciones independientes: posición y zoom. `smooth_pan` suaviza el desplazamiento manual y el objetivo generado por edge-scroll; `pan_smoothing` controla lo rápido que la cámara alcanza ese objetivo. `edge_scroll_smoothing` controla la aceleración y frenada del movimiento automático al acercar una pieza a los bordes.
+
+Valores recomendados para escritorio:
+
+```text
+smooth_pan = true
+pan_smoothing = 26
+smooth_zoom = true
+zoom_smoothing = 12
+edge_scroll_speed = 900
+edge_scroll_smoothing = 12
+```
+
+Un valor más alto de smoothing responde más rápido; uno menor produce una transición más suave pero con mayor retraso. Si el `Camera2D` del proyecto tiene activado `position_smoothing_enabled`, desactiva ese smoothing o `JigsawCameraSettings.smooth_pan` para evitar una doble interpolación.
