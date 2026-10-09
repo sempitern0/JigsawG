@@ -1,87 +1,62 @@
 # JigsawG
 
-**A reusable 2D jigsaw-puzzle plugin for Godot 4.7.** Generate puzzle pieces from any supported image, connect independent groups, or place pieces onto an optional image guide. Silhouettes use complementary procedural Bézier curves, not fixed mask atlases.
+Godot 4.7 plugin to create interactive 2D jigsaw puzzles with procedural Bézier connectors, connected-piece groups, optional 90° rotation, Free/Mosaic gameplay, camera navigation and configurable feedback.
 
 ## Installation
 
-1. Copy **only** `addons/jigsawg/` into your game's `res://addons/` directory.
-2. Enable **JigsawG** in **Project → Project Settings → Plugins**.
-3. Add a **JigsawBoard** custom Node2D to your scene, and provide a Camera2D if you want the built-in camera navigation.
-4. Create a **JigsawPuzzleConfig** Resource and drag it into **Puzzle Config** on the board.
-5. Set the texture, rows and columns on that Resource, then customize its gameplay, appearance, camera and feedback subresources. Run the scene.
+1. Copy `addons/jigsawg/` into your project's `res://addons/`.
+2. Enable **JigsawG** at **Project > Project Settings > Plugins**.
+3. Add a **JigsawBoard** Node2D to your scene, with an active Camera2D for built-in navigation.
+4. Create a **JigsawPuzzleConfig** resource (.tres) and drag it onto the board's **Puzzle Config** property.
+5. Assign an image and dimensions in that resource; expand Gameplay, Appearance, Camera and Feedback to customize the entire puzzle.
 
-The standalone `examples/puzzle_lab.tscn` is a *development sandbox*, not a required dependency. Without a texture the board uses a generated checkerboard.
+The plugin requires no other addons. The development lab scene lives at `examples/puzzle_lab.tscn`; its Resource example is `examples/configs/standard_puzzle.tres`.
 
-## Features
+## Resource-first public API
 
-- Pixel-accurate shared texture with complementary Bézier connector profiles, configurable tessellation and rendering styles
-- Free (neighbor-group assembly) and Mosaic (lock into correct image position) modes
-- Optional ghost image on the workspace and **P** key full-image reference
-- Deterministic no-overlap scatter positions: Around Board / Center / Bottom, Random / Radial
-- **Optional right-click rotation in 90° increments** for individual pieces or connected groups; optionally randomized during shuffle
-- Rotation-aware snapping: Free requires equal group orientation and correct rotated displacement; Mosaic requires the original 0° orientation
-- Wheel zoom, drag on empty space to pan, middle-button pan and auto-pan when dragging near a screen edge
-- Signals for adding custom VFX, sound, scoring, timers and completion screens
+**JigsawBoard exposes only `puzzle_config` in the Inspector.** Everything else is defined through Resources:
 
-## Rotation mode
+| Type | Responsibilities |
+|---|---|
+| `JigsawPuzzleConfig` | Puzzle texture, rows, columns, silhouette count, nested presets |
+| `JigsawGameplaySettings` | Free/Mosaic, snapping, rotation, shuffle, transparent guide, preview and shortcut |
+| `JigsawAppearanceSettings` | Connector depth, Bézier detail, outline and texture filtering |
+| `JigsawCameraSettings` | Zoom, panning, edge movement, camera limits |
+| `JigsawFeedbackSettings` | Pickup, connection and failure tint effects and their duration |
 
-Set `allow_piece_rotation = true` to allow right-click quarter-turns. With `random_rotation_on_shuffle = true` and `initial_scatter = true`, pieces start at reproducible random multiples of 90°. Turn off either flag to suppress randomized orientation.
-
-A connected group rotates **as one** around the clicked piece's center, preserving the relative placement of every piece. A group with angle 90° cannot be joined to another group at 0° unless rotated to match. Right-click also works during an active left-drag. Mosaic only locks pieces at angle 0°.
-
-API: `rotate_piece(piece_index, clockwise = true)`. Signal: `group_rotated(piece_id, quarter_turns, group_size)`.
-
-## Resource-first configuration
-
-The recommended public API is **one JigsawPuzzleConfig** per puzzle. It contains **the source image and piece-count settings**, plus optional reusable gameplay, appearance, camera and feedback Resources. Every field needed to configure the built-in puzzle can be set through Resources; the old board fields remain for backward compatibility. See [Resource API and code examples](docs/RESOURCE_API.md) or open [the sample preset](examples/configs/standard_puzzle.tres).
+A developer can assign the entire puzzle by code:
 
 ```gdscript
-var preset := load("res://puzzles/my_puzzle.tres") as JigsawPuzzleConfig
-$JigsawBoard.configure(preset)
+var config := load("res://puzzles/my_puzzle.tres") as JigsawPuzzleConfig
+$JigsawBoard.configure(config)
 ```
 
-`configure(preset)` regenerates the puzzle, clearing current progress. `get_configuration()` returns the assigned Resource; `apply_configuration()` reapplies it. The Board reads but **does not modify the preset**.
-
-## Legacy Resource exports
-
-Create Resource files from the FileSystem panel using **New Resource → JigsawGameplaySettings** and **JigsawAppearanceSettings**. Set them on a `JigsawBoard` under **Reusable Presets**.
-
-| Resource | Examples |
-|---|---|
-| `JigsawGameplaySettings` | Free/Mosaic, snapping, rotation, shuffled angles, spawn mode, reference image, preview key |
-| `JigsawAppearanceSettings` | Piece outlines, Bézier detail, texture filtering, feedback style, animation timing |
-
-Root JigsawPuzzleConfig (when assigned) takes precedence over the legacy preset slots and matching individual board properties when `rebuild()` runs. The resources are read and **not mutated** by the board; sharing the same preset between multiple boards is supported. For board-specific overrides, omit the corresponding Resource (this first version applies an entire preset, rather than selectively overriding each field).
+`configure(config)` and `apply_configuration()` regenerate the puzzle and clear previous progress. `get_configuration()` returns the assigned Resource. The board never changes the source Resource. See [Resource API](docs/RESOURCE_API.md) for examples, complete property inventory and migration notes.
 
 ## Controls
 
-| Input | Behavior |
+| Input | Action |
 |---|---|
-| Left drag on piece | Drag a piece or connected group |
-| Right-click on piece | Rotate selected group 90° clockwise, when enabled |
-| Left drag empty space / middle drag | Pan camera |
-| Mouse wheel | Smooth, cursor-centered zoom |
-| Drag piece against window border | Edge autopan |
-| P (configurable) | Fullscreen completed-image preview |
+| Left drag on a piece | Drag piece or connected group |
+| Right click | Turn the selected piece/group 90° when enabled |
+| Left drag on empty space / middle drag | Move the camera |
+| Mouse wheel | Smooth zoom around cursor |
+| Drag near viewport edge | Auto-pan camera |
+| P (configurable) | Show/hide complete picture |
 
-## Embedding and API
+## Gameplay
 
-Use the signals on `JigsawBoard` instead of modifying internal implementation: `puzzle_generated(piece_count)`, `piece_picked(piece_id)`, `piece_released(piece_id, connected)`, `pieces_connected(group_size)`, `piece_placed(piece_id)`, `group_rotated(piece_id, quarter_turns, group_size)`, `preview_toggled(visible)`, `connection_failed(piece_id)`, `puzzle_completed()`.
+- Free: join pieces into independently assembled groups and merge them.
+- Mosaic: lock each piece at its matching board location with the correct orientation.
+- Optional semitransparent source-image guide and fullscreen preview.
+- Seeded shuffle, randomized 90° piece orientations and configurable silhouette variants.
+- Configurable Clean/Cardboard/High Contrast styles and interaction animations.
+- Signals for integration with your game's own scoring, HUD, audio and VFX: `puzzle_generated`, `piece_picked`, `piece_released`, `pieces_connected`, `piece_placed`, `group_rotated`, `connection_failed`, `preview_toggled`, `puzzle_completed`.
 
-Call `board.rebuild()` to regenerate from updated image/settings (clears group progress). Call `board.set_preview_visible(true/false)` to control the preview in your UI. Call `board.rotate_piece(piece_id)` to implement alternate controls. Connect signals to your own effects, HUD and gameplay managers.
+## Compatibility and testing
 
-The plugin **does not require** OmniKit or Draggable2D from the old Barebone prototype. Only the `addons/jigsawg` folder is required. GLES3/GL Compatibility does not support 2D MSAA, so the sample project deliberately leaves it disabled.
+**Breaking Inspector change:** individual board exports have been removed. Existing scenes must migrate their settings into `JigsawPuzzleConfig`. Runtime options remain internal, but the Resource is the authoritative configuration.
 
-## Source and quality
+Use high-resolution source images for large puzzles; Bézier sampling does not increase texture resolution. GL Compatibility/GLES3 is supported, without unsupported 2D MSAA.
 
-Higher-resolution source textures preserve detail for zoomed puzzle pieces. `bezier_detail` controls only edge geometry and does **not** increase texture resolution. Prefer high-quality images for large piece counts. The built-in texture sampling can be changed to Linear, Nearest or Mipmaps independently.
-
-## Status and contributing
-
-The feature branch is an **experimental release candidate**. Gameplay and appearance have been verified manually by the project owner in earlier iterations; the latest rotation/Resource changes have **not** been executed in Godot by the authoring environment. Confirm right-click behavior and large puzzle performance locally before tagging a release.
-
-- Development test scene: `examples/puzzle_lab.tscn`
-- Technical notes: `docs/ARCHITECTURE.md`
-- Testing checklist: `docs/TESTING.md`
-- Issues: https://github.com/sempitern0/JigsawG/issues
-- License: [LICENSE](LICENSE)
+The refactor has not yet been tested in a local Godot executable. See [testing checklist](docs/TESTING.md) before tagging a release. License: [LICENSE](LICENSE).
