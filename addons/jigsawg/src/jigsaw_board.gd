@@ -71,6 +71,7 @@ var edge_scroll_smoothing := 12.0
 var texture_sampling := 0
 var piece_edge_opacity := 0.0
 var piece_edge_width := 0.7
+var piece_material: Material
 var camera_outer_margin := 5.0
 var restrict_camera := false
 var game_mode: GameMode = GameMode.FREE
@@ -557,6 +558,8 @@ func rebuild() -> void:
 				highlight_shadow_color,
 				highlight_shadow_offset
 			)
+			if piece_material != null:
+				piece.material = piece_material
 			piece.position = home
 			_pieces.append(piece)
 			_rotations.append(0)
@@ -1204,6 +1207,7 @@ func _apply_resource_presets() -> void:
 	bezier_detail = appearance.bezier_detail
 	piece_edge_opacity = appearance.piece_edge_opacity
 	piece_edge_width = appearance.piece_edge_width
+	piece_material = appearance.piece_material
 	highlight_enabled = appearance.highlight_enabled
 	highlight_color = appearance.highlight_color
 	highlight_width = appearance.highlight_width
