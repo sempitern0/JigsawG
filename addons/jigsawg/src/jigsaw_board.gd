@@ -171,8 +171,8 @@ func is_completed() -> bool:
 func rebuild() -> void:
 	if not _pieces.is_empty():
 		if _dragged_piece >= 0:
-			_cancel_drag(&"rebuild")
-		_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_RESET, -1, true, &"rebuild", {
+			_cancel_drag(JigsawPuzzleEvent.REASON_REBUILD)
+		_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_RESET, -1, true, JigsawPuzzleEvent.REASON_REBUILD, {
 			"piece_count": _pieces.size()
 		}))
 	_apply_resource_presets()
@@ -275,7 +275,7 @@ func rebuild() -> void:
 			_fit_camera()
 		_zoom_goal = _camera.zoom.x
 	puzzle_generated.emit(_pieces.size())
-	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_STARTED, -1, true, &"generated", {
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_STARTED, -1, true, JigsawPuzzleEvent.REASON_GENERATED, {
 		"piece_count": _pieces.size(),
 		"columns": columns,
 		"rows": rows,
@@ -350,7 +350,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						_pieces[member].queue_redraw()
 					_animate_pickup(_members[_drag_root], true)
 					piece_picked.emit(i)
-					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_STARTED, i, true, &"pointer_down"))
+					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_STARTED, i, true, JigsawPuzzleEvent.REASON_POINTER_DOWN))
 					get_viewport().set_input_as_handled()
 					break
 			if _drag_root == -1 and enable_camera_navigation and _camera:
@@ -371,11 +371,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				connection_failed.emit(released_piece_id)
 				_animate_failed_connection(_pieces[released_piece_id])
 				if game_mode == GameMode.MOSAIC:
-					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED, released_piece_id, false, &"wrong_position_or_rotation"))
+					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACEMENT_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_WRONG_POSITION_OR_ROTATION))
 				else:
-					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED, released_piece_id, false, &"no_compatible_neighbor"))
+					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_NO_COMPATIBLE_NEIGHBOR))
 			piece_released.emit(released_piece_id, connected)
-			_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, &"released"))
+			_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, JigsawPuzzleEvent.REASON_RELEASED))
 			_drag_root = -1
 			_dragged_piece = -1
 			get_viewport().set_input_as_handled()
@@ -440,7 +440,7 @@ func _connect_adjacent_groups() -> bool:
 					_members[new_root].append(member)
 				_members.erase(old_root)
 				pieces_connected.emit(_members[new_root].size())
-				_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTED, index, true, &"neighbor_snap", {
+				_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTED, index, true, JigsawPuzzleEvent.REASON_NEIGHBOR_SNAP, {
 					"neighbor_piece_id": neighbor,
 					"group_size": _members[new_root].size()
 				}))
@@ -582,10 +582,10 @@ func set_preview_visible(visible: bool) -> void:
 	if not enable_preview or not is_instance_valid(_preview_overlay):
 		return
 	if visible:
-		_cancel_drag(&"preview_opened")
+		_cancel_drag(JigsawPuzzleEvent.REASON_PREVIEW_OPENED)
 	_preview_overlay.set_preview_visible(visible)
 	preview_toggled.emit(visible)
-	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PREVIEW_TOGGLED, -1, true, &"visible" if visible else &"hidden", {
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PREVIEW_TOGGLED, -1, true, JigsawPuzzleEvent.REASON_VISIBLE if visible else JigsawPuzzleEvent.REASON_HIDDEN, {
 		"visible": visible
 	}))
 
@@ -596,7 +596,7 @@ func _place_in_mosaic() -> bool:
 	_move_group(piece.home - piece.position)
 	_locked_pieces[_dragged_piece] = true
 	piece_placed.emit(_dragged_piece)
-	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACED, _dragged_piece, true, &"mosaic_slot"))
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACED, _dragged_piece, true, JigsawPuzzleEvent.REASON_MOSAIC_SLOT))
 	_animate_connection(piece)
 	if _locked_pieces.size() == _pieces.size():
 		_finish_puzzle()
@@ -752,7 +752,7 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 		_pointer_offset = _pieces[_dragged_piece].global_position - get_global_mouse_position()
 		_desired_position = _pieces[_dragged_piece].global_position
 	group_rotated.emit(piece_index, _rotations[piece_index], members.size())
-	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_ROTATED, piece_index, true, &"clockwise" if clockwise else &"counter_clockwise", {
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_ROTATED, piece_index, true, JigsawPuzzleEvent.REASON_CLOCKWISE if clockwise else JigsawPuzzleEvent.REASON_COUNTER_CLOCKWISE, {
 		"quarter_turns": _rotations[piece_index],
 		"group_size": members.size()
 	}))
@@ -822,7 +822,7 @@ func _finish_puzzle() -> void:
 		return
 	_finished = true
 	puzzle_completed.emit()
-	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_COMPLETED, -1, true, &"solved", {
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_COMPLETED, -1, true, JigsawPuzzleEvent.REASON_SOLVED, {
 		"piece_count": _pieces.size(),
 		"game_mode": game_mode
 	}))
