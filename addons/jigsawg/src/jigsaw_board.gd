@@ -200,7 +200,11 @@ func is_completed() -> bool:
 ## Create a standalone config snapshot suitable for ResourceSaver.
 ## The returned Resource is detached from the board's original config.
 func capture_resume_config() -> JigsawPuzzleConfig:
-	var config := puzzle_config.duplicate(true) as JigsawPuzzleConfig if puzzle_config != null else JigsawPuzzleConfig.new()
+	var config: JigsawPuzzleConfig
+	if puzzle_config != null:
+		config = puzzle_config.duplicate(true) as JigsawPuzzleConfig
+	else:
+		config = JigsawPuzzleConfig.new()
 	config.resume_state = capture_state()
 	return config
 
