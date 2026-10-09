@@ -5,7 +5,7 @@ extends Resource
 ## Changes take effect when the board applies the configuration.
 
 enum Mode { FREE, MOSAIC }
-enum Shuffle { AROUND_BOARD, CENTER, BOTTOM }
+enum Shuffle { AROUND_BOARD, CENTER, BOTTOM, CHAOTIC }
 enum Distribution { RANDOM, RADIAL }
 
 @export_group("Rules")
@@ -17,6 +17,8 @@ enum Distribution { RANDOM, RADIAL }
 @export var allow_piece_rotation := false
 ## Start scattered pieces at random 0°, 90°, 180° or 270° when rotation is enabled.
 @export var random_rotation_on_shuffle := true
+## Ctrl+click toggles whole connected groups in a multi-selection for joint dragging.
+@export var enable_multi_select := true
 
 @export_group("Shuffle")
 ## Choose where scattered pieces are placed.
@@ -27,6 +29,10 @@ enum Distribution { RANDOM, RADIAL }
 @export var initial_scatter := true
 ## Gap between scatter slots, as a fraction of the largest piece dimension.
 @export_range(0.02, 0.35, 0.01) var shuffle_spacing := 0.14
+## Chaotic mode spread around the solved board; higher uses a wider natural scatter area.
+@export_range(1.0, 5.0, 0.1) var chaotic_spread := 2.2
+## Maximum random placement attempts per piece before falling back to deterministic slots.
+@export_range(8, 200, 1) var chaotic_max_attempts := 64
 ## Reproducible profile and scatter seed.
 @export var generation_seed := 4729
 
