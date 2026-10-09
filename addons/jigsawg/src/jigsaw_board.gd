@@ -152,6 +152,22 @@ func _ready() -> void:
 		return
 	rebuild()
 
+## Assign a reusable config from code, optionally rebuilding immediately.
+## This method never mutates the supplied Resource.
+func configure(config: JigsawPuzzleConfig, regenerate: bool = true) -> void:
+	puzzle_config = config
+	if regenerate and is_inside_tree() and not Engine.is_editor_hint():
+		rebuild()
+
+## Reapply the currently assigned Resource (or legacy fields).
+## Regeneration clears placement progress, groups and current shuffling.
+func apply_configuration() -> void:
+	if is_inside_tree() and not Engine.is_editor_hint():
+		rebuild()
+
+func get_configuration() -> JigsawPuzzleConfig:
+	return puzzle_config
+
 func rebuild() -> void:
 	_apply_resource_presets()
 	for piece in _pieces:
