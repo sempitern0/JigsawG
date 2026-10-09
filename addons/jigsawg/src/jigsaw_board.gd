@@ -612,7 +612,13 @@ func _apply_resource_presets() -> void:
 		if puzzle_config.feedback != null:
 			_active_feedback = puzzle_config.feedback
 			var fx := puzzle_config.feedback
-			animation_style = fx.animation_style
+			match fx.animation_style:
+				JigsawFeedbackSettings.AnimationStyle.NONE:
+					animation_style = AnimationStyle.NONE
+				JigsawFeedbackSettings.AnimationStyle.PLAYFUL:
+					animation_style = AnimationStyle.PLAYFUL
+				_:
+					animation_style = AnimationStyle.SUBTLE
 			connect_animation_duration = fx.connect_animation_duration
 		# Root subresources override individually assigned legacy presets.
 	var active_gameplay: JigsawGameplaySettings = puzzle_config.gameplay if puzzle_config != null else gameplay_settings
