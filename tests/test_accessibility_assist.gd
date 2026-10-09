@@ -58,7 +58,20 @@ func _run() -> void:
 	second.position = first.position + Vector2(-45, 0)
 	assert(second.contains(near_left))
 	assert(board._find_piece_at(near_left) == 1)
+	second.position = first.position + Vector2(board._piece_size.x + 12.0, 0)
+	var gap_point := first.to_global(Vector2(board._piece_size.x + 6.0, board._piece_size.y * 0.10))
+	assert(not first.contains(gap_point) and not second.contains(gap_point))
+	board.select_piece(0, true)
+	assert(board._find_piece_at(gap_point) == 0, "A Ctrl-selected group should win an ambiguous fuzzy hit.")
+	board.clear_selection()
 	second.position = Vector2(10000, 9000)
+
+	# Quarter-turns transform the enlarged hit area but not the actual shape.
+	first.rotation = PI * 0.5
+	var rotated_outside := first.to_global(local_outside)
+	assert(not first.contains(rotated_outside))
+	assert(board._find_piece_at(rotated_outside) == 0)
+	first.rotation = 0.0
 
 	# The allowance is measured in screen pixels, even when zoomed out.
 	camera.zoom = Vector2.ONE * 0.5
