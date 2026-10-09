@@ -126,6 +126,24 @@ func animate_display_from(
 	_display_tween.tween_property(self, "display_transform", Transform2D.IDENTITY, duration).set_trans(transition).set_ease(easing)
 
 
+## Squared distance from a viewport-space point to the visible silhouette.
+## This does NOT replace exact polygon hit-testing or change snapping.
+## Includes the draw-only animation transform and Camera2D zoom.
+func outline_distance_sq_screen(screen_point: Vector2) -> float:
+	if polygon.size() < 3:
+		return INF
+	var screen_transform := get_global_transform_with_canvas() * display_transform
+	var nearest := INF
+	for i in range(polygon.size()):
+		var a: Vector2 = screen_transform * polygon[i]
+		var b: Vector2 = screen_transform * polygon[(i + 1) % polygon.size()]
+		var segment := b - a
+		var length_sq := segment.length_squared()
+		var fraction := clampf((screen_point - a).dot(segment) / length_sq, 0.0, 1.0) if length_sq > 0.000001 else 0.0
+		nearest = minf(nearest, screen_point.distance_squared_to(a + segment * fraction))
+	return nearest
+
+
 func contains(world_point: Vector2) -> bool:
 	var local := display_transform.affine_inverse() * to_local(world_point)
 	return bounds.has_point(local) and Geometry2D.is_point_in_polygon(local, polygon)

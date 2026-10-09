@@ -595,7 +595,38 @@ func _find_piece_at(world_position: Vector2) -> int:
 	for id in candidates:
 		if not _locked_pieces.has(id) and _pieces[id].contains(world_position):
 			return id
-	return -1
+	# The generous picking radius is optional and never takes precedence
+	# over an actual visible polygon beneath the pointer.
+	if selection_assist_radius_px <= 0.0:
+		return -1
+	var radius := clampf(selection_assist_radius_px, 0.0, 24.0)
+	var canvas_transform := get_global_transform_with_canvas()
+	var canvas_position: Vector2 = canvas_transform * to_local(world_position)
+	var inverse_canvas := canvas_transform.affine_inverse()
+	var corners := [
+		canvas_position + Vector2(-radius, -radius),
+		canvas_position + Vector2(radius, -radius),
+		canvas_position + Vector2(radius, radius),
+		canvas_position + Vector2(-radius, radius)
+	]
+	var region := Rect2(inverse_canvas * corners[0], Vector2.ZERO)
+	for j in range(1, corners.size()):
+		region = region.expand(inverse_canvas * corners[j])
+	var nearest_id := -1
+	var nearest_dist_sq := radius * radius
+	var nearest_selected := false
+	for id in _hit_index.query_region(region):
+		if _locked_pieces.has(id):
+			continue
+		var dist_sq: float = _pieces[id].outline_distance_sq_screen(canvas_position)
+		if dist_sq > radius * radius:
+			continue
+		var is_selected := _multi_selection_mode and _selected_piece_ids.has(id)
+		if nearest_id < 0 or (is_selected and not nearest_selected) or (is_selected == nearest_selected and dist_sq < nearest_dist_sq):
+			nearest_id = id
+			nearest_dist_sq = dist_sq
+			nearest_selected = is_selected
+	return nearest_id
 
 func _begin_piece_drag(piece_id: int, mouse_position: Vector2) -> void:
 	if not _selected_piece_ids.has(piece_id):
