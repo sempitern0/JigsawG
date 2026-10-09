@@ -1077,7 +1077,7 @@ func _get_pointer_screen() -> Vector2:
 func _get_pointer_world() -> Vector2:
 	if not _device_pointer_active:
 		return get_global_mouse_position()
-	return get_viewport().get_canvas_transform().affine_inverse() * _device_pointer_screen
+	return get_canvas_transform().affine_inverse() * _device_pointer_screen
 
 
 func _drag_threshold_screen() -> float:
