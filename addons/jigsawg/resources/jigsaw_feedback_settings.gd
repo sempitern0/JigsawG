@@ -1,7 +1,7 @@
 @tool
 class_name JigsawFeedbackSettings
 extends Resource
-## Appearance-only feedback. Never modifies puzzle piece transforms.
+## Interaction animation presets. Never modifies piece geometry or transforms.
 
 enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 
