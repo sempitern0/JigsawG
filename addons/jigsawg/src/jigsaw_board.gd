@@ -790,7 +790,13 @@ func rebuild() -> void:
 	_emit_progress_changed()
 
 func _random_edge() -> Vector2i:
-	return Vector2i(1 if _rng.randi_range(0, 1) == 0 else -1, _rng.randi_range(0, silhouette_variants - 1))
+	var polarity := 1 if _rng.randi_range(0, 1) == 0 else -1
+	var archetype := _rng.randi_range(0, silhouette_variants - 1)
+	if _connector_family == JigsawAppearanceSettings.ConnectorFamily.ORGANIC:
+		# Additional per-seam entropy: two pieces share the same seam token.
+		# Legacy connector families retain exactly their previous RNG sequence.
+		return Vector2i(polarity, archetype * 4096 + _rng.randi_range(0, 4095))
+	return Vector2i(polarity, archetype)
 
 func _make_demo_image() -> Image:
 	var image := Image.create(640, 480, false, Image.FORMAT_RGBA8)

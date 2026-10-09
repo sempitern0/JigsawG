@@ -11,7 +11,7 @@
 
 [sub_resource type="Resource" id="Appearance"]
 script = ExtResource("4")
-connector_family = 4
+connector_family = 5
 connector_variation = 0.8
 visual_style = 1
 texture_sampling = 1
