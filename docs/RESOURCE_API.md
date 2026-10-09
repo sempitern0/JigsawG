@@ -83,8 +83,9 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 `JigsawAppearanceSettings` owns:
 
 - `connector_depth`
-- `connector_family` (Classic, Rounded, Angular, Compact or Mixed)
+- `connector_family` (Classic, Rounded, Angular, Compact, Mixed or Organic)
 - `connector_variation` (0.0–1.0)
+- `recommended_pixels_per_piece` (native-artwork warning threshold; default 96 px)
 - `visual_style`
 - `texture_sampling`
 - `bezier_detail`
@@ -100,7 +101,7 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 
 `piece_material` accepts an optional CanvasItem `Material`/`ShaderMaterial` shared by every generated piece; null uses the built-in renderer. Apply changes with `rebuild()`. Because the material is shared, set per-piece shader instance parameters through custom integrations if necessary.
 
-**Shape difficulty:** Classic preserves existing contours. Rounded, Angular and Compact generate original Bézier silhouettes; Mixed chooses one of these families per seeded seam. Low `connector_variation` makes connectors within a family more similar; high variation makes them more distinctive. Set `silhouette_variants` (1–8) in the root config to control how many seam variants are used. Geometry does not affect snap rules, but changing family or variation requires `rebuild()` and invalidates snapshots generated with different profile settings. Piece count, rotation, source image and reference guides also affect difficulty.
+**Shape difficulty:** Classic preserves existing contours. Rounded, Angular and Compact generate original Bézier silhouettes; Mixed chooses one of these families per seeded seam. Organic produces original, seeded asymmetric, more curved seams with shared complementary tokens. This takes inspiration from the mask *families* in the supplied C# puzzle reference, but does not copy its SVG mask assets. Low `connector_variation` makes connectors within a family more similar; high variation makes them more distinctive. Set `silhouette_variants` (1–8) in the root config to control how many seam variants are used. Geometry does not affect snap rules, but changing family or variation requires `rebuild()` and invalidates snapshots generated with different profile settings. Piece count, rotation, source image and reference guides also affect difficulty.
 
 `bezier_detail` changes contour tessellation, not source-image resolution. The highlight settings affect selected/multi-selected pieces only; they do not change snap geometry.
 
@@ -109,6 +110,14 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 Set `gameplay.generation_batch_size > 0` to generate a puzzle across multiple frames without a background thread. Listen to `generation_progress_changed(generated, total)` or `puzzle_generated(piece_count)` for completion; `board.is_generating()` and `board.get_generation_progress()` provide pollable state. The prior synchronous contract remains the default at `generation_batch_size = 0`.
 
 Starting a second `rebuild()` or `configure()` invalidates the previous build's coroutine, discards partial pieces, and starts a new one. `capture_state()` is not supported during generation; wait for `puzzle_generated`. The deterministic scatter planner is based on concentric structured rings or a spatial hash for Chaotic mode.
+
+## Artwork resolution and readable 2000-piece puzzles
+
+Generated pieces sample **one source image texture** using piece-local UV coordinates. A 2000-piece puzzle made from an image that is only a few thousand pixels wide might provide just 40–80 native pixels per piece. Enlarging it does not recover fine details regardless of texture filter or Bézier tessellation.
+
+`JigsawAppearanceSettings.recommended_pixels_per_piece` defaults to 96. If the smaller native piece dimension is below this advisory threshold, `JigsawBoard` emits `artwork_detail_warning(info)` and a console warning suggesting a source-image resolution. `get_artwork_detail_info()` returns `source_size`, `native_pixels_per_piece`, `minimum_native_side_pixels`, `recommended_source_size` and `below_recommendation`. The threshold is configurable, not an enforced generation limit. For sharp zoomed-in photo details prefer original high-resolution art over upscaling a low-resolution JPEG, while accounting for GPU texture size/VRAM limits.
+
+Mipmaps are generated only for `texture_sampling = Mipmaps`, avoiding unnecessary mipmap generation and extra allocation in Nearest and Linear modes.
 
 ## Camera settings
 

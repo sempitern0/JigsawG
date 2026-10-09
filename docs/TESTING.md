@@ -20,7 +20,8 @@
 
 ## Gameplay regression
 - [ ] 5x4, 10x8 and 20x15 generate correct mirrored Bézier connections.
-- [ ] Test Classic, Rounded, Angular, Compact and Mixed families with low/high variation.
+- [ ] Test Classic, Rounded, Angular, Compact, Mixed and Organic families with low/high variation.
+- [ ] Run `godot --headless --path . --script res://tests/test_organic_shapes.gd` and verify complementary Organic contour samples and variation.
 - [ ] Confirm legacy Classic silhouettes and rejection of incompatible profile snapshots.
 - [ ] Run `godot --headless --path . --script res://tests/test_shape_profiles.gd`.
 - [ ] Left drag, group union and completion work in Free mode.
@@ -100,6 +101,8 @@
 - [ ] At 2000 pieces, test `focus_board()` / Home versus `fit_view()` / End on 1080p and 1440p screens.
 - [ ] Test Chaotic and Around Board scatter, grouping, rotated drag and snapping at 2000 pieces.
 - [ ] Record build time, 1% low FPS, draw calls, allocation memory and pointer input latency on target hardware. Pure planner results alone do **not** measure scene-build performance.
+- [ ] Verify that `get_artwork_detail_info()` reports real source pixels per piece and the warning suggests adequate artwork resolution.
+- [ ] Verify zoomed-in Organic tabs have smooth asymmetrical profiles, without self-intersections.
 - [ ] Verify that too-small source textures reject unresolvable 2000-piece grids without a crash.
 
 ## Publication

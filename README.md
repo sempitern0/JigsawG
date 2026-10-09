@@ -22,7 +22,7 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 
 | Feature | What it provides |
 | --- | --- |
-| Procedural puzzle pieces | Complementary Bézier tabs and sockets; Classic/Rounded/Angular/Compact/Mixed connector families and variation for puzzle difficulty |
+| Procedural puzzle pieces | Complementary Bézier tabs and sockets; Classic/Rounded/Angular/Compact/Mixed/Organic families for puzzle difficulty |
 | Group-aware assembly | Normal clicks stay unhighlighted until dragged; Ctrl-click immediately highlights; multi-selection packs distant groups while preserving joins |
 | Resumable puzzle state | Capture progress into a Resource and resume later without adopting a save-game framework |
 | Rotation difficulty | Optional right-click quarter-turns and seeded random 90° rotations on shuffle |
@@ -34,7 +34,13 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 | Natural shuffle | Deterministic grid layouts or a non-grid Chaotic mode with collision-aware random placement |
 | Event/reaction API | Typed events plus sound, VFX scenes, AnimationPlayer and method-call Resources; no Board overrides |
 
-The included `examples/puzzle_lab.tscn` uses a **Mixed** connector-family preset to showcase the new silhouettes immediately. The default connector family for new configurations remains **Classic**, preserving the previous appearance.
+The included `examples/puzzle_lab.tscn` uses an **Organic** connector-family preset to showcase more irregular silhouettes immediately. The default connector family for new configurations remains **Classic**, preserving the previous appearance.
+
+## Organic shapes and image clarity
+
+The supplied *Jigsaw Puzzle Infinite* Godot 3/C# reference is **mask-based**: it contains hand-authored SVG silhouette families (regular, small, sharp, round, spike, hex) and chooses a complementary mask per neighboring pair. JigsawG now provides **Organic** as an original procedural alternative: a unique seeded per-seam token controls asymmetric shoulders, necks, bulges and subtle wavy edges, while adjacent pieces remain exactly complementary. No SVGs are copied or converted to per-piece bitmaps. The example preset now selects Organic; other connector families stay backward-compatible.
+
+**Pixel sharpness is a different issue.** A 2000-piece image divides its raster texture into thousands of small crops. Zooming in enlarges the original pixels; Nearest may look blocky and Linear smooth, but neither adds real detail. To diagnose this, look for a warning in the Godot output or call `board.get_artwork_detail_info()`. `Appearance → Recommended Pixels per Piece` defaults to **96 native pixels** and reports a suggested source image size. High-resolution source files may require substantial VRAM and must fit your target GPU's maximum texture size.
 
 ## Large puzzles (200 / 500 / 2000)
 
