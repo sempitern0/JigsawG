@@ -7,8 +7,8 @@
 1. Copy **only** `addons/jigsawg/` into your game's `res://addons/` directory.
 2. Enable **JigsawG** in **Project → Project Settings → Plugins**.
 3. Add a **JigsawBoard** custom Node2D to your scene, and provide a Camera2D if you want the built-in camera navigation.
-4. Assign **Puzzle Texture**, and set **Columns** and **Rows**. Run the scene. The board constructs its pieces automatically.
-5. Customize settings directly in the inspector or assign reusable `JigsawGameplaySettings` and `JigsawAppearanceSettings` resources.
+4. Create a **JigsawPuzzleConfig** Resource and drag it into **Puzzle Config** on the board.
+5. Set the texture, rows and columns on that Resource, then customize its gameplay, appearance, camera and feedback subresources. Run the scene.
 
 The standalone `examples/puzzle_lab.tscn` is a *development sandbox*, not a required dependency. Without a texture the board uses a generated checkerboard.
 
@@ -31,7 +31,18 @@ A connected group rotates **as one** around the clicked piece's center, preservi
 
 API: `rotate_piece(piece_index, clockwise = true)`. Signal: `group_rotated(piece_id, quarter_turns, group_size)`.
 
-## Reusable Resources
+## Resource-first configuration
+
+The recommended public API is **one JigsawPuzzleConfig** per puzzle. It contains **the source image and piece-count settings**, plus optional reusable gameplay, appearance, camera and feedback Resources. Every field needed to configure the built-in puzzle can be set through Resources; the old board fields remain for backward compatibility. See [Resource API and code examples](docs/RESOURCE_API.md) or open [the sample preset](examples/configs/standard_puzzle.tres).
+
+```gdscript
+var preset := load("res://puzzles/my_puzzle.tres") as JigsawPuzzleConfig
+$JigsawBoard.configure(preset)
+```
+
+`configure(preset)` regenerates the puzzle, clearing current progress. `get_configuration()` returns the assigned Resource; `apply_configuration()` reapplies it. The Board reads but **does not modify the preset**.
+
+## Legacy Resource exports
 
 Create Resource files from the FileSystem panel using **New Resource → JigsawGameplaySettings** and **JigsawAppearanceSettings**. Set them on a `JigsawBoard` under **Reusable Presets**.
 
@@ -40,7 +51,7 @@ Create Resource files from the FileSystem panel using **New Resource → JigsawG
 | `JigsawGameplaySettings` | Free/Mosaic, snapping, rotation, shuffled angles, spawn mode, reference image, preview key |
 | `JigsawAppearanceSettings` | Piece outlines, Bézier detail, texture filtering, feedback style, animation timing |
 
-Presets take precedence over matching individual board properties when `rebuild()` runs. The resources are read and **not mutated** by the board; sharing the same preset between multiple boards is supported. For board-specific overrides, omit the corresponding Resource (this first version applies an entire preset, rather than selectively overriding each field).
+Root JigsawPuzzleConfig (when assigned) takes precedence over the legacy preset slots and matching individual board properties when `rebuild()` runs. The resources are read and **not mutated** by the board; sharing the same preset between multiple boards is supported. For board-specific overrides, omit the corresponding Resource (this first version applies an entire preset, rather than selectively overriding each field).
 
 ## Controls
 
