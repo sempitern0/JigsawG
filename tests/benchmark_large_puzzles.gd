@@ -10,7 +10,7 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _config(target: int, chaotic: bool) -> JigsawPuzzleConfig:
-	var result := JigsawPuzzleConfig.new()
+	var result: JigsawPuzzleConfig = JigsawPuzzleConfig.new()
 	result.puzzle_texture = _source
 	result.grid_mode = JigsawPuzzleConfig.GridMode.AUTO
 	result.target_piece_count = target
@@ -26,43 +26,43 @@ func _config(target: int, chaotic: bool) -> JigsawPuzzleConfig:
 func _measure_hits(board: Node2D, count: int) -> void:
 	var probes: Array[Vector2] = []
 	for sample in range(160):
-		var id := floori(float(sample * count) / 160.0)
-		var piece := board.get_piece_node(id) as JigsawPiece
+		var id: int = floori(float(sample * count) / 160.0)
+		var piece: JigsawPiece = board.get_piece_node(id) as JigsawPiece
 		probes.append(piece.to_global(piece.bounds.get_center()))
 	board._find_piece_at(probes[0]) # Lazy index build; exclude from warm query cost.
-	var indexed_ids := PackedInt32Array()
-	var candidates := 0
-	var start := Time.get_ticks_usec()
+	var indexed_ids: PackedInt32Array = PackedInt32Array()
+	var candidates: int = 0
+	var start: int = Time.get_ticks_usec()
 	for probe in probes:
 		indexed_ids.append(board._find_piece_at(probe))
 		candidates += board._hit_index.last_candidate_count()
-	var indexed_us := Time.get_ticks_usec() - start
+	var indexed_us: int = Time.get_ticks_usec() - start
 	start = Time.get_ticks_usec()
 	for j in range(probes.size()):
-		var expected := -1
+		var expected: int = -1
 		for id in range(count - 1, -1, -1):
 			if board.get_piece_node(id).contains(probes[j]):
 				expected = id
 				break
 		assert(expected == indexed_ids[j], "Spatial lookup changed exact picking result.")
-	var linear_us := Time.get_ticks_usec() - start
+	var linear_us: int = Time.get_ticks_usec() - start
 	print("HITS pieces=%d probes=%d avg_candidates=%.2f indexed_us=%d linear_us=%d" % [
 		count, probes.size(), float(candidates) / float(probes.size()), indexed_us, linear_us
 	])
 
 
 func _run() -> void:
-	var scene := Node2D.new()
+	var scene: Node2D = Node2D.new()
 	get_root().add_child(scene)
 	_camera = Camera2D.new()
 	scene.add_child(_camera)
 	_camera.make_current()
-	var image := Image.create(4096, 3072, false, Image.FORMAT_RGBA8)
+	var image: Image = Image.create(4096, 3072, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0.3, 0.5, 0.7))
 	_source = ImageTexture.create_from_image(image)
 	_board = BoardScript.new()
 	_board.puzzle_config = _config(200, false)
-	var started := Time.get_ticks_msec()
+	var started: int = Time.get_ticks_msec()
 	scene.add_child(_board)
 	for target in [200, 500, 2000]:
 		if target != 200:
@@ -70,7 +70,7 @@ func _run() -> void:
 			_board.configure(_config(target, target == 500))
 		if _board.is_generating():
 			await _board.puzzle_generated
-		var elapsed := Time.get_ticks_msec() - started
+		var elapsed: int = Time.get_ticks_msec() - started
 		var grid: Vector2i = _board.get_effective_grid()
 		var count: int = _board.get_piece_count()
 		assert(not _board.is_generating())
@@ -80,13 +80,13 @@ func _run() -> void:
 		assert(_board.get_connected_group_count() == count)
 		assert(_board.capture_state().get_piece_count() == count)
 		assert(_board.focus_board())
-		var board_zoom := _camera.zoom.x
+		var board_zoom: float = _camera.zoom.x
 		assert(_board.fit_view())
-		var all_zoom := _camera.zoom.x
+		var all_zoom: float = _camera.zoom.x
 		assert(all_zoom <= board_zoom + 0.0001)
 		print("BOARD target=%d actual=%d grid=%dx%d build_ms=%d board_zoom=%.4f overview_zoom=%.4f" % [target, count, grid.x, grid.y, elapsed, board_zoom, all_zoom])
 		_measure_hits(_board, count)
-	var long_config := _config(2000, true)
+	var long_config: JigsawPuzzleConfig = _config(2000, true)
 	long_config.gameplay.generation_batch_size = 16
 	_board.configure(long_config)
 	assert(_board.is_generating())

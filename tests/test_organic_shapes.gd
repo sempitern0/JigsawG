@@ -7,9 +7,9 @@ func _initialize() -> void:
 	# Tabs/sockets reverse one shared mathematical seam, not approximate masks.
 	var distinct: Dictionary = {}
 	for token in [3, 14, 212, 4096 + 7, 4096 + 341, 3 * 4096 + 1777]:
-		var tab := Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
+		var tab: PackedVector2Array = Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
 			Vector2i(1, token), 26.0, 12, 5, 1.0)
-		var socket := Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
+		var socket: PackedVector2Array = Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
 			Vector2i(-1, token), 26.0, 12, 5, 1.0)
 		assert(tab.size() == socket.size())
 		assert(tab.size() >= 90)
@@ -21,15 +21,15 @@ func _initialize() -> void:
 		distinct[str(token)] = tab[tab.size() / 2]
 	var unique_contours: Dictionary = {}
 	for token in [3, 14, 212, 4096 + 7, 4096 + 341, 3 * 4096 + 1777]:
-		var profile := Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
+		var profile: PackedVector2Array = Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
 			Vector2i(1, token), 26.0, 12, 5, 1.0)
-		var signature := str(profile[profile.size() / 3], profile[profile.size() * 2 / 3])
+		var signature: String = str(profile[profile.size() / 3], profile[profile.size() * 2 / 3])
 		unique_contours[signature] = true
 	assert(unique_contours.size() >= 5, "Organic seams must vary per shared token.")
 
 	# Exercise a rare near-shoulder contour that could fold back on itself.
 	# Contour segments may touch their immediate neighbors only.
-	var pathological := Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
+	var pathological: PackedVector2Array = Geometry.edge_points(Vector2.ZERO, Vector2(100, 0), Vector2.DOWN,
 		Vector2i(1, 12974), 26.0, 12, 5, 1.0)
 	for i in range(pathological.size() - 1):
 		for j in range(i + 2, pathological.size() - 1):
@@ -39,12 +39,12 @@ func _initialize() -> void:
 			)
 			assert(intersection == null, "Organic contour crossed itself.")
 
-	var older := JigsawAppearanceSettings.new()
+	var older: JigsawAppearanceSettings = JigsawAppearanceSettings.new()
 	assert(older.connector_family == JigsawAppearanceSettings.ConnectorFamily.CLASSIC)
 	assert(JigsawAppearanceSettings.ConnectorFamily.MIXED == 4)
 	assert(JigsawAppearanceSettings.ConnectorFamily.ORGANIC == 5)
-	var board := BoardScript.new()
-	var config := JigsawPuzzleConfig.new()
+	var board: Node2D = BoardScript.new()
+	var config: JigsawPuzzleConfig = JigsawPuzzleConfig.new()
 	config.columns = 3
 	config.rows = 3
 	config.gameplay.initial_scatter = false

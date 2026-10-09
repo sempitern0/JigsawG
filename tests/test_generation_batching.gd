@@ -8,7 +8,7 @@ var completed: Array[int] = []
 
 
 func _config(columns: int, rows: int, batch_size: int) -> JigsawPuzzleConfig:
-	var cfg := JigsawPuzzleConfig.new()
+	var cfg: JigsawPuzzleConfig = JigsawPuzzleConfig.new()
 	cfg.columns = columns
 	cfg.rows = rows
 	cfg.gameplay.initial_scatter = false
@@ -18,7 +18,7 @@ func _config(columns: int, rows: int, batch_size: int) -> JigsawPuzzleConfig:
 
 
 func _initialize() -> void:
-	var board := BoardScript.new()
+	var board: Node2D = BoardScript.new()
 	board.puzzle_config = _config(6, 6, 7)
 	board.generation_progress_changed.connect(func(done: int, total: int) -> void:
 		progress.append(Vector2i(done, total))
@@ -41,7 +41,7 @@ func _verify_async(board: Node2D) -> void:
 	assert(board.get_generation_progress() == Vector2i(36, 36))
 	assert(progress.size() > 2 and progress[0] == Vector2i(0, 36))
 	assert(progress.back() == Vector2i(36, 36))
-	var last := -1
+	var last: int = -1
 	for sample in progress:
 		assert(sample.y == 36 and sample.x >= last and sample.x <= 36)
 		last = sample.x

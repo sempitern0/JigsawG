@@ -3,7 +3,7 @@ extends SceneTree
 const HitIndex = preload("res://addons/jigsawg/src/jigsaw_hit_index.gd")
 
 func _initialize() -> void:
-	var index := HitIndex.new()
+	var index: RefCounted = HitIndex.new()
 	assert(index.is_dirty())
 	assert(index.query(Vector2.ZERO).is_empty())
 	for count in [200, 500, 2000]:
@@ -12,13 +12,13 @@ func _initialize() -> void:
 			rectangles.append(Rect2(Vector2((i % 50) * 38 - 900, (i / 50) * 38 - 500), Vector2(46, 46)))
 		index.rebuild(rectangles, 48.0)
 		assert(not index.is_dirty())
-		var rng := RandomNumberGenerator.new()
+		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 		rng.seed = 14729
-		var total_candidates := 0
+		var total_candidates: int = 0
 		for sample in range(1200):
-			var point := Vector2(rng.randf_range(-1000, 1200), rng.randf_range(-600, 1200))
-			var candidate_ids := index.query(point)
-			var last_id := count
+			var point: Vector2 = Vector2(rng.randf_range(-1000, 1200), rng.randf_range(-600, 1200))
+			var candidate_ids: PackedInt32Array = index.query(point)
+			var last_id: int = count
 			for id in candidate_ids:
 				assert(id < last_id, "Broad phase must preserve descending scene order.")
 				last_id = id
