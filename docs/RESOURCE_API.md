@@ -14,11 +14,12 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 
 | Resource | Responsibility |
 | --- | --- |
-| `JigsawPuzzleConfig` | Source texture, grid dimensions, silhouette variety and references to the sections below |
+| `JigsawPuzzleConfig` | Source texture, grid dimensions, silhouette variety, optional resume state and references to the sections below |
 | `JigsawGameplaySettings` | Free/Mosaic rules, snapping, rotation, shuffle, ghost guide and preview |
 | `JigsawAppearanceSettings` | Bézier connector shape, texture sampling and piece-edge rendering |
 | `JigsawCameraSettings` | Auto-fit, pan, zoom, bounds, drag response and edge scrolling |
 | `JigsawFeedbackSettings` | Built-in pickup/connect/failure tint feedback |
+| `JigsawPuzzleState` | Serializable runtime progress: positions, rotations, connected groups and Mosaic locks |
 | `JigsawReaction[]` | Optional reusable reactions for audio, VFX or game-specific behavior |
 
 ## JigsawPuzzleConfig
@@ -33,6 +34,7 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `appearance` | `JigsawAppearanceSettings` |
 | `camera` | `JigsawCameraSettings` |
 | `feedback` | `JigsawFeedbackSettings` |
+| `resume_state` | Optional `JigsawPuzzleState` applied after generation |
 | `reactions` | Array of `JigsawReaction` Resources |
 
 The exact piece count is `columns * rows`.
@@ -45,10 +47,13 @@ The exact piece count is `columns * rows`.
 - `snap_tolerance`
 - `allow_piece_rotation`
 - `random_rotation_on_shuffle`
+- `enable_multi_select`
 - `shuffle_mode`
 - `distribution_mode`
 - `initial_scatter`
 - `shuffle_spacing`
+- `chaotic_spread`
+- `chaotic_max_attempts`
 - `generation_seed`
 - `show_ghost_board`
 - `ghost_opacity`
@@ -57,6 +62,10 @@ The exact piece count is `columns * rows`.
 - `preview_dim`
 
 Use **Free** for classic group assembly. Use **Mosaic** when pieces should lock into their original image position.
+
+With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in the current selection. A normal drag on any selected group moves all selected groups together.
+
+`Shuffle.CHAOTIC` uses continuous random placement with conservative collision footprints instead of visible grid slots. `chaotic_spread` controls the available area; `chaotic_max_attempts` controls how hard the placer tries before using a safe fallback.
 
 ## Appearance settings
 
@@ -68,8 +77,14 @@ Use **Free** for classic group assembly. Use **Mosaic** when pieces should lock 
 - `bezier_detail`
 - `piece_edge_opacity`
 - `piece_edge_width`
+- `highlight_enabled`
+- `highlight_color`
+- `highlight_width`
+- `highlight_shadow_enabled`
+- `highlight_shadow_color`
+- `highlight_shadow_offset`
 
-`bezier_detail` changes contour tessellation, not source-image resolution.
+`bezier_detail` changes contour tessellation, not source-image resolution. The highlight settings affect selected/multi-selected pieces only; they do not change snap geometry.
 
 ## Camera settings
 
@@ -82,6 +97,8 @@ Use **Free** for classic group assembly. Use **Mosaic** when pieces should lock 
 - `pan_smoothing`
 - `restrict_camera`
 - `camera_outer_margin`
+- `background_pan_delay_ms`
+- `background_pan_threshold_px`
 - `smooth_zoom`
 - `zoom_smoothing`
 - `wheel_zoom_factor`
@@ -106,6 +123,45 @@ edge_scroll_smoothing = 12
 Higher smoothing values respond faster. Lower values feel softer but introduce more visual lag.
 
 If the host `Camera2D` already has Godot's own `position_smoothing_enabled`, disable either that smoothing or JigsawG's `smooth_pan` to avoid double interpolation.
+
+## Resume state
+
+`JigsawPuzzleState` is deliberately separate from save-slot/UI concerns. It stores:
+
+- local piece positions
+- quarter-turn rotations
+- connected-group ids
+- Mosaic locked-piece ids
+- completion state
+- compatibility metadata (rows/columns, source dimensions, seed and silhouette count)
+
+Capture:
+
+```gdscript
+var state := $JigsawBoard.capture_state()
+```
+
+Apply to the current compatible board:
+
+```gdscript
+$JigsawBoard.restore_state(state)
+```
+
+For the simplest persistence workflow, capture one complete configuration containing the snapshot:
+
+```gdscript
+var resume_config := $JigsawBoard.capture_resume_config()
+ResourceSaver.save(resume_config, "user://puzzle_resume.tres")
+```
+
+Later:
+
+```gdscript
+var resume_config := ResourceLoader.load("user://puzzle_resume.tres") as JigsawPuzzleConfig
+$JigsawBoard.configure(resume_config)
+```
+
+The Board validates compatibility before applying a state and returns `false` from `restore_state()` if it does not match. It never writes files itself.
 
 ## Feedback settings
 
@@ -197,6 +253,12 @@ Useful integration methods:
 - `get_group_piece_ids(piece_id)`
 - `get_piece_world_center(piece_id)`
 - `get_dragged_piece_id()`
+- `get_selected_piece_ids()`
+- `select_piece(piece_id, additive = false)`
+- `clear_selection()`
+- `capture_state()`
+- `restore_state(state, update_camera = true)`
+- `capture_resume_config()`
 - `is_completed()`
 
 For external effects and game logic, use the rich semantic signals and `JigsawPuzzleEvent` API documented in [Events & Reactions](EVENTS_AND_REACTIONS.md).
