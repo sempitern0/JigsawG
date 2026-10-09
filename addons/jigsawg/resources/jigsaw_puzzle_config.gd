@@ -23,3 +23,8 @@ extends Resource
 @export var camera: JigsawCameraSettings = JigsawCameraSettings.new()
 ## Selection, successful connection and failed-connection feedback.
 @export var feedback: JigsawFeedbackSettings = JigsawFeedbackSettings.new()
+
+@export_group("Reactions")
+## Optional reusable event handlers. Empty means signals-only integration.
+## Shared reactions should be stateless and must not mutate this config.
+@export var reactions: Array[JigsawReaction] = []
