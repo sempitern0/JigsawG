@@ -17,7 +17,7 @@ enum Distribution { RANDOM, RADIAL }
 @export var allow_piece_rotation := false
 ## Start scattered pieces at random 0°, 90°, 180° or 270° when rotation is enabled.
 @export var random_rotation_on_shuffle := true
-## Ctrl+click toggles whole connected groups in a multi-selection for joint dragging.
+## Ctrl+click toggles complete connected groups; a drag packs distant groups into a compact non-overlapping arrangement.
 @export var enable_multi_select := true
 
 @export_group("Shuffle")

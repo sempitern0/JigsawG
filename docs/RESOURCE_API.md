@@ -27,8 +27,10 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | Property | Meaning |
 | --- | --- |
 | `puzzle_texture` | Image used by the puzzle; null uses the diagnostic checkerboard |
-| `columns` | Number of puzzle columns |
-| `rows` | Number of puzzle rows |
+| `grid_mode` | Manual columns/rows (default) or Auto piece-count-driven grid |
+| `target_piece_count` | Approximate desired count in Auto mode; may differ from generated count |
+| `columns` | Number of puzzle columns in Manual mode |
+| `rows` | Number of puzzle rows in Manual mode |
 | `silhouette_variants` | Number of connector profile families used during generation |
 | `gameplay` | `JigsawGameplaySettings` |
 | `appearance` | `JigsawAppearanceSettings` |
@@ -37,7 +39,7 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `resume_state` | Optional `JigsawPuzzleState` applied after generation |
 | `reactions` | Array of `JigsawReaction` Resources |
 
-The exact piece count is `columns * rows`.
+In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image dimensions and `target_piece_count` determine a balanced grid; actual count can differ to avoid elongated pieces and respect minimum source resolution. `board.get_effective_grid()` returns resolved columns and rows; `board.get_piece_count()` returns the generated count. The board never modifies the original configuration Resource.
 
 ## Gameplay settings
 
@@ -63,7 +65,7 @@ The exact piece count is `columns * rows`.
 
 Use **Free** for classic group assembly. Use **Mosaic** when pieces should lock into their original image position.
 
-With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in the current selection. A normal drag on any selected group moves all selected groups together.
+With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in the current selection. Dragging a multi-selection automatically packs disconnected groups into compact, separated rows near the grabbed group while retaining existing connections and rotations. A simple click does not rearrange anything. Normal single clicks are visually unhighlighted; the highlight appears only after actual pointer motion during a drag, and disappears on release. Ctrl-selections stay highlighted to indicate intentional selection.
 
 `Shuffle.CHAOTIC` uses continuous random placement with conservative collision footprints instead of visible grid slots. `chaotic_spread` controls the available area; `chaotic_max_attempts` controls how hard the placer tries before using a safe fallback.
 
@@ -280,6 +282,7 @@ Useful integration methods:
 - `set_preview_visible(visible)`
 - `rotate_piece(piece_id, clockwise = true)`
 - `get_piece_count()`
+- `get_effective_grid()` — actual columns and rows (especially useful in Auto mode)
 - `get_piece_node(piece_id)`
 - `get_group_piece_ids(piece_id)`
 - `get_piece_world_center(piece_id)`

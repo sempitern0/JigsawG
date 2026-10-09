@@ -7,9 +7,15 @@ extends Resource
 @export_group("Puzzle")
 ## Source image. Null uses JigsawG's diagnostic checkerboard.
 @export var puzzle_texture: Texture2D
-## Exact piece count is columns multiplied by rows; rebuild to regenerate.
+
+enum GridMode { MANUAL, AUTO }
+## Manual uses columns x rows. Auto resolves a balanced grid near target_piece_count.
+@export var grid_mode: GridMode = GridMode.MANUAL
+## Desired (approximate) number of pieces in Auto mode. The generated count may differ.
+@export_range(4, 1600, 1) var target_piece_count := 100
+## Exact piece count in Manual mode is columns multiplied by rows.
 @export_range(2, 40, 1) var columns := 5
-## Exact piece count is columns multiplied by rows; rebuild to regenerate.
+## Used only in Manual mode. Auto ignores columns/rows.
 @export_range(2, 40, 1) var rows := 4
 ## Number of connector silhouette families; rebuild to regenerate.
 @export_range(1, 8, 1) var silhouette_variants := 3

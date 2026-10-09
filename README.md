@@ -23,14 +23,14 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 | Feature | What it provides |
 | --- | --- |
 | Procedural puzzle pieces | Complementary Bézier tabs and sockets; Classic/Rounded/Angular/Compact/Mixed connector families and variation for puzzle difficulty |
-| Group-aware assembly | Build independent groups, Ctrl-select several groups and move them together |
+| Group-aware assembly | Normal clicks stay unhighlighted until dragged; Ctrl-selection packs distant groups into compact rows while preserving joins |
 | Resumable puzzle state | Capture progress into a Resource and resume later without adopting a save-game framework |
 | Rotation difficulty | Optional right-click quarter-turns and seeded random 90° rotations on shuffle |
 | Two gameplay modes | **Free:** assemble groups anywhere; **Mosaic:** place each piece in its matching position |
 | Guided play | Semi-transparent image mat and a fullscreen reference preview |
 | Large-puzzle navigation | Mouse-wheel zoom, background/middle-button pan and edge scrolling |
 | Visual feedback | Clean/Cardboard/High Contrast styles, configurable pickup/connection/failure tint effects |
-| Resource-first API | One `JigsawPuzzleConfig` asset on `JigsawBoard`; reuse configurations across puzzles |
+| Resource-first API | Manual columns × rows or automatic balanced grid from an approximate piece count; reuse `JigsawPuzzleConfig` presets |
 | Natural shuffle | Deterministic grid layouts or a non-grid Chaotic mode with collision-aware random placement |
 | Event/reaction API | Typed events plus sound, VFX scenes, AnimationPlayer and method-call Resources; no Board overrides |
 
@@ -45,7 +45,7 @@ The included `examples/puzzle_lab.tscn` uses a **Mixed** connector-family preset
 3. In Godot, open **Project → Project Settings → Plugins** and enable **JigsawG**.
 4. Add a **JigsawBoard** node through **Add Child Node**. Add an active **Camera2D** to the scene if you want built-in navigation.
 5. In the `JigsawBoard` Inspector, create or assign a **JigsawPuzzleConfig** to its **Puzzle Config** property.
-6. Set **Puzzle Texture**, **Columns** and **Rows** on the Resource, then expand **Gameplay**, **Appearance**, **Camera** and **Feedback** to tailor the experience.
+6. Set **Puzzle Texture** and either **Grid Mode → Manual** with Columns/Rows or **Grid Mode → Auto** with Target Piece Count. Expand **Gameplay**, **Appearance**, **Camera** and **Feedback** to tailor the experience.
 
 Your scene can be as small as:
 
@@ -56,6 +56,12 @@ PuzzleScene (Node2D)
 ```
 
 **Note:** Without a source image JigsawG shows a generated checkerboard useful for diagnostics. Supply your own licensed artwork for published games.
+
+## Automatic grid and compact multi-selection
+
+Set `JigsawPuzzleConfig.grid_mode` to **Auto** and choose `target_piece_count`. JigsawG selects columns/rows using source-image proportions and keeps pieces reasonably square (minimum 14 image pixels per cell). The **actual count can differ from the requested count**, particularly for prime numbers or very narrow images; query `board.get_piece_count()` or `board.get_effective_grid()` after generation. The old Manual mode remains the default.
+
+Clicking a single loose piece without Ctrl does not leave a selected outline. Its outline appears during a real drag and disappears on release. **Ctrl+click** toggles selected connected groups; when you drag a multi-selection, distant groups are packed into nearby non-overlapping rows without breaking already-connected pieces. A simple click without moving does not reorganize the selection.
 
 ## Quick start: reusable puzzle asset
 

@@ -32,6 +32,8 @@ signal interaction_enabled_changed(enabled: bool)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
+const GridResolver = preload("res://addons/jigsawg/src/jigsaw_grid_resolver.gd")
+const SelectionLayout = preload("res://addons/jigsawg/src/jigsaw_selection_layout.gd")
 const StateValidator = preload("res://addons/jigsawg/src/jigsaw_state_validator.gd")
 const PreviewOverlay = preload("res://addons/jigsawg/src/jigsaw_preview_overlay.gd")
 
@@ -119,6 +121,9 @@ var _pieces: Array[JigsawPiece] = []
 var _parents: Array[int] = []
 var _members: Dictionary = {}
 var _selected_piece_ids: Dictionary = {}
+var _multi_selection_mode := false
+var _drag_visual_active := false
+var _drag_start_screen := Vector2.ZERO
 var _finished := false
 var _drag_root := -1
 var _dragged_piece := -1
@@ -173,9 +178,13 @@ func apply_configuration() -> void:
 func get_configuration() -> JigsawPuzzleConfig:
 	return puzzle_config
 
-## Number of generated runtime pieces.
+## Number of generated runtime pieces (may differ from Auto mode's requested count).
 func get_piece_count() -> int:
 	return _pieces.size()
+
+## Actual grid in use; does not change the shared configuration Resource.
+func get_effective_grid() -> Vector2i:
+	return Vector2i(columns, rows)
 
 ## Read-only integration hook for VFX that need to follow a piece.
 ## Do not change its transform; JigsawBoard owns puzzle positioning.
@@ -280,6 +289,8 @@ func get_progress_info() -> Dictionary:
 	return {
 		"progress": get_progress(),
 		"mode": game_mode,
+		"columns": columns,
+		"rows": rows,
 		"total_pieces": _pieces.size(),
 		"locked_pieces": _locked_pieces.size(),
 		"group_count": _members.size(),
@@ -390,6 +401,7 @@ func get_selected_piece_ids() -> PackedInt32Array:
 ## Clear the current selection without changing puzzle positions.
 func clear_selection() -> void:
 	_selected_piece_ids.clear()
+	_multi_selection_mode = false
 	_refresh_selection_visuals()
 
 ## Select a piece's complete connected group. additive=false replaces the selection.
@@ -398,6 +410,7 @@ func select_piece(piece_id: int, additive: bool = false) -> void:
 		return
 	if not additive:
 		_selected_piece_ids.clear()
+	_multi_selection_mode = additive
 	for member in _members.get(_parents[piece_id], []):
 		_selected_piece_ids[int(member)] = true
 	_refresh_selection_visuals()
@@ -417,14 +430,16 @@ func _toggle_group_selection(piece_id: int) -> void:
 			_selected_piece_ids.erase(id)
 		else:
 			_selected_piece_ids[id] = true
+	_multi_selection_mode = not _selected_piece_ids.is_empty()
 	_refresh_selection_visuals()
 
 func _refresh_selection_visuals(active_drag: bool = false) -> void:
+	# Normal single selection stays visually neutral until the pointer actually moves.
+	var should_highlight := active_drag or _multi_selection_mode
 	for i in range(_pieces.size()):
 		var selected := _selected_piece_ids.has(i) and not _locked_pieces.has(i)
-		_pieces[i].selected = selected
-		_pieces[i].z_index = 10 if selected and active_drag else (5 if selected else 0)
-		_pieces[i].queue_redraw()
+		_pieces[i].selected = selected and should_highlight
+		_pieces[i].z_index = 10 if selected and active_drag else (5 if selected and _multi_selection_mode else 0)
 
 func _find_piece_at(world_position: Vector2) -> int:
 	for i in range(_pieces.size() - 1, -1, -1):
@@ -437,14 +452,72 @@ func _begin_piece_drag(piece_id: int, mouse_position: Vector2) -> void:
 		select_piece(piece_id, false)
 	_dragged_piece = piece_id
 	_drag_root = _parents[piece_id]
+	_drag_visual_active = false
+	_drag_start_screen = get_viewport().get_mouse_position()
 	_pointer_offset = _pieces[piece_id].global_position - mouse_position
 	_desired_position = _pieces[piece_id].global_position
-	_refresh_selection_visuals(true)
-	_animate_pickup(_selected_piece_ids.keys(), true)
+	_refresh_selection_visuals(false)
 	piece_picked.emit(piece_id)
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_STARTED, piece_id, true, JigsawPuzzleEvent.REASON_POINTER_DOWN, {
 		"selected_piece_ids": get_selected_piece_ids()
 	}))
+
+## Activate visual dragging only after pointer movement, not on a simple click.
+func _activate_drag() -> void:
+	if _drag_visual_active or _drag_root < 0:
+		return
+	_drag_visual_active = true
+	_compact_selected_groups()
+	_refresh_selection_visuals(true)
+	_animate_pickup(_selected_piece_ids.keys(), true)
+
+
+## A selected connected group must remain rigid; only detached groups are packed.
+func _compact_selected_groups() -> void:
+	var roots: Array[int] = []
+	var seen: Dictionary = {}
+	var selected_ids: Array = _selected_piece_ids.keys()
+	selected_ids.sort()
+	for piece_variant in selected_ids:
+		var root: int = _parents[int(piece_variant)]
+		if not seen.has(root):
+			roots.append(root)
+			seen[root] = true
+	if roots.size() <= 1:
+		return
+	roots.erase(_drag_root)
+	roots.push_front(_drag_root)
+	var rectangles: Array[Rect2] = []
+	for root in roots:
+		rectangles.append(_group_bounds_local(root))
+	var offsets := SelectionLayout.pack(rectangles, minf(_piece_size.x, _piece_size.y) * 0.45)
+	for i in range(roots.size()):
+		for member_variant in _members[roots[i]]:
+			var piece_id := int(member_variant)
+			_pieces[piece_id].position += offsets[i]
+
+
+## Bounds include rotated Bézier tabs, not just the original image cell.
+func _group_bounds_local(root: int) -> Rect2:
+	var first_point := true
+	var rect := Rect2()
+	for piece_variant in _members[root]:
+		var piece: JigsawPiece = _pieces[int(piece_variant)]
+		var corners: Array[Vector2] = [
+			piece.bounds.position,
+			Vector2(piece.bounds.end.x, piece.bounds.position.y),
+			piece.bounds.end,
+			Vector2(piece.bounds.position.x, piece.bounds.end.y)
+		]
+		for corner in corners:
+			var point: Vector2 = piece.transform * corner
+			if first_point:
+				rect = Rect2(point, Vector2.ZERO)
+				first_point = false
+			else:
+				rect = rect.expand(point)
+	return rect
+
 
 func rebuild() -> void:
 	if not _pieces.is_empty():
@@ -467,6 +540,8 @@ func rebuild() -> void:
 	_rotations.clear()
 	_members.clear()
 	_selected_piece_ids.clear()
+	_multi_selection_mode = false
+	_drag_visual_active = false
 	_drag_root = -1
 	_dragged_piece = -1
 	_finished = false
@@ -480,6 +555,13 @@ func rebuild() -> void:
 	if source == null or source.is_empty():
 		push_error("JigsawG: a readable source image is required.")
 		return
+	if puzzle_config != null and puzzle_config.grid_mode == JigsawPuzzleConfig.GridMode.AUTO:
+		var effective_grid := GridResolver.resolve(puzzle_config.target_piece_count, source.get_size())
+		if effective_grid == Vector2i.ZERO:
+			push_error("JigsawG: no valid grid for the requested piece count and source image.")
+			return
+		columns = effective_grid.x
+		rows = effective_grid.y
 	if columns < 2 or rows < 2 or silhouette_variants < 1 or silhouette_variants > 8:
 		push_error("JigsawG: invalid grid dimensions or silhouette variant count.")
 		return
@@ -585,6 +667,7 @@ func rebuild() -> void:
 	puzzle_generated.emit(_pieces.size())
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_STARTED, -1, true, JigsawPuzzleEvent.REASON_GENERATED, {
 		"piece_count": _pieces.size(),
+		"requested_piece_count": puzzle_config.target_piece_count if puzzle_config != null and puzzle_config.grid_mode == JigsawPuzzleConfig.GridMode.AUTO else _pieces.size(),
 		"columns": columns,
 		"rows": rows,
 		"game_mode": game_mode,
@@ -674,13 +757,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 			if not event.pressed:
 				if _drag_root != -1 and _dragged_piece != -1:
-					# Commit the intended pointer position, not only the last smoothed frame.
-					_move_group(_desired_position - _pieces[_dragged_piece].global_position)
-					var connected := _place_selected_in_mosaic() if game_mode == GameMode.MOSAIC else _connect_selected_groups()
+					# A click with no travel is not a failed connection attempt.
+					if not _drag_visual_active and get_viewport().get_mouse_position().distance_to(_drag_start_screen) >= 4.0:
+						_activate_drag()
+					var connected := false
+					if _drag_visual_active:
+						_desired_position = get_global_mouse_position() + _pointer_offset
+						_move_group(_desired_position - _pieces[_dragged_piece].global_position)
+						connected = _place_selected_in_mosaic() if game_mode == GameMode.MOSAIC else _connect_selected_groups()
+						_animate_pickup(_selected_piece_ids.keys(), false)
 					_refresh_selection_visuals(false)
-					_animate_pickup(_selected_piece_ids.keys(), false)
 					var released_piece_id := _dragged_piece
-					if not connected:
+					if _drag_visual_active and not connected:
 						connection_failed.emit(released_piece_id)
 						_animate_failed_connection(_pieces[released_piece_id])
 						if game_mode == GameMode.FREE:
@@ -691,6 +779,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					}))
 					_drag_root = -1
 					_dragged_piece = -1
+					_drag_visual_active = false
 					get_viewport().set_input_as_handled()
 					return
 
@@ -735,6 +824,10 @@ func _process(delta: float) -> void:
 		_update_smooth_pan(delta)
 	if _drag_root == -1 or _dragged_piece == -1:
 		return
+	if not _drag_visual_active:
+		if get_viewport().get_mouse_position().distance_to(_drag_start_screen) < 4.0:
+			return
+		_activate_drag()
 	_desired_position = get_global_mouse_position() + _pointer_offset
 	var factor := 1.0 - exp(-drag_smoothing * delta)
 	_move_group((_desired_position - _pieces[_dragged_piece].global_position) * factor)
@@ -755,6 +848,7 @@ func _cancel_drag(reason: StringName = JigsawPuzzleEvent.REASON_CANCELLED) -> vo
 	}))
 	_drag_root = -1
 	_dragged_piece = -1
+	_drag_visual_active = false
 	_camera_pan = false
 	_camera_pan_button = 0
 	_refresh_selection_visuals(false)
