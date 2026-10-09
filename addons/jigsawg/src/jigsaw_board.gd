@@ -472,6 +472,7 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
 	clear_selection()
 	_groups = restored_groups
+	_hit_index.invalidate()
 	_locked_pieces.clear()
 
 	for i in range(count):
@@ -640,6 +641,7 @@ func _compact_selected_groups() -> void:
 	for root in roots:
 		rectangles.append(_group_bounds_local(root))
 	var offsets := SelectionLayout.pack(rectangles, minf(_piece_size.x, _piece_size.y) * 0.45)
+	_hit_index.invalidate()
 	for i in range(roots.size()):
 		for member_variant in _groups.members_of_root(roots[i]):
 			var piece_id := int(member_variant)
@@ -1084,14 +1086,16 @@ func _cancel_drag(reason: StringName = JigsawPuzzleEvent.REASON_CANCELLED) -> vo
 
 ## Translate the current multi-selection during pointer dragging.
 func _move_group(offset: Vector2) -> void:
-	if _drag_root == -1:
+	if _drag_root == -1 or offset == Vector2.ZERO:
 		return
+	_hit_index.invalidate()
 	for piece_id in _selected_piece_ids.keys():
 		var id := int(piece_id)
 		if not _locked_pieces.has(id):
 			_pieces[id].global_position += offset
 
 func _move_root(root: int, offset: Vector2) -> void:
+	_hit_index.invalidate()
 	for member in _groups.members_of_root(root):
 		_pieces[int(member)].global_position += offset
 
@@ -1515,6 +1519,7 @@ func _apply_resource_presets() -> void:
 			_active_reactions.append(reaction)
 
 func _set_piece_quarters(piece_index: int, quarters: int) -> void:
+	_hit_index.invalidate()
 	_rotations[piece_index] = posmod(quarters, 4)
 	_pieces[piece_index].rotation = float(_rotations[piece_index]) * PI * 0.5
 
