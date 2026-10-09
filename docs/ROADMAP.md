@@ -98,10 +98,10 @@ Phases are **ordered by dependencies**, not promised calendar dates. Every phase
 **Goal:** help players manage hundreds of loose pieces without making the challenge trivial.
 
 **Deliverables**
-- Edge/corner/interior classification derived from grid topology, independent of current rotation or appearance.
+- Edge/corner/interior classification derived from grid topology, independent of current rotation or appearance. **Implemented as a pure catalog, with Board ID queries and optional C/E/I category camera browsing. Godot runtime confirmation pending.**
 - Optional **trays** or named holding areas for loose pieces, with safe group movement and drag/drop.
 - Sort actions (border, corner, similarity only if backed by reliable information); avoid automatically solving the puzzle.
-- Progressive, opt-in hints with explicit difficulty levels: locate a region, highlight candidate groups, then stronger assistance only if requested.
+- Progressive, opt-in hints with explicit difficulty levels: locate a region, highlight candidate groups, then stronger assistance only if requested. **First non-solving finding aid implemented: cycle camera focus among corners/edges/interior connected groups. Region/color hints remain future work.**
 - Undo/redo feasibility study (bounded actions or snapshots, memory and event semantics), followed by implementation if justified.
 
 **Acceptance**

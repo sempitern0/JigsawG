@@ -32,6 +32,7 @@ A resource-driven **2D puzzle runtime** for [Godot 4.7](https://godotengine.org/
 | 🧩 | **Six connector families** | Classic, Rounded, Angular, Compact, Mixed and asymmetric **Organic**; complementary Bézier edges |
 | 🖱️ | **Intuitive grouping** | Single-piece drag, Ctrl-highlighted multi-selection, compact group arrangement and exact snapping |
 | 🧮 | **Choose difficulty by count** | Manual rows × columns, or an **Auto** grid near a requested 4–4000 pieces |
+| 🔎 | **Corner and border finder** | Topology-based category browsing, cycling connected groups without moving or selecting pieces |
 | 🧭 | **Large-puzzle navigation** | Smooth zoom, panning, edge-scroll, spatial picking, **Home** for the board, **End** for overview, **F** for selection |
 | 🪄 | **Customizable presentation** | Selection outlines, colored piece contours, style presets, materials and interchangeable motion adapters |
 | 💾 | **Resumable state** | Save/restore positions, rotations, groups and Mosaic locks in Godot Resources |
@@ -119,8 +120,24 @@ Be mindful of VRAM and maximum texture sizes when choosing ultra-high-resolution
 | **Home / End** | Focus assembly board / show all scattered pieces |
 | **F** | Return to the last clicked piece or frame all Ctrl-selected groups |
 | **P** | Toggle the full-image reference preview |
+| **C / E / I (demo)** | Browse corners / borders / interior pieces; camera visits one connected group at a time |
 
 All relevant controls are configurable through the Gameplay and Camera Resources. A normal single click leaves no persistent highlight; Ctrl selections stay visibly outlined. The optional Gameplay → Accessibility pointer radius is measured in **screen pixels**, so assistance feels consistent when zooming.
+
+### Optional organizer: find corners and borders
+
+The included demo enables C / E / I for cycling **corner, border and interior** connected groups. These keys are disabled in newly created Configs, so host games choose their own shortcuts or UI buttons.
+
+```gdscript
+var corners: PackedInt32Array = board.get_piece_ids_by_category(
+    JigsawBoard.PieceCategory.CORNER
+)
+var focused_piece_id: int = board.focus_next_piece_by_category(
+    JigsawBoard.PieceCategory.CORNER
+)
+```
+
+The catalog is derived from the original grid, so rotation and connector appearance do not change it. **Browsing only moves the camera**; it does not choose or move pieces, change connected groups, reveal the solution or affect saved progress. In Mosaic, already locked pieces are omitted unless requested with `include_locked=true`.
 
 ### Optional input actions and reduced motion
 

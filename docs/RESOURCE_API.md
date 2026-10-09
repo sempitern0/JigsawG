@@ -45,6 +45,32 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 
 In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image dimensions and `target_piece_count` determine a balanced grid; actual count can differ to avoid elongated pieces and respect minimum source resolution. `board.get_effective_grid()` returns resolved columns and rows; `board.get_piece_count()` returns the generated count. The board never modifies the original configuration Resource.
 
+## Corner, edge and interior organizer
+
+Every piece retains a stable topology category in `JigsawBoard.PieceCategory`: `CORNER`, `EDGE` (outer border **excluding corners**) or `INTERIOR`. Categories come from the original solved grid, not current position, angle, Bézier silhouette or image color.
+
+```gdscript
+# Use after the puzzle_generated signal if generation is batched.
+var category: int = board.get_piece_category(piece_id)  # -1 if invalid
+var corners: PackedInt32Array = board.get_piece_ids_by_category(
+    JigsawBoard.PieceCategory.CORNER
+)
+var borders: PackedInt32Array = board.get_piece_ids_by_category(
+    JigsawBoard.PieceCategory.EDGE, true  # include already placed Mosaic pieces
+)
+var id: int = board.focus_next_piece_by_category(
+    JigsawBoard.PieceCategory.CORNER
+)
+```
+
+The ID queries are sorted by original piece ID and include all unlocked matching pieces by default. `include_locked=true` returns the full classification, including Mosaic-locked pieces. While the puzzle is incomplete due to **batched generation**, queries return an empty list and single-piece category returns `-1`.
+
+`focus_next_piece_by_category(category)` returns the ID of the focused group representative, or `-1` when no candidate/camera is available, interactions are paused, a drag is active or the reference preview is open. It cycles deterministically through qualifying **distinct connected groups**, fits the group with camera zoom/margins, and respects camera restriction settings. It does **not** modify selected pieces, connect groups, move geometry, or write to `JigsawPuzzleState`; the browse position is reset on rebuild/restore.
+
+For game menus or gamepad shortcuts, use **Gameplay → Optional Piece Organizer** to map `next_corner_action`, `next_edge_action`, `next_interior_action` to **host-defined** InputMap names. Or enable `next_corner_key`, `next_edge_key`, `next_interior_key` (all `KEY_NONE` by default). The included demo opts into **C / E / I**; these keys are not reserved in other games.
+
+This is an **opt-in finding aid**, not sorting/trays or an automatic solver. The pure module `src/jigsaw_piece_catalog.gd` has its own topology tests for 2×2, 2×N, normal grids and 2000-piece puzzles.
+
 ## Group graph and connection architecture
 
 `JigsawBoard` remains the only scene-facing component. Internally, `addons/jigsawg/src/jigsaw_group_model.gd` owns all parent/root identifiers, member lists and join operations. It does not need the scene tree, and it restores a serialized `piece_group_ids` map atomically. The anchored/dragged group's representative survives each merge, which preserves root IDs and multi-selection behavior.

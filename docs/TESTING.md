@@ -51,6 +51,20 @@ godot --headless --path . --script res://tests/test_device_input.gd
 - [ ] Opening a HUD must disable Board input; ensure no actions leak through to puzzles behind menus.
 - [ ] Report measured FPS, latency and memory only with reference devices and named Godot renderers.
 
+## Optional piece organization
+
+```bash
+godot --headless --path . --script res://tests/test_piece_catalog.gd
+godot --headless --path . --script res://tests/test_piece_organizer.gd
+```
+
+- [ ] Confirm 2×2, 2×N, 4×3 and 2000-piece topology categories; each piece must have exactly one stable category and border excludes corners.
+- [ ] In the demo, press C/E/I: camera browses corresponding groups **without selecting or moving pieces**, changing groups or modifying saved snapshots.
+- [ ] Connected groups containing multiple matching pieces are visited once; restoring/rebuilding resets browse history.
+- [ ] Mosaic-locked pieces are excluded by default but returned when `include_locked=true`; incomplete batches must not expose partial results.
+- [ ] Disabled interactions, active drag, missing camera and open preview block browsing. Confirm host-owned InputMap actions are optional.
+- [ ] On real hardware, verify corner-finder zoom/centering feels comfortable on 500/2000-piece puzzles; do not claim device results without measurements.
+
 ## Gameplay regression
 - [ ] 5x4, 10x8 and 20x15 generate correct mirrored Bézier connections.
 - [ ] Test Classic, Rounded, Angular, Compact, Mixed and Organic families with low/high variation.
