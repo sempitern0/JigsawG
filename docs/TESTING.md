@@ -40,6 +40,7 @@
 - [ ] Restricted camera margins still clamp both actual and target camera positions.
 - [ ] Enabling both Camera2D position smoothing and JigsawG smooth_pan produces the documented warning.
 - [ ] Style edge alpha, connector depth, texture sampling and profile resolution work.
+- [ ] Assign a CanvasItemMaterial through Appearance → Piece Material and confirm every generated piece uses it; null preserves existing visuals.
 - [ ] Connect success/failure/pickup animations use JigsawFeedbackSettings.
 - [ ] `capture_state()` followed by `restore_state()` restores piece positions, rotations, group membership and Mosaic locks.
 - [ ] Incompatible state (grid/source size/seed/silhouette count) is rejected without mutating the current board.
