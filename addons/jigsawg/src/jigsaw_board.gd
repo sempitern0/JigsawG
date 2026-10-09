@@ -18,109 +18,60 @@ enum DistributionMode { RANDOM, RADIAL }
 enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
 enum AnimationStyle { NONE, SUBTLE, PLAYFUL }
 
-## Source image; takes effect after rebuild().
-@export var puzzle_texture: Texture2D
-## Number of piece columns; rebuild() regenerates the puzzle.
-@export_range(2, 40, 1) var columns := 5
-## Number of piece rows; rebuild() regenerates the puzzle.
-@export_range(2, 40, 1) var rows := 4
-## Distinct connector profiles; rebuild() creates new edges.
-@export_range(1, 8, 1) var silhouette_variants := 3
-## Reproducible edge and shuffle seed; applied on rebuild().
-@export var generation_seed := 4729
-## Max snap offset as a fraction of the shorter piece side; live.
-@export_range(0.05, 0.5, 0.01) var snap_tolerance := 0.24
-## Scatter at startup; rebuild() resets positions and groups.
-@export var initial_scatter := true
-## Fit generated pieces on rebuild(); does not auto-follow later.
-@export var auto_fit_camera := true
-## Piece-follow response per second; higher feels more immediate.
-@export var drag_smoothing := 22.0
-## Enable wheel, empty-space and middle-button pan, and edge scroll.
-@export var enable_camera_navigation := true
-## Reverse empty-space and middle-button drag direction; live.
-@export var invert_background_pan := false
-## Animate wheel zoom rather than jump instantly; live.
-@export var smooth_zoom := true
-## Zoom approach speed per second; higher converges faster.
-@export_range(1.0, 30.0, 0.5) var zoom_smoothing := 12.0
-## Samples per cubic connector segment; rebuild() updates outlines, not texture resolution.
-@export_range(4, 16, 1) var bezier_detail := 8
-## Extra separation between shuffled slots; rebuild() repositions pieces.
-@export_range(0.02, 0.35, 0.01) var shuffle_spacing := 0.14
-## Zoom multiplier for each wheel notch; live.
-@export_range(1.05, 2.0, 0.05) var wheel_zoom_factor := 1.15
-## Minimum camera scale; affects subsequent zooms and fitting.
-@export_range(0.05, 10.0, 0.05) var min_zoom := 0.025
-## Maximum camera scale; affects subsequent zooms and fitting.
-@export_range(0.25, 16.0, 0.25) var max_zoom := 8.0
-## Screen-edge activation width in pixels while carrying pieces.
-@export_range(8.0, 128.0, 1.0) var edge_scroll_zone := 64.0
-## Edge-pan speed in screen pixels per second; live.
-@export_range(100.0, 2500.0, 25.0) var edge_scroll_speed := 900.0
+## Assign a JigsawPuzzleConfig with texture, geometry, gameplay, camera and VFX.
+## This is the only Inspector setting; rebuild() applies the Resource.
+@export var puzzle_config: JigsawPuzzleConfig
 
-## Texture filtering: Linear keeps detail, Nearest is pixelated, Mipmaps favors distant minification. Rebuild to apply.
-@export_enum("Linear", "Nearest", "Mipmaps") var texture_sampling := 0
-## Optional dark rim opacity; 0 disables the blurry-looking bevel. Rebuild to apply.
-@export_range(0.0, 1.0, 0.01) var piece_edge_opacity := 0.0
-## Rim thickness in local image pixels; rebuild to apply.
-@export_range(0.1, 3.0, 0.1) var piece_edge_width := 0.7
-## Extra camera travel outside scattered pieces, in piece widths; rebuild to update limits.
-@export_range(0.0, 20.0, 0.5) var camera_outer_margin := 5.0
-## False removes pan limits entirely; change applies immediately.
-@export var restrict_camera := false
-
-## Free joins neighbor groups; Mosaic locks each piece into its original socket on release. Rebuild to apply.
-@export var game_mode: GameMode = GameMode.FREE
-## Startup placement zone. Rebuild to apply.
-@export var shuffle_mode: ShuffleMode = ShuffleMode.AROUND_BOARD
-## Ordering of non-overlapping slots. Rebuild to apply.
-@export var distribution_mode: DistributionMode = DistributionMode.RANDOM
-## Show the completed image beneath the pieces as a translucent assembly guide; live.
-@export var show_ghost_board := false:
+# Runtime-only effective values, never serialized on the board.
+var puzzle_texture: Texture2D
+var columns := 5
+var rows := 4
+var silhouette_variants := 3
+var generation_seed := 4729
+var snap_tolerance := 0.24
+var initial_scatter := true
+var auto_fit_camera := true
+var drag_smoothing := 22.0
+var enable_camera_navigation := true
+var invert_background_pan := false
+var smooth_zoom := true
+var zoom_smoothing := 12.0
+var bezier_detail := 8
+var shuffle_spacing := 0.14
+var wheel_zoom_factor := 1.15
+var min_zoom := 0.025
+var max_zoom := 8.0
+var edge_scroll_zone := 64.0
+var edge_scroll_speed := 900.0
+var texture_sampling := 0
+var piece_edge_opacity := 0.0
+var piece_edge_width := 0.7
+var camera_outer_margin := 5.0
+var restrict_camera := false
+var game_mode: GameMode = GameMode.FREE
+var shuffle_mode: ShuffleMode = ShuffleMode.AROUND_BOARD
+var distribution_mode: DistributionMode = DistributionMode.RANDOM
+var show_ghost_board := false:
 	set(value):
 		show_ghost_board = value
 		_update_ghost_board()
-## Ghost guide opacity (0 is invisible); live.
-@export_range(0.0, 1.0, 0.01) var ghost_opacity := 0.25:
+var ghost_opacity := 0.25:
 	set(value):
 		ghost_opacity = value
 		_update_ghost_board()
-## Key to open the fullscreen image reference; live.
-@export var preview_key: Key = KEY_P
-## Dark overlay opacity while inspecting the reference; rebuild to apply.
-@export_range(0.0, 1.0, 0.01) var preview_dim := 0.82
-## Enable/disable fullscreen image reference; live.
-@export var enable_preview := true
-## Clean: no rim; Cardboard: thin brown rim; High Contrast: visible outline. Rebuild to apply.
-@export var visual_style: VisualStyle = VisualStyle.CLEAN
-## Animation intensity for selection and connection; live.
-@export var animation_style: AnimationStyle = AnimationStyle.SUBTLE
-## Duration of connect animation in seconds; live.
-@export_range(0.04, 0.6, 0.01) var connect_animation_duration := 0.16
+var preview_key: Key = KEY_P
+var preview_dim := 0.82
+var enable_preview := true
+var visual_style: VisualStyle = VisualStyle.CLEAN
+var animation_style: AnimationStyle = AnimationStyle.SUBTLE
+var connect_animation_duration := 0.16
+var allow_piece_rotation := false
+var random_rotation_on_shuffle := true
 
 signal preview_toggled(visible: bool)
 signal piece_placed(piece_id: int)
 signal group_placed(group_size: int)
-## Emitted after a clockwise quarter turn of a piece or connected group.
 signal group_rotated(piece_id: int, quarter_turns: int, group_size: int)
-
-@export_group("Configuration")
-## Drag a JigsawPuzzleConfig .tres here to configure the entire board.
-## When supplied it takes priority over legacy inspector fields on rebuild().
-@export var puzzle_config: JigsawPuzzleConfig
-
-@export_group("Reusable Presets")
-## Optional gameplay Resource; its settings override board defaults on rebuild().
-@export var gameplay_settings: JigsawGameplaySettings
-## Optional appearance Resource; its settings override board defaults on rebuild().
-@export var appearance_settings: JigsawAppearanceSettings
-
-@export_group("Rotation")
-## Enable right click on a piece/group to rotate it by a quarter-turn.
-@export var allow_piece_rotation := false
-## Randomize each piece's 90-degree angle during shuffle when rotation is on.
-@export var random_rotation_on_shuffle := true
 
 var _preview_overlay: CanvasLayer
 var _ghost_board: Sprite2D
@@ -584,91 +535,84 @@ func _tween_piece_tint(piece: JigsawPiece, tint: Color) -> void:
 
 ## A Resource is a shared preset. Do not mutate it while applying it:
 ## assign only the board instance's properties.
+## Apply only a complete root Resource. Null sections use their own defaults.
 func _apply_resource_presets() -> void:
-	_connector_depth = 0.25
-	_active_feedback = null
-	# Root config owns image, board dimensions, and optional subresources.
-	# No Resource is ever modified by this method.
-	if puzzle_config != null:
-		puzzle_texture = puzzle_config.puzzle_texture
-		columns = puzzle_config.columns
-		rows = puzzle_config.rows
-		silhouette_variants = puzzle_config.silhouette_variants
-		if puzzle_config.camera != null:
-			var camera_preset := puzzle_config.camera
-			enable_camera_navigation = camera_preset.enable_camera_navigation
-			invert_background_pan = camera_preset.invert_background_pan
-			auto_fit_camera = camera_preset.auto_fit_camera
-			restrict_camera = camera_preset.restrict_camera
-			camera_outer_margin = camera_preset.camera_outer_margin
-			smooth_zoom = camera_preset.smooth_zoom
-			zoom_smoothing = camera_preset.zoom_smoothing
-			wheel_zoom_factor = camera_preset.wheel_zoom_factor
-			min_zoom = camera_preset.min_zoom
-			max_zoom = camera_preset.max_zoom
-			drag_smoothing = camera_preset.drag_smoothing
-			edge_scroll_zone = camera_preset.edge_scroll_zone
-			edge_scroll_speed = camera_preset.edge_scroll_speed
-		if puzzle_config.feedback != null:
-			_active_feedback = puzzle_config.feedback
-			var fx := puzzle_config.feedback
-			match fx.animation_style:
-				JigsawFeedbackSettings.AnimationStyle.NONE:
-					animation_style = AnimationStyle.NONE
-				JigsawFeedbackSettings.AnimationStyle.PLAYFUL:
-					animation_style = AnimationStyle.PLAYFUL
-				_:
-					animation_style = AnimationStyle.SUBTLE
-			connect_animation_duration = fx.connect_animation_duration
-		# Root subresources override individually assigned legacy presets.
-	var active_gameplay: JigsawGameplaySettings = puzzle_config.gameplay if puzzle_config != null else gameplay_settings
-	var active_appearance: JigsawAppearanceSettings = puzzle_config.appearance if puzzle_config != null else appearance_settings
-	_apply_gameplay_and_appearance(active_gameplay, active_appearance)
+	var config := puzzle_config
+	if config == null:
+		config = JigsawPuzzleConfig.new()
+	puzzle_texture = config.puzzle_texture
+	columns = config.columns
+	rows = config.rows
+	silhouette_variants = config.silhouette_variants
 
-func _apply_gameplay_and_appearance(active_gameplay: JigsawGameplaySettings, active_appearance: JigsawAppearanceSettings) -> void:
-	if active_gameplay != null:
-		var s := active_gameplay
-		game_mode = GameMode.FREE if s.game_mode == JigsawGameplaySettings.Mode.FREE else GameMode.MOSAIC
-		snap_tolerance = s.snap_tolerance
-		allow_piece_rotation = s.allow_piece_rotation
-		random_rotation_on_shuffle = s.random_rotation_on_shuffle
-		match s.shuffle_mode:
-			JigsawGameplaySettings.Shuffle.CENTER:
-				shuffle_mode = ShuffleMode.CENTER
-			JigsawGameplaySettings.Shuffle.BOTTOM:
-				shuffle_mode = ShuffleMode.BOTTOM
-			_:
-				shuffle_mode = ShuffleMode.AROUND_BOARD
-		distribution_mode = DistributionMode.RADIAL if s.distribution_mode == JigsawGameplaySettings.Distribution.RADIAL else DistributionMode.RANDOM
-		initial_scatter = s.initial_scatter
-		shuffle_spacing = s.shuffle_spacing
-		generation_seed = s.generation_seed
-		show_ghost_board = s.show_ghost_board
-		ghost_opacity = s.ghost_opacity
-		enable_preview = s.enable_preview
-		preview_key = s.preview_key
-	if active_appearance != null:
-		var a := active_appearance
-		_connector_depth = a.connector_depth
-		match a.visual_style:
-			JigsawAppearanceSettings.VisualStyle.CARDBOARD:
-				visual_style = VisualStyle.CARDBOARD
-			JigsawAppearanceSettings.VisualStyle.HIGH_CONTRAST:
-				visual_style = VisualStyle.HIGH_CONTRAST
-			_:
-				visual_style = VisualStyle.CLEAN
-		texture_sampling = a.texture_sampling
-		bezier_detail = a.bezier_detail
-		piece_edge_opacity = a.piece_edge_opacity
-		piece_edge_width = a.piece_edge_width
-		match a.animation_style:
-			JigsawAppearanceSettings.AnimationStyle.NONE:
-				animation_style = AnimationStyle.NONE
-			JigsawAppearanceSettings.AnimationStyle.PLAYFUL:
-				animation_style = AnimationStyle.PLAYFUL
-			_:
-				animation_style = AnimationStyle.SUBTLE
-		connect_animation_duration = a.connect_animation_duration
+	var gameplay := config.gameplay
+	if gameplay == null:
+		gameplay = JigsawGameplaySettings.new()
+	game_mode = GameMode.MOSAIC if gameplay.game_mode == JigsawGameplaySettings.Mode.MOSAIC else GameMode.FREE
+	snap_tolerance = gameplay.snap_tolerance
+	allow_piece_rotation = gameplay.allow_piece_rotation
+	random_rotation_on_shuffle = gameplay.random_rotation_on_shuffle
+	match gameplay.shuffle_mode:
+		JigsawGameplaySettings.Shuffle.CENTER:
+			shuffle_mode = ShuffleMode.CENTER
+		JigsawGameplaySettings.Shuffle.BOTTOM:
+			shuffle_mode = ShuffleMode.BOTTOM
+		_:
+			shuffle_mode = ShuffleMode.AROUND_BOARD
+	distribution_mode = DistributionMode.RADIAL if gameplay.distribution_mode == JigsawGameplaySettings.Distribution.RADIAL else DistributionMode.RANDOM
+	initial_scatter = gameplay.initial_scatter
+	shuffle_spacing = gameplay.shuffle_spacing
+	generation_seed = gameplay.generation_seed
+	show_ghost_board = gameplay.show_ghost_board
+	ghost_opacity = gameplay.ghost_opacity
+	enable_preview = gameplay.enable_preview
+	preview_key = gameplay.preview_key
+	preview_dim = gameplay.preview_dim
+
+	var appearance := config.appearance
+	if appearance == null:
+		appearance = JigsawAppearanceSettings.new()
+	_connector_depth = appearance.connector_depth
+	match appearance.visual_style:
+		JigsawAppearanceSettings.VisualStyle.CARDBOARD:
+			visual_style = VisualStyle.CARDBOARD
+		JigsawAppearanceSettings.VisualStyle.HIGH_CONTRAST:
+			visual_style = VisualStyle.HIGH_CONTRAST
+		_:
+			visual_style = VisualStyle.CLEAN
+	texture_sampling = appearance.texture_sampling
+	bezier_detail = appearance.bezier_detail
+	piece_edge_opacity = appearance.piece_edge_opacity
+	piece_edge_width = appearance.piece_edge_width
+
+	var camera_options := config.camera
+	if camera_options == null:
+		camera_options = JigsawCameraSettings.new()
+	enable_camera_navigation = camera_options.enable_camera_navigation
+	invert_background_pan = camera_options.invert_background_pan
+	auto_fit_camera = camera_options.auto_fit_camera
+	restrict_camera = camera_options.restrict_camera
+	camera_outer_margin = camera_options.camera_outer_margin
+	smooth_zoom = camera_options.smooth_zoom
+	zoom_smoothing = camera_options.zoom_smoothing
+	wheel_zoom_factor = camera_options.wheel_zoom_factor
+	min_zoom = camera_options.min_zoom
+	max_zoom = camera_options.max_zoom
+	drag_smoothing = camera_options.drag_smoothing
+	edge_scroll_zone = camera_options.edge_scroll_zone
+	edge_scroll_speed = camera_options.edge_scroll_speed
+
+	_active_feedback = config.feedback
+	if _active_feedback == null:
+		_active_feedback = JigsawFeedbackSettings.new()
+	match _active_feedback.animation_style:
+		JigsawFeedbackSettings.AnimationStyle.NONE:
+			animation_style = AnimationStyle.NONE
+		JigsawFeedbackSettings.AnimationStyle.PLAYFUL:
+			animation_style = AnimationStyle.PLAYFUL
+		_:
+			animation_style = AnimationStyle.SUBTLE
+	connect_animation_duration = _active_feedback.connect_animation_duration
 
 func _set_piece_quarters(piece_index: int, quarters: int) -> void:
 	_rotations[piece_index] = posmod(quarters, 4)
