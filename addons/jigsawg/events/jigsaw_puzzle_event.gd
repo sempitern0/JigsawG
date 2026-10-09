@@ -18,6 +18,7 @@ const REASON_HIDDEN := &"hidden"
 const REASON_SOLVED := &"solved"
 const REASON_CLOCKWISE := &"clockwise"
 const REASON_COUNTER_CLOCKWISE := &"counter_clockwise"
+const REASON_RESUMED := &"resumed"
 
 enum Type {
 	PUZZLE_RESET,
@@ -32,6 +33,7 @@ enum Type {
 	GROUP_ROTATED,
 	PREVIEW_TOGGLED,
 	PUZZLE_COMPLETED,
+	PUZZLE_STATE_RESTORED,
 }
 
 var type: Type = Type.PUZZLE_STARTED
