@@ -756,6 +756,10 @@ func _limit_camera() -> void:
 		_camera_target_position = _clamp_camera_position(_camera_target_position)
 
 func _scatter_non_overlapping() -> void:
+	if shuffle_mode == ShuffleMode.CHAOTIC:
+		_scatter_chaotic()
+		return
+
 	# Conservative slot footprints avoid overlap, including Bézier protrusions.
 	# Use a square footprint: a 90-degree turn swaps width and height.
 	var footprint_side := maxf(_piece_size.x, _piece_size.y)
@@ -799,6 +803,55 @@ func _scatter_non_overlapping() -> void:
 			slots[j] = tmp
 	for i in range(count):
 		_pieces[i].position = slots[i]
+
+func _scatter_chaotic() -> void:
+	# Continuous rejection sampling: natural-looking positions without a visible grid,
+	# while keeping conservative non-overlapping square footprints.
+	var footprint_side := maxf(_piece_size.x, _piece_size.y)
+	var footprint_extent := footprint_side * (0.82 + shuffle_spacing * 0.5)
+	var footprint_size := Vector2.ONE * footprint_extent * 2.0
+	var board_rect := Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
+	var forbidden := board_rect.grow(footprint_extent * 0.8)
+	var base_margin := footprint_side * maxf(3.0, sqrt(float(_pieces.size())) * chaotic_spread)
+	var placed_footprints: Array[Rect2] = []
+
+	for piece_index in range(_pieces.size()):
+		var placed := false
+		var total_attempts := maxi(chaotic_max_attempts, 8) * 5
+		for attempt in range(total_attempts):
+			var expansion_step := floori(float(attempt) / float(maxi(chaotic_max_attempts, 8)))
+			var margin := base_margin * (1.0 + float(expansion_step) * 0.35)
+			var area := board_rect.grow(margin)
+			var center := Vector2(
+				_rng.randf_range(area.position.x, area.end.x),
+				_rng.randf_range(area.position.y, area.end.y)
+			)
+			var candidate_footprint := Rect2(center - footprint_size * 0.5, footprint_size)
+			if forbidden.intersects(candidate_footprint):
+				continue
+
+			var overlaps := false
+			for existing in placed_footprints:
+				if existing.intersects(candidate_footprint):
+					overlaps = true
+					break
+			if overlaps:
+				continue
+
+			_pieces[piece_index].position = center - _piece_size * 0.5
+			placed_footprints.append(candidate_footprint)
+			placed = true
+			break
+
+		if not placed:
+			# Extremely dense fallback: continue below the board instead of overlapping.
+			var fallback_center := Vector2(
+				board_rect.position.x + footprint_extent + float(piece_index % maxi(columns, 1)) * footprint_size.x,
+				board_rect.end.y + base_margin + float(piece_index / maxi(columns, 1)) * footprint_size.y
+			)
+			var fallback_footprint := Rect2(fallback_center - footprint_size * 0.5, footprint_size)
+			_pieces[piece_index].position = fallback_center - _piece_size * 0.5
+			placed_footprints.append(fallback_footprint)
 
 func _update_ghost_board() -> void:
 	if not is_instance_valid(_ghost_board):
