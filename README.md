@@ -105,7 +105,7 @@ func start_beginner(image: Texture2D) -> void:
 | --- | --- |
 | **JigsawPuzzleConfig** | Source texture, grid rows/columns and number of connector silhouette families |
 | **JigsawGameplaySettings** | Free/Mosaic, snapping, multi-select, 90° rotation, grid/chaotic shuffle, ghost mat, preview |
-| **JigsawAppearanceSettings** | Bézier shape, edge rendering, texture sampling and selection-highlight styling |
+| **JigsawAppearanceSettings** | Bézier shape, edge rendering, texture sampling, optional CanvasItem material and selection-highlight styling |
 | **JigsawCameraSettings** | Initial framing, smooth pan/zoom, empty-board pan grace, optional bounds and eased edge scrolling |
 | **JigsawFeedbackSettings** | None/Subtle/Playful built-in animation preset, pickup/connect/failure tint and timing |
 | **JigsawPuzzleState** | Serializable piece positions, rotations, connected groups and Mosaic locks |
@@ -238,6 +238,8 @@ func _on_recenter_pressed() -> void:
 For accessibility/guide controls use `set_ghost_guide_visible(bool)` and `set_ghost_guide_opacity(float)`. These are runtime overrides, not modifications to shared `.tres` assets.
 
 Free-mode progress counts completed group joins; Mosaic progress counts locked pieces. Use `get_progress_info()` for detailed HUD data.
+
+You can also assign a CanvasItem `Material` or `ShaderMaterial` under **Appearance → Piece Material**. The default remains unchanged if no material is supplied; no custom `JigsawPiece` subclass is necessary.
 
 **Advanced users:** [Advanced integration and public API boundaries](docs/ADVANCED_USAGE.md) explains custom reactions, state ownership, multiple Boards, scene routing and lifecycle rules.
 
