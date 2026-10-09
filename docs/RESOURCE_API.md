@@ -6,13 +6,15 @@ El nodo `JigsawBoard` expone **una sola propiedad** en el Inspector: `puzzle_con
 
 | Resource | Variables |
 |---|---|
-| `JigsawPuzzleConfig` | `puzzle_texture`, `columns`, `rows`, `silhouette_variants`, `gameplay`, `appearance`, `camera`, `feedback` |
+| `JigsawPuzzleConfig` | `puzzle_texture`, `columns`, `rows`, `silhouette_variants`, `gameplay`, `appearance`, `camera`, `feedback`, `reactions` |
 | `JigsawGameplaySettings` | `game_mode`, `snap_tolerance`, `allow_piece_rotation`, `random_rotation_on_shuffle`, `shuffle_mode`, `distribution_mode`, `initial_scatter`, `shuffle_spacing`, `generation_seed`, `show_ghost_board`, `ghost_opacity`, `enable_preview`, `preview_key`, `preview_dim` |
 | `JigsawAppearanceSettings` | `connector_depth`, `visual_style`, `texture_sampling`, `bezier_detail`, `piece_edge_opacity`, `piece_edge_width` |
 | `JigsawCameraSettings` | `enable_camera_navigation`, `invert_background_pan`, `auto_fit_camera`, `restrict_camera`, `camera_outer_margin`, `smooth_zoom`, `zoom_smoothing`, `wheel_zoom_factor`, `min_zoom`, `max_zoom`, `drag_smoothing`, `edge_scroll_zone`, `edge_scroll_speed` |
 | `JigsawFeedbackSettings` | `animation_style`, `connect_animation_duration`, `connect_tint`, `pickup_tint`, `enable_failure_feedback`, `failure_tint`, `failure_animation_duration` |
 
-Los ajustes de animación se definen **únicamente** en `JigsawFeedbackSettings`, no en Appearance. `preview_dim` pertenece a Gameplay.
+Los ajustes de animación incorporados se definen **únicamente** en `JigsawFeedbackSettings`, no en Appearance. `preview_dim` pertenece a Gameplay.
+
+`reactions` es un array de `JigsawReaction`. Puede contener `JigsawAudioReaction`, `JigsawSpawnSceneReaction` o Resources propios derivados de `JigsawReaction`. Estas reacciones reciben los mismos eventos semánticos que la API de señales; consulta [Events & Reactions](EVENTS_AND_REACTIONS.md).
 
 Crea un recurso `JigsawPuzzleConfig` desde el editor y asígnalo directamente al nodo, o utiliza el ejemplo `examples/configs/standard_puzzle.tres`. Los subrecursos se pueden reutilizar como recursos externos entre varios puzles.
 
@@ -51,4 +53,4 @@ Los Resources son la única fuente de opciones. `JigsawBoard` conserva una copia
 
 **Cambio incompatible en escenas antiguas:** propiedades como `puzzle_texture`, `columns`, `show_ghost_board` o `animation_style` ya no se exportan en el nodo. Crea un `JigsawPuzzleConfig` y traslada sus valores antes de actualizar. No deben persistir asignaciones antiguas en `.tscn`.
 
-Las señales públicas permiten añadir HUD, efectos, sonido y puntuación: `puzzle_generated`, `piece_picked`, `piece_released`, `pieces_connected`, `piece_placed`, `group_rotated`, `preview_toggled`, `connection_failed`, `puzzle_completed`.
+Las señales públicas y `JigsawReaction` permiten añadir HUD, efectos, sonido, puntuación y sistemas externos sin modificar el Board: `puzzle_generated`, `piece_picked`, `piece_released`, `pieces_connected`, `piece_placed`, `group_rotated`, `preview_toggled`, `connection_failed`, `puzzle_completed`.
