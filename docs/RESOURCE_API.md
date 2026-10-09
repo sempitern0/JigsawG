@@ -72,6 +72,8 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 `JigsawAppearanceSettings` owns:
 
 - `connector_depth`
+- `connector_family` (Classic, Rounded, Angular, Compact or Mixed)
+- `connector_variation` (0.0–1.0)
 - `visual_style`
 - `texture_sampling`
 - `bezier_detail`
@@ -86,6 +88,8 @@ With `enable_multi_select=true`, Ctrl+click toggles complete connected groups in
 - `highlight_shadow_offset`
 
 `piece_material` accepts an optional CanvasItem `Material`/`ShaderMaterial` shared by every generated piece; null uses the built-in renderer. Apply changes with `rebuild()`. Because the material is shared, set per-piece shader instance parameters through custom integrations if necessary.
+
+**Shape difficulty:** Classic preserves existing contours. Rounded, Angular and Compact generate original Bézier silhouettes; Mixed chooses one of these families per seeded seam. Low `connector_variation` makes connectors within a family more similar; high variation makes them more distinctive. Set `silhouette_variants` (1–8) in the root config to control how many seam variants are used. Geometry does not affect snap rules, but changing family or variation requires `rebuild()` and invalidates snapshots generated with different profile settings. Piece count, rotation, source image and reference guides also affect difficulty.
 
 `bezier_detail` changes contour tessellation, not source-image resolution. The highlight settings affect selected/multi-selected pieces only; they do not change snap geometry.
 
@@ -136,7 +140,7 @@ If the host `Camera2D` already has Godot's own `position_smoothing_enabled`, dis
 - connected-group ids
 - Mosaic locked-piece ids
 - completion state
-- compatibility metadata (rows/columns, source dimensions, seed and silhouette count)
+- compatibility metadata (rows/columns, source dimensions, seed, silhouette count and connector family/variation)
 
 Capture:
 
@@ -164,7 +168,7 @@ var resume_config := ResourceLoader.load("user://puzzle_resume.tres") as JigsawP
 $JigsawBoard.configure(resume_config)
 ```
 
-The Board validates compatibility before applying a state and returns `false` from `restore_state()` if it does not match. It never writes files itself. `puzzle_state_restored(state)` is emitted after a compatible snapshot is applied.
+The Board validates compatibility and group/rotation invariants before applying a state and returns `false` from `restore_state()` if it does not match. It never writes files itself. `puzzle_state_restored(state)` is emitted after a compatible snapshot is applied.
 
 ## Feedback settings
 

@@ -18,6 +18,9 @@ const SCHEMA_VERSION := 1
 @export var generation_seed := 0
 ## Silhouette-family count used by the generated puzzle.
 @export var silhouette_variants := 0
+## Defaults preserve schema-1 saves produced with classic silhouettes.
+@export var connector_family := 0
+@export var connector_variation := 1.0
 
 @export_group("Runtime State")
 ## Local JigsawBoard positions, one entry per piece.

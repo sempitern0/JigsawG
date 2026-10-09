@@ -31,6 +31,15 @@ func _verify(board: Node2D, config: JigsawPuzzleConfig) -> void:
 	assert(snapshot.columns == 2 and snapshot.rows == 2)
 	assert(snapshot.piece_rotations[0] == 1)
 
+	var bad_rotation := snapshot.duplicate(true) as JigsawPuzzleState
+	bad_rotation.piece_rotations[0] = 5
+	assert(not board.restore_state(bad_rotation))
+	assert(board.capture_state().piece_rotations[0] == 1)
+	var bad_group := snapshot.duplicate(true) as JigsawPuzzleState
+	bad_group.piece_group_ids[0] = 99
+	assert(not board.restore_state(bad_group))
+	assert(board.capture_state().piece_group_ids == snapshot.piece_group_ids)
+
 	board.rebuild()
 	assert(board.restore_state(snapshot))
 	var restored = board.capture_state()
@@ -45,6 +54,14 @@ func _verify(board: Node2D, config: JigsawPuzzleConfig) -> void:
 
 	board.clear_selection()
 	assert(board.get_selected_piece_ids().is_empty())
+
+	var alternative := config.duplicate(true) as JigsawPuzzleConfig
+	alternative.appearance.connector_family = JigsawAppearanceSettings.ConnectorFamily.ANGULAR
+	alternative.resume_state = null
+	board.configure(alternative)
+	assert(board.get_piece_count() == 4)
+	assert(not board.restore_state(snapshot), "Different geometry must reject incompatible saved state.")
+	assert(board.capture_state().connector_family == JigsawAppearanceSettings.ConnectorFamily.ANGULAR)
 
 	var chaotic := JigsawPuzzleConfig.new()
 	chaotic.columns = 3

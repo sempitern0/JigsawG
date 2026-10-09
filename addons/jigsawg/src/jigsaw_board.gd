@@ -32,6 +32,7 @@ signal interaction_enabled_changed(enabled: bool)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
+const StateValidator = preload("res://addons/jigsawg/src/jigsaw_state_validator.gd")
 const PreviewOverlay = preload("res://addons/jigsawg/src/jigsaw_preview_overlay.gd")
 
 enum GameMode { FREE, MOSAIC }
@@ -143,6 +144,8 @@ var _pan_bounds := Rect2()
 var _fit_bounds := Rect2()
 var _rotations: Array[int] = []
 var _connector_depth := 0.25
+var _connector_family := 0
+var _connector_variation := 1.0
 var _active_feedback: JigsawFeedbackSettings
 var _active_reactions: Array[JigsawReaction] = []
 var _restored_from_state := false
@@ -308,6 +311,8 @@ func capture_state() -> JigsawPuzzleState:
 	state.source_size = _source_size
 	state.generation_seed = generation_seed
 	state.silhouette_variants = silhouette_variants
+	state.connector_family = _connector_family
+	state.connector_variation = _connector_variation
 	state.completed = _finished
 
 	for i in range(_pieces.size()):
@@ -324,30 +329,16 @@ func capture_state() -> JigsawPuzzleState:
 ## Apply a compatible snapshot to an already generated board.
 ## Returns false and leaves the current puzzle unchanged when validation fails.
 func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_event: bool = true) -> bool:
-	if state == null:
+	if _pieces.size() != columns * rows:
 		return false
-	if state.schema_version != JigsawPuzzleState.SCHEMA_VERSION:
-		push_warning("JigsawG: unsupported puzzle-state schema version.")
-		return false
-	if state.columns != columns or state.rows != rows or state.source_size != _source_size:
-		push_warning("JigsawG: puzzle state does not match this board's grid/source dimensions.")
-		return false
-	if state.generation_seed != generation_seed or state.silhouette_variants != silhouette_variants:
-		push_warning("JigsawG: puzzle state was created from different generation settings.")
+	var reason: String = StateValidator.validate(
+		state, columns, rows, _source_size, generation_seed, silhouette_variants,
+		_connector_family, _connector_variation, game_mode
+	)
+	if not reason.is_empty():
+		push_warning("JigsawG: cannot restore state: " + reason)
 		return false
 	var count := _pieces.size()
-	if state.piece_positions.size() != count or state.piece_rotations.size() != count or state.piece_group_ids.size() != count:
-		push_warning("JigsawG: puzzle state has an invalid piece array size.")
-		return false
-
-	for group_id in state.piece_group_ids:
-		if group_id < 0 or group_id >= count:
-			push_warning("JigsawG: puzzle state contains an invalid group id.")
-			return false
-	for locked_id in state.locked_piece_ids:
-		if locked_id < 0 or locked_id >= count:
-			push_warning("JigsawG: puzzle state contains an invalid locked-piece id.")
-			return false
 
 	if _dragged_piece >= 0:
 		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
@@ -530,7 +521,7 @@ func rebuild() -> void:
 				horizontal.get(Vector2i(c, r), Vector2i.ZERO) if r < rows - 1 else Vector2i.ZERO,
 				vertical.get(Vector2i(c - 1, r), Vector2i.ZERO) if c > 0 else Vector2i.ZERO
 			]
-			var polygon: PackedVector2Array = Geometry.make_outline(_piece_size, sides[0], sides[1], sides[2], sides[3], bezier_detail, _connector_depth)
+			var polygon: PackedVector2Array = Geometry.make_outline(_piece_size, sides[0], sides[1], sides[2], sides[3], bezier_detail, _connector_depth, _connector_family, _connector_variation)
 			var piece: JigsawPiece = PieceScript.new()
 			piece.name = "Piece_%d_%d" % [c, r]
 			add_child(piece)
@@ -1196,6 +1187,8 @@ func _apply_resource_presets() -> void:
 	if appearance == null:
 		appearance = JigsawAppearanceSettings.new()
 	_connector_depth = appearance.connector_depth
+	_connector_family = appearance.connector_family
+	_connector_variation = appearance.connector_variation
 	match appearance.visual_style:
 		JigsawAppearanceSettings.VisualStyle.CARDBOARD:
 			visual_style = VisualStyle.CARDBOARD

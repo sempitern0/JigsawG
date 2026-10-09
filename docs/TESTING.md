@@ -20,6 +20,9 @@
 
 ## Gameplay regression
 - [ ] 5x4, 10x8 and 20x15 generate correct mirrored Bézier connections.
+- [ ] Test Classic, Rounded, Angular, Compact and Mixed families with low/high variation.
+- [ ] Confirm legacy Classic silhouettes and rejection of incompatible profile snapshots.
+- [ ] Run `godot --headless --path . --script res://tests/test_shape_profiles.gd`.
 - [ ] Left drag, group union and completion work in Free mode.
 - [ ] Pieces lock in Mosaic only in the correct position and orientation.
 - [ ] Right-click rotation and shuffle at 90° multiples preserve group connections.

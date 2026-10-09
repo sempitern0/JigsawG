@@ -5,10 +5,16 @@ extends Resource
 ## Animation controls live exclusively in JigsawFeedbackSettings.
 
 enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
+## Classic retains legacy contours; other families are original procedural variants.
+enum ConnectorFamily { CLASSIC, ROUNDED, ANGULAR, COMPACT, MIXED }
 
 @export_group("Artwork")
 ## Tab depth as a fraction of the shortest piece side (rebuild required).
 @export_range(0.12, 0.34, 0.01) var connector_depth := 0.25
+## Alternative round, angular or compact tabs. Mixed selects a family per shared seam.
+@export var connector_family: ConnectorFamily = ConnectorFamily.CLASSIC
+## 0 = uniform connectors (harder to recognize); 1 = maximum variant diversity.
+@export_range(0.0, 1.0, 0.05) var connector_variation := 1.0
 ## Clean has no rim; Cardboard adds a soft border; High Contrast adds a dark one.
 @export var visual_style: VisualStyle = VisualStyle.CLEAN
 ## Linear favors smooth pixels, Nearest is sharp/blocky, Mipmaps favors distance.

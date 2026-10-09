@@ -22,7 +22,7 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 
 | Feature | What it provides |
 | --- | --- |
-| Procedural puzzle pieces | Complementary Bézier tabs and sockets; configurable piece count, connector depth and shape variety |
+| Procedural puzzle pieces | Complementary Bézier tabs and sockets; Classic/Rounded/Angular/Compact/Mixed connector families and variation for puzzle difficulty |
 | Group-aware assembly | Build independent groups, Ctrl-select several groups and move them together |
 | Resumable puzzle state | Capture progress into a Resource and resume later without adopting a save-game framework |
 | Rotation difficulty | Optional right-click quarter-turns and seeded random 90° rotations on shuffle |
@@ -60,7 +60,7 @@ PuzzleScene (Node2D)
 1. In the **FileSystem** dock choose **New Resource → JigsawPuzzleConfig**, and save it as `res://puzzles/forest.tres`.
 2. Set a source image and a grid such as **10 columns × 8 rows** (80 pieces).
 3. In **Gameplay**, optionally enable **Allow Piece Rotation** and **Random Rotation On Shuffle**.
-4. In **Appearance**, choose the connector depth, visual style and texture sampling.
+4. In **Appearance**, choose connector family, variation, depth, visual style and texture sampling.
 5. Assign `forest.tres` to **JigsawBoard → Puzzle Config**, then run the scene.
 
 To switch puzzles from code:
