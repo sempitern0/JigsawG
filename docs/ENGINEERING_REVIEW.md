@@ -19,6 +19,12 @@ The developer-facing model (one `JigsawBoard.puzzle_config`, nested Resources, o
 - Consider extracting Input/Camera controller and group graph from `jigsaw_board.gd` after tests are established; avoid a behavior-changing rewrite right before release.
 - Define API stability and backwards-compatibility policy for the resource schema before 1.0.
 
+## Public extension architecture
+
+JigsawBoard now exposes a semantic event layer independent of its mechanics. Host code can consume specific typed signals, a single `event_emitted` bus, or Resource-based `JigsawReaction` handlers. Built-in Audio and PackedScene reactions cover common no-code effects. The event bus deliberately avoids per-frame drag events to prevent hidden high-frequency costs.
+
+For API stability, treat `JigsawPuzzleEvent.Type`, event context fields, reason constants, public query helpers and rich signal names as public surface from 0.3 onward. Internal `JigsawPiece`, group dictionaries and geometry implementation remain private.
+
 ## Completed for this review
 - README restructured with honest Preview badges, installation, API examples, configuration, limitations and contribution flow.
 - Editor addon icon bundled inside the addon and referenced through Godot UID/import metadata; no dependency on the host project root icon.
