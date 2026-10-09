@@ -238,6 +238,30 @@ The Board reads configuration Resources but does not intentionally mutate them. 
 
 If a nested Resource is null, JigsawG creates runtime defaults for that section.
 
+## Integrating an existing game UI
+
+`JigsawBoard` exposes high-level methods so menus and HUDs do not need to override puzzle mechanics:
+
+| API | Typical use |
+| --- | --- |
+| `progress_changed(progress)` | Bind a `ProgressBar` or objectives HUD |
+| `get_progress()` | Read normalized progress (0–1) |
+| `get_progress_info()` | Read counts, game mode and completion |
+| `set_interaction_enabled(enabled)` | Suspend puzzle mouse/keyboard input while a menu is open |
+| `is_interaction_enabled()` | Check whether puzzle input is enabled |
+| `fit_view()` | Recenter and refit the active `Camera2D`; returns false without a camera |
+| `toggle_reference_preview()` | Open/close the reference overlay |
+| `is_reference_preview_visible()` | Read overlay state |
+| `set_ghost_guide_visible(visible)` | Runtime ghost toggle, including Mosaic mode |
+| `set_ghost_guide_opacity(opacity)` | Runtime ghost alpha |
+| `is_ghost_guide_visible()` | Read ghost visibility |
+| `get_connected_group_count()` | Query active connected groups |
+| `get_locked_piece_count()` | Query locked Mosaic slots |
+
+**Progress semantics:** Free = (total pieces − connected group count) / (total pieces − 1); Mosaic = locked pieces / total pieces. This is assembly progress, not a timer or board-area metric. Runtime guide overrides reset to config defaults on rebuild. These controls do not mutate shared Resources.
+
+For higher-level use, see [Advanced integration](ADVANCED_USAGE.md).
+
 ## Public Board helpers
 
 Useful integration methods:
