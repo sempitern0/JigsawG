@@ -122,6 +122,16 @@ Generated pieces sample **one source image texture** using piece-local UV coordi
 
 Mipmaps are generated only for `texture_sampling = Mipmaps`, avoiding unnecessary mipmap generation and extra allocation in Nearest and Linear modes.
 
+## Spatial piece picking for large puzzles
+
+The Board uses a lazily refreshed **board-local spatial index**. Transform,
+rotation or presentation-only display changes invalidate the index; only
+nearby candidate pieces go through the exact Bézier polygon hit test. Descending
+draw order and Ctrl-selected group priority remain unchanged. The lookup is
+internal, so there is no new user-facing configuration or change to saved
+state. Compare 200/500/2000 real-scene index-versus-linear query timings with
+the optional heavy benchmark; a data structure alone does not prove an FPS gain.
+
 ## Camera settings
 
 `JigsawCameraSettings` owns:

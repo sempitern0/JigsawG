@@ -32,7 +32,7 @@
 | --- | --- | --- |
 | `jigsaw_board.gd` still coordinates many systems | Regression risk and harder focused tests | Trace generation, input, camera, render and state responsibilities |
 | Generation batches count nodes, not milliseconds | A single busy frame may still cause noticeable stalls | Capture frame-time distribution during 200/500/2000 builds |
-| Selection hit-testing scans all pieces | Input latency could grow with piece count | Benchmark hit-test time on dispersed and overlapping puzzles |
+| New spatial hit-testing needs actual Godot validation | Index rebuild cost and ordering must be verified on-device | Run the pure/Board regressions and benchmark 200/500/2000 indexed versus linear lookup |
 | Per-piece canvas draw and dense Bézier contours | GPU/CPU costs at far zoom | Measure frame time, draw calls, memory and silhouette readability |
 | Camera overview shows widely scattered pieces | Tiny pieces and difficult wayfinding | Test screen sizes, working view, overview and return-to-work workflows |
 | Mouse and keyboard dominate input | Touch, motor, visual and keyboard-only access are not certified | Usability tasks with alternative inputs and high contrast |
@@ -64,7 +64,7 @@ Phases are **ordered by dependencies**, not promised calendar dates. Every phase
 **Goal:** smooth interaction and useful orientation when pieces outnumber the screen's readable area.
 
 **Candidates, selected by profiling**
-- Spatial index for piece hit-testing (keep draw order, selected-group priority and animated hit shapes correct).
+- Spatial index for piece hit-testing (**implemented**, with lazy invalidation; engine execution and real performance measurements remain pending). Keep draw order, selected-group priority and animated hit shapes correct.
 - Adaptive rendering detail / visibility strategy for out-of-view or far-zoom pieces; verify complementary geometry remains the single source of truth.
 - Time-budgeted or adaptive generation batches, with safe cancellation and monotonic progress signals.
 - Improve shuffle footprint and grouping distribution for large/portrait images; keep deterministic behavior and avoid overlaps.

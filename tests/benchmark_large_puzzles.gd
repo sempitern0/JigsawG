@@ -21,6 +21,36 @@ func _config(target: int, chaotic: bool) -> JigsawPuzzleConfig:
 		result.gameplay.shuffle_mode = JigsawGameplaySettings.Shuffle.CHAOTIC
 	return result
 
+## Compare equal live-scene queries to the legacy O(N) polygon scan.
+## No speed or latency threshold is assumed; measurements depend on hardware.
+func _measure_hits(board: Node2D, count: int) -> void:
+	var probes: Array[Vector2] = []
+	for sample in range(160):
+		var id := floori(float(sample * count) / 160.0)
+		var piece := board.get_piece_node(id) as JigsawPiece
+		probes.append(piece.to_global(piece.bounds.get_center()))
+	board._find_piece_at(probes[0]) # Lazy index build; exclude from warm query cost.
+	var indexed_ids := PackedInt32Array()
+	var candidates := 0
+	var start := Time.get_ticks_usec()
+	for probe in probes:
+		indexed_ids.append(board._find_piece_at(probe))
+		candidates += board._hit_index.last_candidate_count()
+	var indexed_us := Time.get_ticks_usec() - start
+	start = Time.get_ticks_usec()
+	for j in range(probes.size()):
+		var expected := -1
+		for id in range(count - 1, -1, -1):
+			if board.get_piece_node(id).contains(probes[j]):
+				expected = id
+				break
+		assert(expected == indexed_ids[j], "Spatial lookup changed exact picking result.")
+	var linear_us := Time.get_ticks_usec() - start
+	print("HITS pieces=%d probes=%d avg_candidates=%.2f indexed_us=%d linear_us=%d" % [
+		count, probes.size(), float(candidates) / float(probes.size()), indexed_us, linear_us
+	])
+
+
 func _run() -> void:
 	var scene := Node2D.new()
 	get_root().add_child(scene)
@@ -55,6 +85,7 @@ func _run() -> void:
 		var all_zoom := _camera.zoom.x
 		assert(all_zoom <= board_zoom + 0.0001)
 		print("BOARD target=%d actual=%d grid=%dx%d build_ms=%d board_zoom=%.4f overview_zoom=%.4f" % [target, count, grid.x, grid.y, elapsed, board_zoom, all_zoom])
+		_measure_hits(_board, count)
 	var long_config := _config(2000, true)
 	long_config.gameplay.generation_batch_size = 16
 	_board.configure(long_config)

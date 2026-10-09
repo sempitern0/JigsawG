@@ -194,6 +194,8 @@ godot --headless --path . --script res://tests/test_group_model.gd
 godot --headless --path . --script res://tests/test_group_integration.gd
 godot --headless --path . --script res://tests/test_state_and_selection.gd
 godot --headless --path . --script res://tests/test_selection_and_auto_grid.gd
+godot --headless --path . --script res://tests/test_hit_index.gd
+godot --headless --path . --script res://tests/test_hit_index_board.gd
 godot --headless --path . --script res://tests/test_camera_selection_focus.gd
 godot --headless --path . --script res://tests/test_motion_adapter.gd
 godot --headless --path . --script res://tests/test_generation_batching.gd
@@ -213,7 +215,7 @@ godot --headless --path . --script res://tests/benchmark_large_puzzles.gd
 | --- | --- | --- |
 | Geometry / Organic / UV sampling | geometry, shape profiles, organic shapes, state & selection | Neighbor seams, rotation, zoomed art |
 | Groups / snapping / multi-select | group model, group integration, selection & auto grid, state & selection | Connected drag and save/restore |
-| Input / camera / scatter | selection & auto grid, large scatter, generation batching | 200/500/2000 camera navigation and pan |
+| Input / camera / scatter | selection & auto grid, hit index, hit index Board, large scatter, generation batching | 200/500/2000 camera navigation and pan |
 | Generation / save | generation batching, state & selection, public integration | Cancellation, immutable Resource presets |
 | Events / reactions / motion | event API, board events, motion adapter, public integration | Event ordering and visual tween correctness |
 | Plugin registration / distribution | plugin icon, public integration | Clean-project install using addon alone |

@@ -32,7 +32,7 @@ A resource-driven **2D puzzle runtime** for [Godot 4.7](https://godotengine.org/
 | 🧩 | **Six connector families** | Classic, Rounded, Angular, Compact, Mixed and asymmetric **Organic**; complementary Bézier edges |
 | 🖱️ | **Intuitive grouping** | Single-piece drag, Ctrl-highlighted multi-selection, compact group arrangement and exact snapping |
 | 🧮 | **Choose difficulty by count** | Manual rows × columns, or an **Auto** grid near a requested 4–4000 pieces |
-| 🧭 | **Large-puzzle navigation** | Smooth zoom, panning, edge-scroll, **Home** to focus the board, **End** for the scattered overview |
+| 🧭 | **Large-puzzle navigation** | Smooth zoom, panning, edge-scroll, spatial picking, **Home** for the board, **End** for overview, **F** for selection |
 | 🪄 | **Customizable presentation** | Selection outlines, colored piece contours, style presets, materials and interchangeable motion adapters |
 | 💾 | **Resumable state** | Save/restore positions, rotations, groups and Mosaic locks in Godot Resources |
 | 🔊 | **Event-driven integration** | Typed events, audio, VFX, `AnimationPlayer` and method-call reactions |

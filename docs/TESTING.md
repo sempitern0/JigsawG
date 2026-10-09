@@ -50,6 +50,9 @@ The runner rejects non-zero exits, script/import errors and missing PASS markers
 - [ ] Dragging distant Ctrl-selected groups packs them without overlap while preserving rigid already-connected groups and their rotations.
 - [ ] Auto grid chooses balanced rows/columns near the target piece count; manual dimensions remain unchanged.
 - [ ] Run `godot --headless --path . --script res://tests/test_selection_and_auto_grid.gd`.
+- [ ] Run `godot --headless --path . --script res://tests/test_hit_index.gd` (200/500/2000 broad phase and deterministic order).
+- [ ] Run `godot --headless --path . --script res://tests/test_hit_index_board.gd` (Ctrl priority, movement, rotation, animation, save/restore).
+- [ ] Compare indexed and full-scan queries in `tests/benchmark_large_puzzles.gd` on actual hardware; record before/after times.
 - [ ] Run `godot --headless --path . --script res://tests/test_motion_adapter.gd`; verify animated rotation and packed selection with the demo's Motion Adapter.
 - [ ] Confirm that `capture_state()`, `restore_state()`, snap and group membership are unaffected by presentation tweens.
 - [ ] Confirm custom Motion Adapter subclasses receive motion context and can animate without changing the logical transforms.
