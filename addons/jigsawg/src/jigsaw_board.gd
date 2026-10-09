@@ -38,6 +38,7 @@ const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
 const GridResolver = preload("res://addons/jigsawg/src/jigsaw_grid_resolver.gd")
 const SelectionLayout = preload("res://addons/jigsawg/src/jigsaw_selection_layout.gd")
+const ScatterLayout = preload("res://addons/jigsawg/src/jigsaw_scatter_layout.gd")
 const GroupModel = preload("res://addons/jigsawg/src/jigsaw_group_model.gd")
 const ConnectionResolver = preload("res://addons/jigsawg/src/jigsaw_connection_resolver.gd")
 const StateValidator = preload("res://addons/jigsawg/src/jigsaw_state_validator.gd")
@@ -72,7 +73,11 @@ var zoom_smoothing := 12.0
 var bezier_detail := 8
 var shuffle_spacing := 0.14
 var wheel_zoom_factor := 1.15
-var min_zoom := 0.025
+var min_zoom := 0.005
+var initial_focus := JigsawCameraSettings.InitialFocus.AUTO
+var large_puzzle_threshold := 200
+var focus_board_key: Key = KEY_HOME
+var overview_key: Key = KEY_END
 var max_zoom := 8.0
 var edge_scroll_zone := 64.0
 var edge_scroll_speed := 900.0
@@ -239,11 +244,25 @@ func fit_view() -> bool:
 		return false
 	_update_camera_bounds()
 	_fit_camera()
+	_finish_camera_framing()
+	return true
+
+
+## Frame only the puzzle assembly mat, keeping large pieces readable.
+## Press Home (configurable) to focus the board; End frames all scattered pieces.
+func focus_board() -> bool:
+	if _camera == null or _piece_size == Vector2.ZERO:
+		return false
+	_fit_camera_to(Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows)))
+	_finish_camera_framing()
+	return true
+
+
+func _finish_camera_framing() -> void:
 	_sync_camera_target()
 	_zoom_goal = _camera.zoom.x
 	_edge_pan_velocity = Vector2.ZERO
 	_zoom_anchor_valid = false
-	return true
 
 ## Fullscreen reference image can also be controlled by an external HUD.
 func toggle_reference_preview() -> void:
@@ -380,7 +399,12 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 	if update_camera and _camera != null:
 		_update_camera_bounds()
 		if auto_fit_camera:
-			_fit_camera()
+			if initial_focus == JigsawCameraSettings.InitialFocus.BOARD or (
+				initial_focus == JigsawCameraSettings.InitialFocus.AUTO and _pieces.size() >= large_puzzle_threshold
+			):
+				_fit_camera_to(Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows)))
+			else:
+				_fit_camera()
 		_sync_camera_target()
 
 	if emit_event:
@@ -739,6 +763,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint() or not _interaction_enabled:
 		return
 
+	if event is InputEventKey and event.pressed and not event.echo and enable_camera_navigation and _camera != null:
+		if event.keycode == focus_board_key and focus_board_key != KEY_NONE:
+			if focus_board():
+				get_viewport().set_input_as_handled()
+			return
+		if event.keycode == overview_key and overview_key != KEY_NONE:
+			if fit_view():
+				get_viewport().set_input_as_handled()
+			return
+
 	if event is InputEventKey and event.pressed and not event.echo and enable_preview and event.keycode == preview_key:
 		set_preview_visible(not _preview_overlay.is_preview_visible())
 		get_viewport().set_input_as_handled()
@@ -982,13 +1016,17 @@ func _update_camera_bounds() -> void:
 	_pan_bounds = _fit_bounds.grow(maxf(_piece_size.x, _piece_size.y) * camera_outer_margin)
 
 func _fit_camera() -> void:
+	_fit_camera_to(_fit_bounds)
+
+
+func _fit_camera_to(bounds: Rect2) -> void:
 	if _camera == null:
 		return
-	var frame := _fit_bounds.size * 1.08
+	var frame := bounds.size * 1.08
 	var screen := get_viewport_rect().size
 	if frame.x <= 0.0 or frame.y <= 0.0 or screen.x <= 0.0 or screen.y <= 0.0:
 		return
-	_camera.global_position = to_global(_fit_bounds.get_center())
+	_camera.global_position = to_global(bounds.get_center())
 	var zoom := minf(screen.x / frame.x, screen.y / frame.y)
 	_camera.zoom = Vector2.ONE * clampf(zoom, min_zoom, max_zoom)
 
@@ -1094,112 +1132,34 @@ func _limit_camera() -> void:
 	if _camera_target_ready:
 		_camera_target_position = _clamp_camera_position(_camera_target_position)
 
+## Plan positions without creating tens of thousands of temporary slots or
+## scanning every previously placed chaotic piece.
 func _scatter_non_overlapping() -> void:
+	var board_size := _piece_size * Vector2(columns, rows)
+	var positions: Array[Vector2]
 	if shuffle_mode == ShuffleMode.CHAOTIC:
-		_scatter_chaotic()
-		return
-
-	# Conservative slot footprints avoid overlap, including Bézier protrusions.
-	# Use a square footprint: a 90-degree turn swaps width and height.
-	var footprint_side := maxf(_piece_size.x, _piece_size.y)
-	var stride := Vector2.ONE * footprint_side * (1.65 + shuffle_spacing)
-	var count := _pieces.size()
-	var side_count := maxi(columns + 6, ceili(sqrt(float(count) * 3.0)))
-	var slots: Array[Vector2] = []
-	var board_rect := Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
-	var forbidden := board_rect.grow(maxf(stride.x, stride.y))
-	for y in range(-side_count, side_count + 1):
-		for x in range(-side_count, side_count + 1):
-			var slot := Vector2(x * stride.x, y * stride.y)
-			var footprint := Rect2(slot - Vector2.ONE * footprint_side * 0.33, Vector2.ONE * footprint_side * 1.66)
-			match shuffle_mode:
-				ShuffleMode.AROUND_BOARD:
-					if forbidden.intersects(footprint):
-						continue
-				ShuffleMode.BOTTOM:
-					if footprint.position.y < board_rect.end.y + stride.y * 0.5:
-						continue
-				ShuffleMode.CENTER:
-					pass
-			slots.append(slot)
-	var center := board_rect.get_center()
-	if distribution_mode == DistributionMode.RADIAL:
-		slots.sort_custom(func(a: Vector2, b: Vector2) -> bool:
-			return a.distance_squared_to(center) < b.distance_squared_to(center))
+		positions = ScatterLayout.chaotic(
+			_pieces.size(), board_size, _piece_size, shuffle_spacing,
+			chaotic_spread, chaotic_max_attempts, _rng
+		)
 	else:
-		# Keep the closest slots; the seeded Fisher-Yates shuffle below assigns pieces.
-		slots.sort_custom(func(a: Vector2, b: Vector2) -> bool:
-			return a.distance_squared_to(center) < b.distance_squared_to(center))
-	if slots.size() < count:
-		push_warning("JigsawG: insufficient shuffle slots; increase available placement range.")
-		return
-	slots.resize(count)
-	if distribution_mode == DistributionMode.RANDOM:
-		for i in range(count - 1, 0, -1):
-			var j := _rng.randi_range(0, i)
-			var tmp: Vector2 = slots[i]
-			slots[i] = slots[j]
-			slots[j] = tmp
-	for i in range(count):
-		_pieces[i].position = slots[i]
+		positions = ScatterLayout.structured(
+			_pieces.size(), board_size, _piece_size,
+			shuffle_mode, distribution_mode, shuffle_spacing, _rng
+		)
+	for i in range(mini(_pieces.size(), positions.size())):
+		_pieces[i].position = positions[i]
 
+
+## Legacy integration helper retained for internal scripts.
 func _scatter_chaotic() -> void:
-	# Continuous rejection sampling: natural-looking positions without a visible grid,
-	# while keeping conservative non-overlapping square footprints.
-	var footprint_side := maxf(_piece_size.x, _piece_size.y)
-	var footprint_extent := footprint_side * (0.82 + shuffle_spacing * 0.5)
-	var footprint_size := Vector2.ONE * footprint_extent * 2.0
-	var board_rect := Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
-	var forbidden := board_rect.grow(footprint_extent * 0.8)
-	var base_margin := footprint_side * maxf(3.0, sqrt(float(_pieces.size())) * chaotic_spread)
-	var placed_footprints: Array[Rect2] = []
+	var positions := ScatterLayout.chaotic(
+		_pieces.size(), _piece_size * Vector2(columns, rows), _piece_size,
+		shuffle_spacing, chaotic_spread, chaotic_max_attempts, _rng
+	)
+	for i in range(mini(_pieces.size(), positions.size())):
+		_pieces[i].position = positions[i]
 
-	for piece_index in range(_pieces.size()):
-		var placed := false
-		var total_attempts := maxi(chaotic_max_attempts, 8) * 5
-		for attempt in range(total_attempts):
-			var expansion_step := floori(float(attempt) / float(maxi(chaotic_max_attempts, 8)))
-			var margin := base_margin * (1.0 + float(expansion_step) * 0.35)
-			var area := board_rect.grow(margin)
-			var center := Vector2(
-				_rng.randf_range(area.position.x, area.end.x),
-				_rng.randf_range(area.position.y, area.end.y)
-			)
-			var candidate_footprint := Rect2(center - footprint_size * 0.5, footprint_size)
-			if forbidden.intersects(candidate_footprint):
-				continue
-
-			var overlaps := false
-			for existing in placed_footprints:
-				if existing.intersects(candidate_footprint):
-					overlaps = true
-					break
-			if overlaps:
-				continue
-
-			_pieces[piece_index].position = center - _piece_size * 0.5
-			placed_footprints.append(candidate_footprint)
-			placed = true
-			break
-
-		if not placed:
-			# Extremely dense fallback: search a guaranteed free lane below the board.
-			var fallback_center := Vector2(
-				board_rect.position.x + footprint_extent + float(piece_index % maxi(columns, 1)) * footprint_size.x,
-				board_rect.end.y + base_margin + float(piece_index / maxi(columns, 1)) * footprint_size.y
-			)
-			var fallback_footprint := Rect2(fallback_center - footprint_size * 0.5, footprint_size)
-			var searching := true
-			while searching:
-				searching = false
-				for existing in placed_footprints:
-					if existing.intersects(fallback_footprint):
-						fallback_center.y += footprint_size.y
-						fallback_footprint = Rect2(fallback_center - footprint_size * 0.5, footprint_size)
-						searching = true
-						break
-			_pieces[piece_index].position = fallback_center - _piece_size * 0.5
-			placed_footprints.append(fallback_footprint)
 
 func _update_ghost_board() -> void:
 	if not is_instance_valid(_ghost_board):
@@ -1350,6 +1310,10 @@ func _apply_resource_presets() -> void:
 	enable_camera_navigation = camera_options.enable_camera_navigation
 	invert_background_pan = camera_options.invert_background_pan
 	auto_fit_camera = camera_options.auto_fit_camera
+	initial_focus = camera_options.initial_focus
+	large_puzzle_threshold = camera_options.large_puzzle_threshold
+	focus_board_key = camera_options.focus_board_key
+	overview_key = camera_options.overview_key
 	smooth_pan = camera_options.smooth_pan
 	pan_smoothing = camera_options.pan_smoothing
 	restrict_camera = camera_options.restrict_camera
