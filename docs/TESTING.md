@@ -29,3 +29,10 @@ Godot 4.7, GL Compatibility, mouse and keyboard. Use a real high-resolution phot
 - [ ] Perform parse/headless tests and inspect performance for at least 300 pieces.
 - [ ] Attach images/video of Free/Mosaic/Rotation in a release.
 - [ ] Tag only after regression test results and documentation match the shipped package.
+
+## Resource-first packaging
+- [ ] Create a JigsawPuzzleConfig .tres, set texture, columns, rows, connector depth, camera and feedback subresources; attach via JigsawBoard.puzzle_config.
+- [ ] Run the examples/configs/standard_puzzle.tres preset and inspect resource loading errors.
+- [ ] Reuse a shared config in two boards; neither board mutates the Resource.
+- [ ] Call board.configure(config) and board.apply_configuration() and verify generation reset is intentional.
+- [ ] Copy only addons/jigsawg to a new project and configure a puzzle with no legacy inspector fields.
