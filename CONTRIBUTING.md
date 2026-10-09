@@ -1,20 +1,26 @@
-# Contribution
+# Contributing to JigsawG
 
-Existing issues marked with a [help wanted tag](https://github.com/sempitern0/[PLUGIN]/labels/help%20wanted) are the best candidates for contributions. Issues with that tag are either not prioritised, or are in need of help with someone with more expertise within a certain area
+Thank you for helping improve a reusable Godot jigsaw plugin.
 
-## Reporting bugs
+## Before you contribute
+- Search [existing issues](https://github.com/sempitern0/JigsawG/issues).
+- For feature proposals, describe a real user scenario and the Resource/API behavior you expect.
+- Do not submit images or other assets without redistribution permission.
 
-1. **[Follow the template for bug reports.](https://github.com/sempitern0/[PLUGIN]/issues/new?assignees=sempitern0&labels=%F0%9F%90%9B+bug&projects=&template=bug_report.md&title)**
-2. **Golden rule** Open _one_ ussie for _one_ bug .
-3. [Search for existing reports first.](https://github.com/sempitern0/[PLUGIN]/issues) If you found a similar issue in the tracker - better share your problem in the existing thread.
-4. Besides the platform, specify as many specifics as you can _(if relevant)_. CPU/GPU, input methods _(controller, mouse)_ and so on.
-5. A simple reproduction project helps more than any reproduction steps. Include it whenever you can. Examining the problem first-hand is the easiest way to solve it.
+## Development setup
+1. Fork/clone the repository and open it with **Godot 4.7**.
+2. Enable the JigsawG plugin and run `examples/puzzle_lab.tscn`.
+3. Modify only the relevant `addons/jigsawg` scripts; keep the public `JigsawBoard.puzzle_config` API backwards compatible where possible.
+4. Follow `docs/TESTING.md`, especially Free/Mosaic, rotation, shuffle, preview and camera checks.
+5. Open a pull request with rationale, before/after behavior, engine logs and test results.
 
-## Proposing features
+## Engineering conventions
+- Resource classes own persistent configuration; runtime code must not modify shared preset assets.
+- Internal piece geometry, camera, controls and feedback should remain independently testable.
+- Preserve canonical matching seams and deterministic generation when a seed is supplied.
+- Document every public signal, exported Resource field and breaking change.
+- Avoid introducing extra required plugins/dependencies or links to host-project root assets.
+- Prefer small focused pull requests over API-breaking rewrites.
 
-1. **[Follow the template for feature requests.](https://github.com/sempitern0/[PLUGIN]/issues/new?assignees=sempitern0&labels=%E2%AD%90+feature&projects=&template=feature_request.md&title)**
-2. [Search for existing proposals first.](https://github.com/sempitern0/[PLUGIN]/issues)
-3. Request something with a real-world use-case. Abstract features may not be considered.
-4. If you are capable of implementing said feature, include some code that demonstrates the finer details/nuances of said feature.
-
-## Thanks you for contributing mindfully!
+## Reporting issues
+Use the [bug report template](https://github.com/sempitern0/JigsawG/issues/new/choose) with your Godot version, steps to reproduce, source image size, relevant .tres settings and logs.
