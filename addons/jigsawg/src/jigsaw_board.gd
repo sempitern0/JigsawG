@@ -1132,6 +1132,12 @@ func _process_controller(delta: float) -> void:
 		_device_input.cursor_left_action, _device_input.cursor_right_action,
 		_device_input.cursor_up_action, _device_input.cursor_down_action
 	)
+	if _device_input.use_joypad_defaults and movement.length_squared() <= 0.001:
+		var raw_cursor: Vector2 = Vector2(
+			Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_LEFT_X),
+			Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_LEFT_Y)
+		)
+		movement = raw_cursor if raw_cursor.length() > _device_input.stick_deadzone else Vector2.ZERO
 	if movement.length_squared() > 0.001:
 		_activate_controller_cursor()
 		var screen_size: Vector2 = get_viewport_rect().size
@@ -1147,13 +1153,68 @@ func _process_controller(delta: float) -> void:
 		_device_input.camera_left_action, _device_input.camera_right_action,
 		_device_input.camera_up_action, _device_input.camera_down_action
 	)
+	if _device_input.use_joypad_defaults and camera_vector.length_squared() <= 0.001:
+		var raw_camera: Vector2 = Vector2(
+			Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_RIGHT_X),
+			Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_RIGHT_Y)
+		)
+		camera_vector = raw_camera if raw_camera.length() > _device_input.stick_deadzone else Vector2.ZERO
 	if camera_vector.length_squared() > 0.001:
 		_offset_camera_target(camera_vector * _device_input.camera_pan_speed_px * delta / maxf(_camera.zoom.x, 0.001))
+	if _device_input.use_joypad_defaults:
+		var left_trigger: float = maxf(0.0, Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_TRIGGER_LEFT))
+		var right_trigger: float = maxf(0.0, Input.get_joy_axis(_device_input.joypad_device, JOY_AXIS_TRIGGER_RIGHT))
+		var zoom_input: float = right_trigger - left_trigger
+		if absf(zoom_input) > _device_input.stick_deadzone:
+			_activate_controller_cursor()
+			_zoom_at_screen(powf(wheel_zoom_factor, zoom_input * delta * 5.0), _device_pointer_screen)
+
+
+## Standard joypad: A grab, B cancel, X group toggle, shoulders rotate,
+## triggers zoom, left stick / D-pad cursor, right stick pan.
+func _handle_joypad_button(event: InputEventJoypadButton) -> bool:
+	if not _device_input.use_joypad_defaults or event.device != _device_input.joypad_device:
+		return false
+	match event.button_index:
+		JOY_BUTTON_A:
+			_activate_controller_cursor()
+			if not _controller_cursor_active:
+				return false
+			if event.pressed and _drag_root < 0:
+				var piece_id: int = _find_piece_at(_get_pointer_world())
+				if piece_id >= 0:
+					_begin_piece_drag(piece_id, _get_pointer_world())
+				else:
+					clear_selection()
+			elif not event.pressed and _drag_root >= 0:
+				_finish_pointer_drag(_device_pointer_screen, _get_pointer_world())
+			return true
+		JOY_BUTTON_B:
+			if event.pressed and _controller_cursor_active and _drag_root >= 0:
+				_cancel_drag()
+				return true
+		JOY_BUTTON_X:
+			if event.pressed and enable_multi_select:
+				_activate_controller_cursor()
+				var piece_id: int = _find_piece_at(_get_pointer_world())
+				if piece_id >= 0:
+					_toggle_group_selection(piece_id)
+				return true
+		JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_RIGHT_SHOULDER:
+			if event.pressed and allow_piece_rotation:
+				_activate_controller_cursor()
+				var hovered: int = _dragged_piece if _dragged_piece >= 0 else _find_piece_at(_get_pointer_world())
+				if hovered >= 0:
+					rotate_piece(hovered, event.button_index == JOY_BUTTON_RIGHT_SHOULDER)
+				return true
+	return false
 
 
 func _handle_controller_action(event: InputEvent) -> bool:
 	if _device_input == null or not _device_input.enable_controller:
 		return false
+	if event is InputEventJoypadButton and _handle_joypad_button(event as InputEventJoypadButton):
+		return true
 	if _matches_input_action(event, _device_input.cancel_action):
 		if _drag_root >= 0 and _controller_cursor_active:
 			_cancel_drag()

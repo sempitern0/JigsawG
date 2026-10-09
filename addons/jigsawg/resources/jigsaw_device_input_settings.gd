@@ -14,6 +14,11 @@ extends Resource
 @export_group("Virtual Cursor / Gamepad")
 ## Disabled by default so existing games keep all their input ownership.
 @export var enable_controller := false
+## Works with standard Godot/SDL joypad events without any InputMap setup.
+## Disable to use ONLY the optional host action names below.
+@export var use_joypad_defaults := true
+## Usually 0 on Steam Deck; choose the connected device for split-screen hosts.
+@export_range(0, 15, 1) var joypad_device := 0
 ## InputMap movement actions, usually bound to the left analog stick / D-pad.
 @export var cursor_left_action: StringName = &"ui_left"
 @export var cursor_right_action: StringName = &"ui_right"
