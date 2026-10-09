@@ -98,6 +98,13 @@ func _verify() -> void:
 	assert(board.focus_next_piece_by_category(BoardScript.PieceCategory.EDGE) == -1)
 	board.set_preview_visible(false)
 
+	# Arrange a valid solved layout before joining: the earlier visibility
+	# check intentionally moved and rotated piece 0 far from its neighbors.
+	# The organizer never performs this step; the test creates a valid join.
+	for piece_id: int in range(board.get_piece_count()):
+		var member: JigsawPiece = board.get_piece_node(piece_id) as JigsawPiece
+		member.position = member.home
+		board._set_piece_quarters(piece_id, 0)
 	# Unions stay authoritative: joined groups are visited once per category.
 	var connected: bool = board._connect_group_from(0)
 	assert(connected)
