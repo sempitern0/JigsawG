@@ -338,7 +338,9 @@ func _begin_piece_drag(piece_id: int, mouse_position: Vector2) -> void:
 	_refresh_selection_visuals(true)
 	_animate_pickup(_selected_piece_ids.keys(), true)
 	piece_picked.emit(piece_id)
-	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_STARTED, piece_id, true, JigsawPuzzleEvent.REASON_POINTER_DOWN))
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_STARTED, piece_id, true, JigsawPuzzleEvent.REASON_POINTER_DOWN, {
+		"selected_piece_ids": get_selected_piece_ids()
+	}))
 
 func rebuild() -> void:
 	if not _pieces.is_empty():
@@ -570,7 +572,9 @@ func _unhandled_input(event: InputEvent) -> void:
 						if game_mode == GameMode.FREE:
 							_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_CONNECTION_FAILED, released_piece_id, false, JigsawPuzzleEvent.REASON_NO_COMPATIBLE_NEIGHBOR))
 					piece_released.emit(released_piece_id, connected)
-					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, JigsawPuzzleEvent.REASON_RELEASED))
+					_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, released_piece_id, connected, JigsawPuzzleEvent.REASON_RELEASED, {
+						"selected_piece_ids": get_selected_piece_ids()
+					}))
 					_drag_root = -1
 					_dragged_piece = -1
 					get_viewport().set_input_as_handled()
@@ -632,7 +636,9 @@ func _cancel_drag(reason: StringName = JigsawPuzzleEvent.REASON_CANCELLED) -> vo
 	for member in _selected_piece_ids.keys():
 		var piece := _pieces[int(member)]
 		piece.modulate = Color.WHITE
-	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_CANCELLED, cancelled_piece_id, false, reason))
+	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_CANCELLED, cancelled_piece_id, false, reason, {
+		"selected_piece_ids": get_selected_piece_ids()
+	}))
 	_drag_root = -1
 	_dragged_piece = -1
 	_camera_pan = false
