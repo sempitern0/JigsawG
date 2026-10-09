@@ -16,7 +16,7 @@ Turn an image into a playable jigsaw board, then customize generation, difficult
 
 </div>
 
-> **Release status — preview.** The project owner has tested previous iterations in the Godot editor. This release-preparation branch has not completed the full regression, clean-install and performance checklist. Do not describe it as production-stable yet.
+> **Release status — preview.** The public API is usable and under active validation. Before shipping a game, run the included regression checklist against your target Godot version and hardware.
 
 ## Highlights
 
@@ -104,7 +104,7 @@ func start_beginner(image: Texture2D) -> void:
 | **JigsawPuzzleConfig** | Source texture, grid rows/columns and number of connector silhouette families |
 | **JigsawGameplaySettings** | Free/Mosaic, snapping tolerance, 90° rotation, seeded shuffle, ghost mat, preview key |
 | **JigsawAppearanceSettings** | Bézier depth and detail, edge styles, border width/opacity, texture sampling |
-| **JigsawCameraSettings** | Initial framing, wheel zoom, interpolation, panning direction, optional bounds, edge scroll |
+| **JigsawCameraSettings** | Initial framing, smooth pan/zoom, panning direction, optional bounds and eased edge scrolling |
 | **JigsawFeedbackSettings** | None/Subtle/Playful built-in animation preset, pickup/connect/failure tint and timing |
 | **JigsawReaction[]** | Optional reusable host-game reactions: audio, VFX scenes or custom Resource scripts |
 
@@ -114,32 +114,39 @@ More detail: [Resource API and migration guide](docs/RESOURCE_API.md).
 
 ## Add feedback in under a minute
 
-JigsawG separates puzzle mechanics from presentation. Open your `JigsawPuzzleConfig` and add Resources to **Reactions**:
+No scripting is required for common audio and VFX.
 
-- **JigsawAudioReaction** — choose events such as Group Connected or Puzzle Completed, then assign an AudioStream.
-- **JigsawSpawnSceneReaction** — choose events and assign a PackedScene containing particles, an animation, floating score text, etc.
-- **Custom JigsawReaction** — extend one small Resource script for scoring, tutorials, achievements, analytics or game-specific behavior.
+1. Select the `JigsawPuzzleConfig` used by your board.
+2. Expand **Reactions** and add an array element.
+3. Choose **New JigsawAudioReaction** or **New JigsawSpawnSceneReaction**.
+4. Tick the desired **Event Mask** entries.
+5. Assign the sound or PackedScene and run the puzzle.
 
-No changes to `JigsawBoard` are required.
+Example — play a snap sound:
 
-Example: create a **JigsawAudioReaction**, select **Group Connected**, assign `snap.ogg`, and add it to `Puzzle Config → Reactions`. Every valid group snap now plays the sound.
-
-For code-driven games, connect either a semantic signal or the single `event_emitted` bus:
-
-```gdscript
-func _ready() -> void:
-    $JigsawBoard.group_connection_succeeded.connect(_on_group_connected)
-    $JigsawBoard.puzzle_finished.connect(_on_finished)
-
-func _on_group_connected(event: JigsawPuzzleEvent) -> void:
-    score += event.group_size * 10
-    spawn_combo_text(event.world_position, event.group_size)
-
-func _on_finished(_event: JigsawPuzzleEvent) -> void:
-    $ResultsScreen.open()
+```text
+JigsawPuzzleConfig
+└── Reactions
+    └── JigsawAudioReaction
+        ├── Event Mask → Group Connected ✓
+        ├── Stream → puzzle_snap.ogg
+        ├── Spatial → true
+        └── Pitch → 0.96 .. 1.04
 ```
 
-See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md) for the full event model, custom Resource example and extension rules.
+Example — spawn particles when a Mosaic piece is correct:
+
+```text
+JigsawSpawnSceneReaction
+├── Event Mask → Piece Placed ✓
+├── Scene → piece_sparkle.tscn
+├── Parent Mode → Board Parent
+└── Auto Free After → 1.5
+```
+
+Reactions can be stacked, saved as reusable `.tres` files and shared by many puzzle presets. For pickup effects that must follow a moving piece, use **Parent Mode → Primary Piece**.
+
+See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md) for detailed Inspector recipes, event definitions, custom reactions and lifecycle rules.
 
 ## Inputs
 
@@ -193,6 +200,27 @@ The context exposes `piece_id`, all `piece_ids` in the current group, `group_siz
 
 Full reference: [Events & Reactions](docs/EVENTS_AND_REACTIONS.md).
 
+## Camera feel
+
+Camera behavior lives in `JigsawCameraSettings`. The default setup aims to remain responsive while removing abrupt movement:
+
+| Setting | Default | Effect |
+| --- | ---: | --- |
+| `smooth_pan` | true | Interpolates camera position toward pointer/edge-scroll targets |
+| `pan_smoothing` | 26 | Higher values feel more immediate; lower values feel softer |
+| `smooth_zoom` | true | Interpolates wheel zoom |
+| `zoom_smoothing` | 12 | Zoom response speed |
+| `edge_scroll_speed` | 900 | Maximum auto-pan speed while carrying pieces |
+| `edge_scroll_smoothing` | 12 | Acceleration/deceleration of edge scrolling |
+
+Suggested starting points:
+
+- **Responsive desktop:** pan 24–30, edge 10–14, zoom 10–14.
+- **Soft/cinematic:** pan 10–16, edge 6–10, zoom 7–10.
+- **Fully direct:** disable `smooth_pan` and/or `smooth_zoom`.
+
+If the host `Camera2D` already has Godot's own **Position Smoothing** enabled, disable either that setting or JigsawG's `smooth_pan` to avoid applying smoothing twice.
+
 ## Image quality and performance
 
 - Use a sufficiently high-resolution source image for dense puzzles. Increasing `bezier_detail` smooths **geometry**, not image pixels.
@@ -213,16 +241,15 @@ examples/                    # Development-only Godot scene and presets
 tests/                       # Geometry / behavior checks
 docs/
   RESOURCE_API.md            # Configuration reference
-  EVENTS_AND_REACTIONS.md    # VFX/audio/scoring/custom integration API
+  EVENTS_AND_REACTIONS.md    # No-code VFX/audio + event extension API
   TESTING.md                 # Release acceptance checklist
-  ARCHITECTURE.md            # Design and migration notes
 ```
 
 ## Known limitations and release readiness
 
 This is a **preview**, not a certified stable release. Current priorities include regression tests for group merging and rotation, clean-project installation, memory/performance measurement, reconfiguration lifecycle and verifying the redistribution rights for demo assets. Input support currently focuses on mouse and keyboard; touchscreen/controller and save/load are outside the documented support scope.
 
-Found a bug? Please open an [issue](https://github.com/sempitern0/JigsawG/issues) with your Godot version, operating system, minimal reproduction scene, relevant Resource settings and engine logs. See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md), [Engineering Review](docs/ENGINEERING_REVIEW.md), [Testing](docs/TESTING.md), [Changelog](CHANGELOG.md) and [Contributing](CONTRIBUTING.md).
+Found a bug? Please open an [issue](https://github.com/sempitern0/JigsawG/issues) with your Godot version, operating system, minimal reproduction scene, relevant Resource settings and engine logs. See [Events & Reactions](docs/EVENTS_AND_REACTIONS.md), [Testing](docs/TESTING.md), [Changelog](CHANGELOG.md) and [Contributing](CONTRIBUTING.md).
 
 ## License
 
