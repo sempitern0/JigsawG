@@ -51,6 +51,8 @@ var auto_fit_camera := true
 var drag_smoothing := 22.0
 var enable_camera_navigation := true
 var invert_background_pan := false
+var smooth_pan := true
+var pan_smoothing := 26.0
 var smooth_zoom := true
 var zoom_smoothing := 12.0
 var bezier_detail := 8
@@ -60,6 +62,7 @@ var min_zoom := 0.025
 var max_zoom := 8.0
 var edge_scroll_zone := 64.0
 var edge_scroll_speed := 900.0
+var edge_scroll_smoothing := 12.0
 var texture_sampling := 0
 var piece_edge_opacity := 0.0
 var piece_edge_width := 0.7
@@ -104,6 +107,9 @@ var _piece_size := Vector2.ZERO
 var _rng := RandomNumberGenerator.new()
 var _camera: Camera2D
 var _camera_pan := false
+var _camera_target_position := Vector2.ZERO
+var _camera_target_ready := false
+var _edge_pan_velocity := Vector2.ZERO
 var _zoom_goal := 1.0
 var _zoom_anchor := Vector2.ZERO
 var _zoom_anchor_valid := false
@@ -274,7 +280,11 @@ func rebuild() -> void:
 		_update_camera_bounds()
 		if auto_fit_camera:
 			_fit_camera()
+		_sync_camera_target()
+		_edge_pan_velocity = Vector2.ZERO
 		_zoom_goal = _camera.zoom.x
+	else:
+		_camera_target_ready = false
 	puzzle_generated.emit(_pieces.size())
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_STARTED, -1, true, JigsawPuzzleEvent.REASON_GENERATED, {
 		"piece_count": _pieces.size(),
@@ -327,9 +337,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 		if event is InputEventMouseMotion and _camera_pan:
 			var current_mouse := get_viewport().get_mouse_position()
-			_camera.global_position += (current_mouse - _pan_last_mouse) / _camera.zoom.x * (1.0 if invert_background_pan else -1.0)
+			var pan_delta := (current_mouse - _pan_last_mouse) / _camera.zoom.x * (1.0 if invert_background_pan else -1.0)
 			_pan_last_mouse = current_mouse
-			_limit_camera()
+			_offset_camera_target(pan_delta)
 			get_viewport().set_input_as_handled()
 			return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed and allow_piece_rotation:
@@ -382,12 +392,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
-	if enable_camera_navigation and _camera and smooth_zoom:
-		_update_smooth_zoom(delta)
+	if enable_camera_navigation and _camera:
+		if smooth_zoom:
+			_update_smooth_zoom(delta)
+		_update_edge_pan_camera(delta)
+		_update_smooth_pan(delta)
 	if _drag_root == -1 or _dragged_piece == -1:
 		return
-	if enable_camera_navigation and _camera:
-		_edge_pan_camera(delta)
 	_desired_position = get_global_mouse_position() + _pointer_offset
 	var factor := 1.0 - exp(-drag_smoothing * delta)
 	_move_group((_desired_position - _pieces[_dragged_piece].global_position) * factor)
@@ -493,40 +504,85 @@ func _apply_zoom(zoom: float, screen_anchor: Vector2) -> void:
 	_camera.zoom = Vector2.ONE * zoom
 	_camera.force_update_scroll()
 	var world_after := _camera.get_canvas_transform().affine_inverse() * screen_anchor
-	_camera.global_position += world_before - world_after
+	var anchor_correction := world_before - world_after
+	_camera.global_position += anchor_correction
+	if _camera_target_ready:
+		_camera_target_position += anchor_correction
 	_limit_camera()
 
-func _edge_pan_camera(delta: float) -> void:
-	var viewport_size := get_viewport_rect().size
-	var cursor := get_viewport().get_mouse_position()
-	if cursor.x < 0 or cursor.y < 0 or cursor.x > viewport_size.x or cursor.y > viewport_size.y:
+func _update_edge_pan_camera(delta: float) -> void:
+	var desired_velocity := Vector2.ZERO
+	if _drag_root != -1 and _dragged_piece != -1:
+		var viewport_size := get_viewport_rect().size
+		var cursor := get_viewport().get_mouse_position()
+		if cursor.x >= 0.0 and cursor.y >= 0.0 and cursor.x <= viewport_size.x and cursor.y <= viewport_size.y:
+			var movement := Vector2.ZERO
+			if cursor.x < edge_scroll_zone:
+				movement.x = -1.0 + cursor.x / edge_scroll_zone
+			elif cursor.x > viewport_size.x - edge_scroll_zone:
+				movement.x = 1.0 - (viewport_size.x - cursor.x) / edge_scroll_zone
+			if cursor.y < edge_scroll_zone:
+				movement.y = -1.0 + cursor.y / edge_scroll_zone
+			elif cursor.y > viewport_size.y - edge_scroll_zone:
+				movement.y = 1.0 - (viewport_size.y - cursor.y) / edge_scroll_zone
+			if movement != Vector2.ZERO:
+				desired_velocity = movement.limit_length(1.0) * edge_scroll_speed / maxf(_camera.zoom.x, 0.001)
+
+	var velocity_factor := 1.0 - exp(-edge_scroll_smoothing * delta)
+	_edge_pan_velocity = _edge_pan_velocity.lerp(desired_velocity, velocity_factor)
+	if _edge_pan_velocity.length_squared() < 0.01:
+		_edge_pan_velocity = Vector2.ZERO
+	if _edge_pan_velocity != Vector2.ZERO:
+		_offset_camera_target(_edge_pan_velocity * delta)
+
+func _sync_camera_target() -> void:
+	if _camera == null:
+		_camera_target_ready = false
 		return
-	var movement := Vector2.ZERO
-	if cursor.x < edge_scroll_zone:
-		movement.x = -1.0 + cursor.x / edge_scroll_zone
-	elif cursor.x > viewport_size.x - edge_scroll_zone:
-		movement.x = 1.0 - (viewport_size.x - cursor.x) / edge_scroll_zone
-	if cursor.y < edge_scroll_zone:
-		movement.y = -1.0 + cursor.y / edge_scroll_zone
-	elif cursor.y > viewport_size.y - edge_scroll_zone:
-		movement.y = 1.0 - (viewport_size.y - cursor.y) / edge_scroll_zone
-	if movement != Vector2.ZERO:
-		_camera.global_position += movement.limit_length(1.0) * edge_scroll_speed * delta / _camera.zoom.x
-		_limit_camera()
+	_camera_target_position = _camera.global_position
+	_camera_target_ready = true
+
+func _offset_camera_target(offset: Vector2) -> void:
+	if _camera == null:
+		return
+	if not _camera_target_ready:
+		_sync_camera_target()
+	_camera_target_position = _clamp_camera_position(_camera_target_position + offset)
+	if not smooth_pan:
+		_camera.global_position = _camera_target_position
 		_camera.force_update_scroll()
 
-func _limit_camera() -> void:
-	if _camera == null or not restrict_camera:
+func _update_smooth_pan(delta: float) -> void:
+	if _camera == null or not _camera_target_ready:
 		return
+	_camera_target_position = _clamp_camera_position(_camera_target_position)
+	if not smooth_pan:
+		_camera.global_position = _camera_target_position
+		return
+	var factor := 1.0 - exp(-pan_smoothing * delta)
+	_camera.global_position = _camera.global_position.lerp(_camera_target_position, factor)
+	if _camera.global_position.distance_squared_to(_camera_target_position) < 0.01:
+		_camera.global_position = _camera_target_position
+
+func _clamp_camera_position(position: Vector2) -> Vector2:
+	if _camera == null or not restrict_camera:
+		return position
 	var half_screen := get_viewport_rect().size / (_camera.zoom * 2.0)
 	var limits := Rect2(to_global(_pan_bounds.position), _pan_bounds.size)
-	var center := _camera.global_position
+	var center := position
 	for axis in range(2):
 		if limits.size[axis] <= half_screen[axis] * 2.0:
 			center[axis] = limits.get_center()[axis]
 		else:
 			center[axis] = clampf(center[axis], limits.position[axis] + half_screen[axis], limits.end[axis] - half_screen[axis])
-	_camera.global_position = center
+	return center
+
+func _limit_camera() -> void:
+	if _camera == null:
+		return
+	_camera.global_position = _clamp_camera_position(_camera.global_position)
+	if _camera_target_ready:
+		_camera_target_position = _clamp_camera_position(_camera_target_position)
 
 func _scatter_non_overlapping() -> void:
 	# Conservative slot footprints avoid overlap, including Bézier protrusions.
@@ -690,6 +746,8 @@ func _apply_resource_presets() -> void:
 	enable_camera_navigation = camera_options.enable_camera_navigation
 	invert_background_pan = camera_options.invert_background_pan
 	auto_fit_camera = camera_options.auto_fit_camera
+	smooth_pan = camera_options.smooth_pan
+	pan_smoothing = camera_options.pan_smoothing
 	restrict_camera = camera_options.restrict_camera
 	camera_outer_margin = camera_options.camera_outer_margin
 	smooth_zoom = camera_options.smooth_zoom
@@ -700,6 +758,7 @@ func _apply_resource_presets() -> void:
 	drag_smoothing = camera_options.drag_smoothing
 	edge_scroll_zone = camera_options.edge_scroll_zone
 	edge_scroll_speed = camera_options.edge_scroll_speed
+	edge_scroll_smoothing = camera_options.edge_scroll_smoothing
 
 	_active_feedback = config.feedback
 	if _active_feedback == null:
