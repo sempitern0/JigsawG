@@ -18,6 +18,10 @@ extends Resource
 @export var restrict_camera := false
 ## Additional pan space outside content, in longest piece sides.
 @export_range(0.0, 20.0, 0.5) var camera_outer_margin := 5.0
+## Grace period before an empty-space left press may become a camera pan.
+@export_range(0, 300, 5) var background_pan_delay_ms := 70
+## Pointer movement in screen pixels required before empty-space left drag starts panning.
+@export_range(0.0, 24.0, 0.5) var background_pan_threshold_px := 4.0
 
 @export_group("Zoom")
 ## Animate wheel zoom instead of jumping between values.
