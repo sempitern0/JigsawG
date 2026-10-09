@@ -392,7 +392,7 @@ func _process(delta: float) -> void:
 	_move_group((_desired_position - _pieces[_dragged_piece].global_position) * factor)
 
 ## Stop an unfinished drag without snapping (e.g. when preview is opened).
-func _cancel_drag(reason: StringName = &"cancelled") -> void:
+func _cancel_drag(reason: StringName = JigsawPuzzleEvent.REASON_CANCELLED) -> void:
 	if _dragged_piece < 0:
 		_camera_pan = false
 		return
@@ -778,7 +778,8 @@ func _make_event(
 		event.world_position = get_piece_world_center(piece_id)
 		event.quarter_turns = _rotations[piece_id]
 	else:
-		event.world_position = global_position
+		var board_center := _piece_size * Vector2(columns, rows) * 0.5
+		event.world_position = to_global(board_center) if _piece_size != Vector2.ZERO else global_position
 	return event
 
 ## Emit the umbrella signal, a semantic signal, then configured Resource reactions.
