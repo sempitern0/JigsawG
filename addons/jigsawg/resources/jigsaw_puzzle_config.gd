@@ -33,6 +33,8 @@ enum GridMode { MANUAL, AUTO }
 @export var trays: JigsawTraySettings = JigsawTraySettings.new()
 ## Optional three-level, non-solving visual assistance; disabled by default.
 @export var hints: JigsawHintSettings = JigsawHintSettings.new()
+## Bounded in-memory undo/redo of completed player actions; off by default.
+@export var history: JigsawHistorySettings = JigsawHistorySettings.new()
 ## Selection, successful connection and failed-connection feedback.
 @export var feedback: JigsawFeedbackSettings = JigsawFeedbackSettings.new()
 

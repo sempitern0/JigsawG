@@ -41,6 +41,10 @@ signal motion_requested(motion: JigsawMotionContext)
 signal trays_changed
 ## Temporary presentation only: OFF/REGION/CANDIDATE/PRECISE and representative ID.
 signal hint_changed(level: int, piece_id: int)
+## Changes when a completed action, undo, redo or reset changes the history.
+signal history_changed(can_undo: bool, can_redo: bool)
+## Undo/redo restores a snapshot silently, without fake join/placement events.
+signal history_applied(direction: StringName, label: StringName)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
@@ -52,6 +56,7 @@ const TrayLayout = preload("res://addons/jigsawg/src/jigsaw_tray_layout.gd")
 const TrayOverlay = preload("res://addons/jigsawg/src/jigsaw_tray_overlay.gd")
 const HintResolver = preload("res://addons/jigsawg/src/jigsaw_hint_resolver.gd")
 const HintOverlay = preload("res://addons/jigsawg/src/jigsaw_hint_overlay.gd")
+const ActionHistory = preload("res://addons/jigsawg/src/jigsaw_action_history.gd")
 const VirtualCursor = preload("res://addons/jigsawg/src/jigsaw_virtual_cursor.gd")
 const ScatterLayout = preload("res://addons/jigsawg/src/jigsaw_scatter_layout.gd")
 const GroupModel = preload("res://addons/jigsawg/src/jigsaw_group_model.gd")
@@ -188,6 +193,13 @@ var _hint_overlay: HintOverlay
 var _hint_level := HintLevel.OFF
 var _hint_piece_id := -1
 var _hint_previous_piece_id := -1
+
+## The history is intentionally a transient Board service, not save data.
+var _history_settings: JigsawHistorySettings
+var _action_history: ActionHistory = ActionHistory.new()
+var _history_before: JigsawPuzzleState
+var _history_label: StringName = &""
+var _history_restoring := false
 var _multi_selection_mode := false
 var _drag_visual_active := false
 var _drag_start_screen := Vector2.ZERO
@@ -626,6 +638,8 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 	for locked_id in state.locked_piece_ids:
 		_locked_pieces[int(locked_id)] = true
 	_finished = state.completed
+	if not _history_restoring:
+		_history_reset()
 	_reflow_trays(false)
 	_refresh_selection_visuals(false)
 	if not _tray_names.is_empty():
@@ -707,6 +721,97 @@ func focus_next_piece_by_category(category: PieceCategory) -> int:
 	_finish_camera_framing()
 	_organizer_last_focused[int(category)] = focused_id
 	return focused_id
+
+
+## History counts are safe for host HUDs; no full snapshots are exposed.
+func can_undo() -> bool:
+	return _history_settings != null and _history_settings.enabled and _action_history.undo_count() > 0
+
+
+func can_redo() -> bool:
+	return _history_settings != null and _history_settings.enabled and _action_history.redo_count() > 0
+
+
+func get_history_counts() -> Vector2i:
+	return Vector2i(_action_history.undo_count(), _action_history.redo_count())
+
+
+func _history_reset() -> void:
+	var had_history: bool = _action_history.undo_count() > 0 or _action_history.redo_count() > 0
+	_history_before = null
+	_history_label = &""
+	_action_history.clear()
+	if had_history:
+		history_changed.emit(false, false)
+
+
+func clear_history() -> void:
+	_history_reset()
+
+
+func _history_begin(label: StringName) -> void:
+	if _history_restoring or _history_before != null or _history_settings == null or not _history_settings.enabled:
+		return
+	if _generating or _pieces.size() != columns * rows:
+		return
+	_history_before = capture_state()
+	_history_label = label
+
+
+func _history_commit() -> void:
+	if _history_before == null:
+		return
+	var before: JigsawPuzzleState = _history_before
+	var label: StringName = _history_label
+	_history_before = null
+	_history_label = &""
+	if _history_restoring or _generating:
+		return
+	var after: JigsawPuzzleState = capture_state()
+	if _action_history.push(before, after, label):
+		history_changed.emit(can_undo(), can_redo())
+
+
+func _can_apply_history() -> bool:
+	return _history_settings != null and _history_settings.enabled and not _history_restoring \
+		and not _generating and _interaction_enabled and _drag_root < 0 \
+		and not is_reference_preview_visible() and _history_before == null
+
+
+## Full snapshots are restored using the same validated path as load, with
+## camera framing and save-resumed gameplay reactions suppressed.
+func undo() -> bool:
+	if not _can_apply_history() or not can_undo():
+		return false
+	var snapshot: JigsawPuzzleState = _action_history.next_undo()
+	var label: StringName = _action_history.undo_label()
+	_history_restoring = true
+	var applied: bool = restore_state(snapshot, false, false)
+	_history_restoring = false
+	if not applied:
+		return false
+	_action_history.accept_undo()
+	_emit_progress_changed()
+	history_changed.emit(can_undo(), can_redo())
+	history_applied.emit(&"undo", label)
+	return true
+
+
+func redo() -> bool:
+	if not _can_apply_history() or not can_redo():
+		return false
+	var snapshot: JigsawPuzzleState = _action_history.next_redo()
+	var label: StringName = _action_history.redo_label()
+	_history_restoring = true
+	var applied: bool = restore_state(snapshot, false, false)
+	_history_restoring = false
+	if not applied:
+		return false
+	_action_history.accept_redo()
+	_emit_progress_changed()
+	history_changed.emit(can_undo(), can_redo())
+	history_applied.emit(&"redo", label)
+	return true
 
 
 ## Optional staged help; all rectangles are Board-local.
@@ -1243,6 +1348,7 @@ func _group_bounds_local(root: int) -> Rect2:
 
 
 func rebuild() -> void:
+	_history_reset()
 	# Cancel a prior coroutine on its next frame before changing the scene graph.
 	_generation_serial += 1
 	var build_id := _generation_serial
@@ -1904,6 +2010,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
+	# Optional shortcuts are owned by the host and do not require the addon
+	# to create InputMap actions. Never hijack modifiers on unrelated keys.
+	if _history_settings != null and _history_settings.enabled:
+		var undo_pressed: bool = _matches_input_action(event, _history_settings.undo_action)
+		var redo_pressed: bool = _matches_input_action(event, _history_settings.redo_action)
+		if event is InputEventKey and event.pressed and not event.echo:
+			if _history_settings.undo_key != KEY_NONE and event.keycode == _history_settings.undo_key:
+				undo_pressed = true
+			if _history_settings.redo_key != KEY_NONE and event.keycode == _history_settings.redo_key:
+				redo_pressed = true
+		if undo_pressed or redo_pressed:
+			var changed: bool = undo() if undo_pressed else redo()
+			if changed:
+				get_viewport().set_input_as_handled()
+			return
+
 	if enable_camera_navigation and _camera != null:
 		if _matches_input_action(event, focus_board_action):
 			if focus_board():
@@ -2535,6 +2657,10 @@ func _apply_resource_presets() -> void:
 	_hint_settings = config.hints
 	if _hint_settings == null:
 		_hint_settings = JigsawHintSettings.new()
+	_history_settings = config.history
+	if _history_settings == null:
+		_history_settings = JigsawHistorySettings.new()
+	_action_history.maximum_actions = clampi(_history_settings.maximum_actions, 1, 64)
 
 	var appearance := config.appearance
 	if appearance == null:
