@@ -2499,11 +2499,12 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 	if _dragged_piece >= 0 and _groups.root_of(_dragged_piece) == group_id:
 		_pointer_offset = _pieces[_dragged_piece].global_position - _get_pointer_world()
 		_desired_position = _pieces[_dragged_piece].global_position
-	_emit_motion(JigsawMotionContext.Kind.ROTATION, motion_ids, previous)
-	# A stored group may have a larger footprint after a quarter-turn.
+	# Stored groups may need a bigger slot after a quarter-turn. Repack
+	# before emitting the motion snapshot so adapters tween to the FINAL pose.
 	if _tray_roots.has(group_id) and _drag_root < 0:
 		_reflow_trays(true)
 		trays_changed.emit()
+	_emit_motion(JigsawMotionContext.Kind.ROTATION, motion_ids, previous)
 	group_rotated.emit(piece_index, _rotations[piece_index], members.size())
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_ROTATED, piece_index, true, JigsawPuzzleEvent.REASON_CLOCKWISE if clockwise else JigsawPuzzleEvent.REASON_COUNTER_CLOCKWISE, {
 		"quarter_turns": _rotations[piece_index],
