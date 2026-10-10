@@ -51,6 +51,22 @@ godot --headless --path . --script res://tests/test_device_input.gd
 - [ ] Opening a HUD must disable Board input; ensure no actions leak through to puzzles behind menus.
 - [ ] Report measured FPS, latency and memory only with reference devices and named Godot renderers.
 
+## P3.4 bounded undo/redo
+
+```bash
+godot --headless --path . --script res://tests/test_action_history.gd
+godot --headless --path . --script res://tests/test_action_history_board.gd
+```
+
+- [ ] Import in Godot 4.7 with GDScript warnings treated as errors. Verify both tests use explicit types.
+- [ ] Demo: Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z undo/redo after a drag, rotation, Free group snap, Mosaic lock and tray placement/retrieval.
+- [ ] A click without movement must not consume history; a long drag and mid-drag rotation must count as one action.
+- [ ] New movement after undo must discard redo. Action limit must evict oldest entries without corrupting the cursor.
+- [ ] Undo a completed puzzle and redo it: gameplay progress should update without re-firing completion, join or placement reactions.
+- [ ] Confirm history is disabled in new Configs, reset on rebuild/external successful restore, and blocked during pause, active drag, preview and generation.
+- [ ] Verify old saves remain compatible, visual motion tweens do not leave ghost offsets, and hint/camera/selection state is not accidentally serialized.
+- [ ] Profile memory for 200, 500, and 2000 pieces with different `maximum_actions`; full snapshot history should remain opt-in until a named-device budget is established.
+
 ## P3.3 progressive hint acceptance
 
 ```bash

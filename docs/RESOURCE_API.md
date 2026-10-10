@@ -21,6 +21,7 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `JigsawDeviceInputSettings` | Opt-in tablet gestures and handheld/controller gameplay |
 | `JigsawTraySettings` | Optional named group holding areas and automatic shelf packing |
 | `JigsawHintSettings` | Opt-in staged visual clues; limits precision and configures optional input |
+| `JigsawHistorySettings` | Optional bounded in-memory undo/redo of completed player operations |
 | `JigsawFeedbackSettings` | Built-in pickup/connect/failure tint feedback |
 | `JigsawPuzzleState` | Serializable runtime progress: positions, rotations, connected groups and Mosaic locks |
 | `JigsawGroupModel` (internal) | Node-free connected groups, memberships, joins and atomic state restoration |
@@ -43,11 +44,40 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `device_input` | `JigsawDeviceInputSettings`, disabled by default |
 | `trays` | `JigsawTraySettings`, disabled by default |
 | `hints` | `JigsawHintSettings`, disabled by default |
+| `history` | `JigsawHistorySettings`, disabled by default |
 | `feedback` | `JigsawFeedbackSettings` |
 | `resume_state` | Optional `JigsawPuzzleState` applied after generation |
 | `reactions` | Array of `JigsawReaction` Resources |
 
 In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image dimensions and `target_piece_count` determine a balanced grid; actual count can differ to avoid elongated pieces and respect minimum source resolution. `board.get_effective_grid()` returns resolved columns and rows; `board.get_piece_count()` returns the generated count. The board never modifies the original configuration Resource.
+
+## Bounded action undo and redo (P3.4)
+
+`JigsawPuzzleConfig.history` is a `JigsawHistorySettings` Resource, **disabled by default**. When enabled it records one bounded transaction per finished player operation, not per frame or cursor motion. Covered operations: release of a moved group (including multi-group packing, Free connections or Mosaic cell locks), quarter-turn rotations, and public tray store/retrieve operations. Rotation during a held drag is included in that drag transaction. An unchanged click is ignored.
+
+```gdscript
+config.history.enabled = true
+config.history.maximum_actions = 20 # Valid range 1–64
+config.history.standard_keyboard_shortcuts = true
+# Optional InputMap aliases belonging to the host game:
+config.history.undo_action = &"my_game_undo"
+config.history.redo_action = &"my_game_redo"
+board.configure(config)
+
+if board.can_undo():
+    board.undo()
+if board.can_redo():
+    board.redo()
+var counts: Vector2i = board.get_history_counts()
+var next_label: StringName = board.get_next_undo_label()
+board.clear_history()
+```
+
+`history_changed(can_undo, can_redo)` signals button states. `history_applied(direction: StringName, label: StringName)` emits `&"undo"` or `&"redo"` and the recorded `&"drag"`, `&"rotate"`, `&"tray_store"` or `&"tray_retrieve"` label. These signals are separate from the serialized gameplay event-mask API: applying a snapshot does **not** re-emit piece placement, group connection, puzzle-completion, drag or failed-connection events. It updates progress and existing tray signals as appropriate. Host scoring systems should update from authoritative Board progress/state after `history_applied` rather than add/subtract rewards by replaying old events.
+
+When enabled, the default optional keyboard shortcuts are **Ctrl+Z** (undo), **Ctrl+Y** and **Ctrl+Shift+Z** (redo). These use `_unhandled_input` so handled HUD input takes precedence; disable `standard_keyboard_shortcuts` for a host that owns those combinations. Explicit `undo_key`/`redo_key` default to `KEY_NONE`; custom InputMap action names are empty by default. Host menus, gamepad controls and tablets should call the Board API rather than simulate keyboard presses.
+
+Undo/redo uses the existing `JigsawPuzzleState` validator: positions, rotations, connection roots, Mosaic locks, completion and tray assignments are restored atomically, but no history is serialized into the save. Restore/rebuild resets history; invalid external restore must leave it untouched. Undo/redo is unavailable during a drag, preview, pause, generation or incompatible state. The camera viewport, selection, hint markers and controller cursor are **not** part of the transaction. **History uses full snapshots**, not a delta encoding: set a bounded action count appropriate to your hardware; do not assume a fixed memory budget without profiling 2000-piece configurations.
 
 ## Progressive non-solving hints (P3.3)
 

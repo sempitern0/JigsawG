@@ -102,7 +102,7 @@ Phases are **ordered by dependencies**, not promised calendar dates. Every phase
 - Optional **trays** or named holding areas for loose pieces, with safe group movement and drag/drop. **First world-space named trays implemented**, with complete-group placement, drag/drop, safe retrieval and optional schema-1 membership persistence. Godot/runtime/device validation pending.
 - Sort actions (border, corner, similarity only if backed by reliable information); avoid automatically solving the puzzle. **P3.2 exposes `put_selection_in_tray()` to let host UIs sort chosen connected groups; automatic color/image sorting is not implemented.**
 - Progressive, opt-in hints with explicit difficulty levels: locate a region, highlight candidate groups, then stronger assistance only if requested. **P3.3 first implementation complete:** opt-in REGION → CANDIDATE → PRECISE (separately permitted) → OFF, with static overlay, camera focus, typed tests and no save/gameplay mutations. In-engine and physical-device verification pending; similarity/color-based hinting remains future work.
-- Undo/redo feasibility study (bounded actions or snapshots, memory and event semantics), followed by implementation if justified.
+- Undo/redo feasibility study (bounded actions or snapshots, memory and event semantics), followed by implementation if justified. **P3.4 first bounded snapshot implementation committed:** finished drags, group snaps, rotations, Mosaic placements and tray operations; redo branching, no-op filtering, 1–64 action cap and separate HUD signals. Godot execution, profiling and input acceptance remain pending.
 
 **Acceptance**
 - Sorting/tray operations are reversible or clearly disclosed, never silently disassemble connected groups or mutate original puzzle IDs.

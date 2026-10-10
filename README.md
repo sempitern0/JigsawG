@@ -35,6 +35,7 @@ A resource-driven **2D puzzle runtime** for [Godot 4.7](https://godotengine.org/
 | 🔎 | **Corner and border finder** | Topology-based category browsing, cycling connected groups without moving or selecting pieces |
 | 🗂️ | **Optional holding trays** | Named visible areas with group-safe drag/drop, deterministic packing and save-state support |
 | 💡 | **Progressive hints** | Opt-in three-stage clues: coarse image region, movable candidate group, then exact cell only when requested |
+| ↶ | **Bounded undo/redo** | Optional per-action timeline for moves, rotations, joins and tray operations; no save-format changes |
 | 🧭 | **Large-puzzle navigation** | Smooth zoom, panning, edge-scroll, spatial picking, **Home** for the board, **End** for overview, **F** for selection |
 | 🪄 | **Customizable presentation** | Selection outlines, colored piece contours, style presets, materials and interchangeable motion adapters |
 | 💾 | **Resumable state** | Save/restore positions, rotations, groups and Mosaic locks in Godot Resources |
@@ -89,6 +90,7 @@ The Board exposes **one Inspector entry:** `puzzle_config`. Its sections separat
 | `JigsawDeviceInputSettings` | Opt-in tablet gestures, virtual gamepad cursor and configurable controller actions |
 | `JigsawTraySettings` | Optional named holding areas for whole connected groups, visible below the assembly board |
 | `JigsawHintSettings` | Opt-in staged clues with configurable maximum detail, region granularity and shortcut |
+| `JigsawHistorySettings` | Optional in-memory, bounded undo/redo history for player actions and host-defined shortcuts |
 | `JigsawFeedbackSettings` | Pickup/snap tints, feedback timing and optional `JigsawMotionAdapter` |
 
 A few recipes:
@@ -126,6 +128,7 @@ Be mindful of VRAM and maximum texture sizes when choosing ultra-high-resolution
 | **P** | Toggle the full-image reference preview |
 | **C / E / I (demo)** | Browse corners / borders / interior pieces; camera visits one connected group at a time |
 | **H (demo)** | Reveal coarse solved region → highlight a loose group → exact slot → clear hint |
+| **Ctrl+Z / Ctrl+Y or Ctrl+Shift+Z (demo)** | Undo / redo the last completed player action |
 
 All relevant controls are configurable through the Gameplay and Camera Resources. A normal single click leaves no persistent highlight; Ctrl selections stay visibly outlined. The optional Gameplay → Accessibility pointer radius is measured in **screen pixels**, so assistance feels consistent when zooming.
 
@@ -186,6 +189,24 @@ config.hints.maximum_level = JigsawHintSettings.MaximumLevel.PRECISE
 ```
 
 The temporary `hint_changed(level, piece_id)` signal can drive a game's hint HUD; `get_hint_info()` exposes only the information appropriate to the **current level**, and `focus_hint()` frames it using the camera. `clear_hint()` removes markers. Requested regions/candidates are drawn in a static, reduced-motion-friendly overlay; zoom/camera framing can be disabled through `hints.focus_on_request`. Existing save files and scene configurations remain compatible. No arbitrary puzzle solving or automatic color/shape classification is introduced.
+
+### P3.4 — undo and redo, one completed action at a time
+
+The demo enables an in-memory, bounded history. **Ctrl+Z** undoes, **Ctrl+Y** or **Ctrl+Shift+Z** redoes. Holding/dragging a group is **one** history entry regardless of cursor frames, including compatible snap/joins and Mosaic placement. Rotations and moving groups into/out of trays are also supported.
+
+```gdscript
+config.history.enabled = true
+config.history.maximum_actions = 20
+board.configure(config)
+
+board.undo()
+board.redo()
+var counts: Vector2i = board.get_history_counts() # x=undo, y=redo
+```
+
+The `history_changed(can_undo, can_redo)` and `history_applied(direction, label)` signals power Undo/Redo HUD buttons on tablets or Steam Deck. Use optional `history.undo_action` / `redo_action` to bind controller inputs in your host game's InputMap. An action made after undo drops the abandoned redo branch. A click without movement consumes no slot. The timeline is reset when regenerating or successfully restoring an external save.
+
+**Undo/redo restores validated puzzle snapshots without replaying original snap/placement/completion events**, so host scoring/VFX should distinguish ordinary gameplay from `history_applied`. Camera travel, hints and cursor positions are not undoable. History is disabled by default for existing games and **is not persisted inside save files**.
 
 ### Optional input actions and reduced motion
 

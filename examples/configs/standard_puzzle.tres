@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://d3qleb0tpgfy5" path="res://addons/jigsawg/resources/jigsaw_device_input_settings.gd" id="8"]
 [ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_tray_settings.gd" id="9"]
 [ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_hint_settings.gd" id="10"]
+[ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_history_settings.gd" id="11"]
 
 [sub_resource type="Resource" id="Appearance"]
 script = ExtResource("4")
@@ -41,6 +42,11 @@ script = ExtResource("10")
 enabled = true
 maximum_level = 3
 advance_key = 72
+
+[sub_resource type="Resource" id="History"]
+script = ExtResource("11")
+enabled = true
+maximum_actions = 20
 
 [sub_resource type="Resource" id="Motion"]
 script = ExtResource("7")
@@ -76,4 +82,5 @@ camera = SubResource("Camera")
 device_input = SubResource("DeviceInput")
 trays = SubResource("Trays")
 hints = SubResource("Hints")
+history = SubResource("History")
 feedback = SubResource("Resource_1odl7")
