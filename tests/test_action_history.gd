@@ -35,7 +35,9 @@ func _initialize() -> void:
 	assert(history.redo_count() == 0 and history.undo_label() == &"rotate")
 	var held: JigsawPuzzleState = _state(25)
 	assert(history.push(held, _state(27), &"move"))
-	held.piece_positions[0] = Vector2(999, 999)
+	var changed_positions: PackedVector2Array = held.piece_positions
+	changed_positions[0] = Vector2(999, 999)
+	held.piece_positions = changed_positions
 	assert(history.next_undo().piece_positions[0] == Vector2(25, 0))
 	history.clear()
 	assert(history.undo_count() == 0 and history.redo_count() == 0)

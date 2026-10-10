@@ -736,6 +736,14 @@ func get_history_counts() -> Vector2i:
 	return Vector2i(_action_history.undo_count(), _action_history.redo_count())
 
 
+func get_next_undo_label() -> StringName:
+	return _action_history.undo_label() if can_undo() else &""
+
+
+func get_next_redo_label() -> StringName:
+	return _action_history.redo_label() if can_redo() else &""
+
+
 func _history_reset() -> void:
 	var had_history: bool = _action_history.undo_count() > 0 or _action_history.redo_count() > 0
 	_history_before = null
@@ -790,6 +798,8 @@ func undo() -> bool:
 	_history_restoring = false
 	if not applied:
 		return false
+	for piece: JigsawPiece in _pieces:
+		piece.cancel_visual_animations()
 	_action_history.accept_undo()
 	_emit_progress_changed()
 	history_changed.emit(can_undo(), can_redo())
@@ -807,6 +817,8 @@ func redo() -> bool:
 	_history_restoring = false
 	if not applied:
 		return false
+	for piece: JigsawPiece in _pieces:
+		piece.cancel_visual_animations()
 	_action_history.accept_redo()
 	_emit_progress_changed()
 	history_changed.emit(can_undo(), can_redo())
