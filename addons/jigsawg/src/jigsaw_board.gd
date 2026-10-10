@@ -785,7 +785,9 @@ func request_hint(level: int, piece_id: int = -1) -> bool:
 ## Cycle REGION -> CANDIDATE -> PRECISE -> OFF. Max configured level
 ## restricts exposure (default only REGION/CANDIDATE).
 func advance_hint() -> int:
-	if _hint_settings == null or not _hint_settings.enabled:
+	if _hint_settings == null or not _hint_settings.enabled or _generating or _finished:
+		return HintLevel.OFF
+	if not _interaction_enabled or _drag_root >= 0 or is_reference_preview_visible():
 		return HintLevel.OFF
 	if _hint_level >= int(_hint_settings.maximum_level):
 		_hint_previous_piece_id = _hint_piece_id
@@ -2433,6 +2435,8 @@ func _place_selected_in_mosaic() -> bool:
 
 		piece.position = piece.home
 		_locked_pieces[piece_id] = true
+		if _hint_piece_id == piece_id:
+			clear_hint()
 		_selected_piece_ids.erase(piece_id)
 		piece_placed.emit(piece_id)
 		_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_PLACED, piece_id, true, JigsawPuzzleEvent.REASON_MOSAIC_SLOT))

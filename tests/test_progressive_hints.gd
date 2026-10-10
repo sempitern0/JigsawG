@@ -11,14 +11,14 @@ func _initialize() -> void:
 	call_deferred("_verify")
 
 
-func _config(mosaic: bool = false, max_level: int = 3) -> JigsawPuzzleConfig:
+func _config(mosaic: bool = false, allow_precise: bool = true) -> JigsawPuzzleConfig:
 	var cfg: JigsawPuzzleConfig = JigsawPuzzleConfig.new()
 	cfg.columns = 4
 	cfg.rows = 3
 	cfg.gameplay.initial_scatter = false
 	cfg.gameplay.game_mode = JigsawGameplaySettings.Mode.MOSAIC if mosaic else JigsawGameplaySettings.Mode.FREE
 	cfg.hints.enabled = true
-	cfg.hints.maximum_level = max_level
+	cfg.hints.maximum_level = JigsawHintSettings.MaximumLevel.PRECISE if allow_precise else JigsawHintSettings.MaximumLevel.CANDIDATE
 	cfg.hints.advance_key = KEY_H
 	cfg.hints.advance_action = HINT_ACTION
 	cfg.hints.focus_on_request = false
@@ -131,7 +131,7 @@ func _verify() -> void:
 	board.set_interaction_enabled(true)
 
 	# Maximum tier can be capped to area+candidate; precise is opt-in.
-	var limited: JigsawPuzzleConfig = _config(false, 2)
+	var limited: JigsawPuzzleConfig = _config(false, false)
 	board.configure(limited)
 	assert(board.request_hint(BoardScript.HintLevel.REGION, 2))
 	assert(not board.request_hint(BoardScript.HintLevel.PRECISE, 2))
