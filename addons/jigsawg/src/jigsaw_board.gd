@@ -39,6 +39,8 @@ signal interaction_enabled_changed(enabled: bool)
 signal motion_requested(motion: JigsawMotionContext)
 ## Emitted after named-tray membership/layout changes. Host HUDs can query IDs.
 signal trays_changed
+## Temporary presentation only: OFF/REGION/CANDIDATE/PRECISE and representative ID.
+signal hint_changed(level: int, piece_id: int)
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
@@ -48,6 +50,8 @@ const HitIndex = preload("res://addons/jigsawg/src/jigsaw_hit_index.gd")
 const PieceCatalog = preload("res://addons/jigsawg/src/jigsaw_piece_catalog.gd")
 const TrayLayout = preload("res://addons/jigsawg/src/jigsaw_tray_layout.gd")
 const TrayOverlay = preload("res://addons/jigsawg/src/jigsaw_tray_overlay.gd")
+const HintResolver = preload("res://addons/jigsawg/src/jigsaw_hint_resolver.gd")
+const HintOverlay = preload("res://addons/jigsawg/src/jigsaw_hint_overlay.gd")
 const VirtualCursor = preload("res://addons/jigsawg/src/jigsaw_virtual_cursor.gd")
 const ScatterLayout = preload("res://addons/jigsawg/src/jigsaw_scatter_layout.gd")
 const GroupModel = preload("res://addons/jigsawg/src/jigsaw_group_model.gd")
@@ -58,6 +62,7 @@ const PreviewOverlay = preload("res://addons/jigsawg/src/jigsaw_preview_overlay.
 enum GameMode { FREE, MOSAIC }
 ## Grid-topology categories, unaffected by connector shape or rotation.
 enum PieceCategory { CORNER, EDGE, INTERIOR }
+enum HintLevel { OFF, REGION, CANDIDATE, PRECISE }
 enum ShuffleMode { AROUND_BOARD, CENTER, BOTTOM, CHAOTIC }
 enum DistributionMode { RANDOM, RADIAL }
 enum VisualStyle { CLEAN, CARDBOARD, HIGH_CONTRAST }
@@ -176,6 +181,13 @@ var _tray_roots: Dictionary = {}
 var _tray_rects: Array[Rect2] = []
 var _tray_overlay: TrayOverlay
 var _tray_retrieve_y := 0.0
+
+## P3 hints are ephemeral and are NOT part of JigsawPuzzleState.
+var _hint_settings: JigsawHintSettings
+var _hint_overlay: HintOverlay
+var _hint_level := HintLevel.OFF
+var _hint_piece_id := -1
+var _hint_previous_piece_id := -1
 var _multi_selection_mode := false
 var _drag_visual_active := false
 var _drag_start_screen := Vector2.ZERO
@@ -320,6 +332,7 @@ func set_interaction_enabled(enabled: bool) -> void:
 	if _interaction_enabled == enabled:
 		return
 	if not enabled:
+		clear_hint()
 		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
 		_end_device_pointer()
 		_touch_positions.clear()
@@ -595,6 +608,7 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 	if _dragged_piece >= 0:
 		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
 	clear_selection()
+	clear_hint()
 	_organizer_last_focused.clear()
 	_groups = restored_groups
 	_tray_roots.clear()
@@ -693,6 +707,125 @@ func focus_next_piece_by_category(category: PieceCategory) -> int:
 	_finish_camera_framing()
 	_organizer_last_focused[int(category)] = focused_id
 	return focused_id
+
+
+## Optional staged help; all rectangles are Board-local.
+## No group, selection, rotation, tray membership or saved positions change.
+func get_hint_info() -> Dictionary:
+	var info: Dictionary = {
+		"level": _hint_level,
+		"piece_id": _hint_piece_id,
+		"region": Rect2(),
+		"candidate_bounds": Rect2(),
+		"target_slot": Rect2(),
+		"group_piece_ids": PackedInt32Array(),
+		"tray_index": -1
+	}
+	if _hint_level == HintLevel.OFF or _hint_piece_id < 0 or _hint_piece_id >= _pieces.size():
+		return info
+	var cell_size: Vector2 = _piece_size
+	var piece: JigsawPiece = _pieces[_hint_piece_id]
+	info["region"] = HintResolver.coarse_region(
+		piece.home, cell_size, Vector2i(columns, rows),
+		clampi(_hint_settings.region_divisions, 2, 5)
+	)
+	if _hint_level >= HintLevel.CANDIDATE:
+		var root: int = _groups.root_of(_hint_piece_id)
+		info["candidate_bounds"] = _group_bounds_local(root)
+		info["group_piece_ids"] = _groups.members_for(_hint_piece_id)
+		info["tray_index"] = get_piece_tray_index(_hint_piece_id)
+	if _hint_level >= HintLevel.PRECISE:
+		info["target_slot"] = Rect2(piece.home, cell_size)
+	return info
+
+
+func _refresh_hint_overlay() -> void:
+	if not is_instance_valid(_hint_overlay):
+		return
+	if _hint_settings == null or not _hint_settings.show_overlay or _hint_level == HintLevel.OFF:
+		_hint_overlay.set_hint(0, Rect2(), Rect2(), Rect2())
+		return
+	var info: Dictionary = get_hint_info()
+	var region: Rect2 = info["region"]
+	var candidate: Rect2 = info["candidate_bounds"]
+	var target: Rect2 = info["target_slot"]
+	_hint_overlay.set_hint(_hint_level, region, candidate, target)
+
+
+## A full player request is required for every increase in specificity.
+## A caller may pass a known loose piece ID, or -1 for a deterministic choice.
+func request_hint(level: int, piece_id: int = -1) -> bool:
+	if _hint_settings == null or not _hint_settings.enabled or _generating or _finished:
+		return false
+	if not _interaction_enabled or _drag_root >= 0 or is_reference_preview_visible():
+		return false
+	if level < HintLevel.REGION or level > mini(HintLevel.PRECISE, int(_hint_settings.maximum_level)):
+		return false
+	if _pieces.size() != columns * rows:
+		return false
+	if piece_id == -1 and _hint_level != HintLevel.OFF and _hint_piece_id >= 0:
+		piece_id = _hint_piece_id
+	if piece_id == -1:
+		var locked: PackedInt32Array = PackedInt32Array()
+		for locked_variant in _locked_pieces.keys():
+			locked.append(int(locked_variant))
+		piece_id = HintResolver.pick_candidate(_groups.group_ids(), locked,
+			get_selected_piece_ids(), _hint_previous_piece_id)
+	if piece_id < 0 or piece_id >= _pieces.size() or _locked_pieces.has(piece_id):
+		return false
+	_hint_level = level
+	_hint_piece_id = piece_id
+	_refresh_hint_overlay()
+	hint_changed.emit(_hint_level, _hint_piece_id)
+	if _hint_settings.focus_on_request:
+		focus_hint()
+	return true
+
+
+## Cycle REGION -> CANDIDATE -> PRECISE -> OFF. Max configured level
+## restricts exposure (default only REGION/CANDIDATE).
+func advance_hint() -> int:
+	if _hint_settings == null or not _hint_settings.enabled:
+		return HintLevel.OFF
+	if _hint_level >= int(_hint_settings.maximum_level):
+		_hint_previous_piece_id = _hint_piece_id
+		clear_hint()
+		return HintLevel.OFF
+	var next_level: int = _hint_level + 1
+	if request_hint(next_level):
+		return _hint_level
+	return HintLevel.OFF
+
+
+func clear_hint() -> void:
+	if _hint_level == HintLevel.OFF and _hint_piece_id == -1:
+		return
+	_hint_level = HintLevel.OFF
+	_hint_piece_id = -1
+	_refresh_hint_overlay()
+	hint_changed.emit(HintLevel.OFF, -1)
+
+
+## Optional navigation to the currently offered hint, never an auto-solve.
+func focus_hint() -> bool:
+	if _camera == null or _hint_level == HintLevel.OFF or _generating:
+		return false
+	if not _interaction_enabled or _drag_root >= 0 or is_reference_preview_visible():
+		return false
+	var info: Dictionary = get_hint_info()
+	var bounds: Rect2 = info["region"]
+	if _hint_level == HintLevel.CANDIDATE:
+		bounds = info["candidate_bounds"]
+	elif _hint_level >= HintLevel.PRECISE:
+		bounds = info["target_slot"]
+	if bounds.size == Vector2.ZERO:
+		return false
+	if restrict_camera:
+		_update_camera_bounds()
+	_fit_camera_to(bounds.grow(maxf(_piece_size.x, _piece_size.y) * 0.6))
+	_limit_camera()
+	_finish_camera_framing()
+	return true
 
 
 ## Named world-space trays remain opt-in. Each stored entity is a complete
@@ -1118,6 +1251,8 @@ func rebuild() -> void:
 		_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_RESET, -1, true, JigsawPuzzleEvent.REASON_REBUILD, {
 			"piece_count": _pieces.size()
 		}))
+	clear_hint()
+	_hint_previous_piece_id = -1
 	_apply_resource_presets()
 	_end_device_pointer()
 	_touch_positions.clear()
@@ -1186,6 +1321,12 @@ func rebuild() -> void:
 	var shared_texture := ImageTexture.create_from_image(source)
 	_piece_size = Vector2(source.get_size()) / Vector2(columns, rows)
 	_initialize_trays()
+	if is_instance_valid(_hint_overlay):
+		_hint_overlay.queue_free()
+	_hint_overlay = HintOverlay.new()
+	_hint_overlay.name = "JigsawHints"
+	_hint_overlay.z_index = 25
+	add_child(_hint_overlay)
 	if not is_instance_valid(_preview_overlay):
 		_preview_overlay = PreviewOverlay.new()
 		_preview_overlay.name = "JigsawReferencePreview"
@@ -1816,6 +1957,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cancel_drag()
 		return
 
+	if _hint_settings != null and _hint_settings.enabled:
+		var hint_pressed: bool = _matches_input_action(event, _hint_settings.advance_action)
+		if event is InputEventKey and event.pressed and not event.echo:
+			if _hint_settings.advance_key != KEY_NONE and event.keycode == _hint_settings.advance_key:
+				hint_pressed = true
+		if hint_pressed:
+			advance_hint()
+			get_viewport().set_input_as_handled()
+			return
+
 	# The host owns the optional binding. Browsing only reframes the camera,
 	# leaving piece selection, group graph and saved state completely intact.
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -1937,6 +2088,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 func _process(delta: float) -> void:
+	if _hint_level != HintLevel.OFF:
+		if _finished or _generating or _hint_piece_id < 0 or _locked_pieces.has(_hint_piece_id):
+			clear_hint()
+		else:
+			_refresh_hint_overlay()
 	_process_controller(delta)
 	if enable_camera_navigation and _camera:
 		if smooth_zoom and not reduced_motion:
@@ -2371,6 +2527,9 @@ func _apply_resource_presets() -> void:
 	_tray_settings = config.trays
 	if _tray_settings == null:
 		_tray_settings = JigsawTraySettings.new()
+	_hint_settings = config.hints
+	if _hint_settings == null:
+		_hint_settings = JigsawHintSettings.new()
 
 	var appearance := config.appearance
 	if appearance == null:
@@ -2580,6 +2739,7 @@ func _dispatch_event(event: JigsawPuzzleEvent) -> void:
 func _finish_puzzle() -> void:
 	if _finished:
 		return
+	clear_hint()
 	_finished = true
 	puzzle_completed.emit()
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PUZZLE_COMPLETED, -1, true, JigsawPuzzleEvent.REASON_SOLVED, {
