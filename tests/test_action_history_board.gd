@@ -200,7 +200,7 @@ func _verify() -> void:
 	assert(_join_events == joins, "History replay must not fake gameplay joins.")
 
 	# Mosaic locked cells are captured; undo unlocks without false placement.
-	board.configure(_config(JigsawGameplaySettings.Mode.MOSAIC))
+	board.configure(_config(true))
 	first = board.get_piece_node(0) as JigsawPiece
 	board._begin_piece_drag(0, first.global_position)
 	board._activate_drag()
