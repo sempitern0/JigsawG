@@ -154,7 +154,8 @@ docs/                                      # User API, events, testing, roadmap
 - Touch/Steam Deck controls must remain opt-in via `JigsawPuzzleConfig.device_input`. Never synthesize mouse events or save virtual cursor positions; a second touch must cancel a piece drag before pan/pinch. Preserve HUD input ownership and legacy mouse/keyboard behavior.
 - Optional InputMap aliases remain host-owned and supplement legacy shortcuts; reduced motion must preserve logical transforms and motion/event signals. Custom host reactions need to honor is_reduced_motion() themselves.
 - For new GDScript tests, annotate locals explicitly. In particular, use typed preloaded scripts (BoardScript, HitIndex) rather than inferring variables from Variant-returning Board/Resource expressions; verify imports with warnings treated as errors.
-- The P3 piece organizer classifies original grid topology without inspecting shapes, and category camera browsing must **never** move puzzle pieces, alter selection or mutate serialized state. Search/focus actions are opt-in and are suppressed while preview/drag/pause/generation is active.
+- The P3 piece organizer classifies original grid topology without inspecting shapes, and category camera browsing must **never** move puzzle pieces, alter selection or mutate serialized state.
+- Named trays are opt-in under `puzzle_config.trays`; their membership is keyed by authoritative connected-group root, never a second connection graph. Shelf packing must retain rigid relative transforms and never fire snap failures. Old snapshots have empty `tray_indices`; validate new membership atomically before restore. Keep drag/drop shared across mouse, touch and controller. Search/focus actions are opt-in and are suppressed while preview/drag/pause/generation is active.
 - A normal click does not leave a persistent selection outline; a real drag highlights the single piece. **Ctrl+click must immediately highlight or toggle a whole connected group**, including after a plain click.
 - Compact multi-selection must not overlap groups, disassemble connected groups, unexpectedly teleport on click-without-drag or corrupt rotation.
 - Camera navigation must respect caller settings and not hijack host UI input; multiple simultaneously interactive Boards in one viewport are **not** currently an isolated, guaranteed configuration.
@@ -207,6 +208,8 @@ godot --headless --path . --script res://tests/test_accessible_input_and_motion.
 godot --headless --path . --script res://tests/test_device_input.gd
 godot --headless --path . --script res://tests/test_piece_catalog.gd
 godot --headless --path . --script res://tests/test_piece_organizer.gd
+godot --headless --path . --script res://tests/test_tray_layout.gd
+godot --headless --path . --script res://tests/test_piece_trays.gd
 godot --headless --path . --script res://tests/test_camera_selection_focus.gd
 godot --headless --path . --script res://tests/test_motion_adapter.gd
 godot --headless --path . --script res://tests/test_generation_batching.gd

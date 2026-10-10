@@ -45,6 +45,35 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 
 In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image dimensions and `target_piece_count` determine a balanced grid; actual count can differ to avoid elongated pieces and respect minimum source resolution. `board.get_effective_grid()` returns resolved columns and rows; `board.get_piece_count()` returns the generated count. The board never modifies the original configuration Resource.
 
+## Named holding trays (P3.2)
+
+The optional `JigsawPuzzleConfig.trays: JigsawTraySettings` Resource provides visible, **world-space** holding zones below the solved board. Set `trays.enabled=true` and choose up to four names with `trays.tray_names`. `show_background` controls the built-in low-contrast outlines; `allow_drop` controls drop-to-tray behavior. Neither setting is enabled in existing games.
+
+```gdscript
+config.trays.enabled = true
+config.trays.tray_names = PackedStringArray(["Corners", "Edges", "Unsorted"])
+board.configure(config)
+
+var slots: int = board.get_tray_count()
+var title: String = board.get_tray_name(0)
+var area: Rect2 = board.get_tray_rect(0)  # Board-local coordinates
+var stored: PackedInt32Array = board.get_tray_piece_ids(0)
+var existing_slot: int = board.get_piece_tray_index(piece_id)  # -1 outside
+
+board.put_group_in_tray(piece_id, 0)
+board.put_selection_in_tray(1)  # Returns count of distinct groups
+board.focus_tray(0)
+board.retrieve_group_from_tray(piece_id)
+```
+
+These functions never split joined groups. Positioning uses deterministic shelf packing on the **authoritative connected components**; every group's exact relative transforms and quarter-turns stay intact. Dropping a dragged piece over a tray moves the entire selected group(s), whether input came from mouse, touchscreen or virtual gamepad. This is not a failed snap and does not emit connection-failure effects. To retrieve, drag the group out; `retrieve_group_from_tray()` moves it into a nonoverlapping *staging column* left of the board rather than its former scatter coordinates. `focus_tray()` frames a tray for controller-accessible HUD buttons. Host UI can listen to the `trays_changed` signal to update inventory counts.
+
+Groups in a tray cannot accidentally join other groups or lock into Mosaic positions. Already locked Mosaic pieces cannot be put into trays. The normal overview (**End**) includes tray bounds; normal board focus (**Home**) stays on the assembly image.
+
+The optional `JigsawPuzzleState.tray_indices` array stores one tray index per piece (`-1` means outside). Existing schema-1 snapshots with an empty array remain valid. **Restoring assigned tray data requires trays enabled and the same compatible index range**, and any inconsistent per-group assignments or truncated lists are rejected *before* live state is mutated. Resuming preserves saved piece coordinates; it does not pack groups anew on load. This addition does not change the schema version, group IDs, image or connector geometry.
+
+**Limits:** these are world-space zones, not scrolling thumbnail inventories. Their visible size adapts as groups are added and a large number of stored pieces can expand the overall camera overview. Runtime and device usability still require a real Godot import/visual test.
+
 ## Corner, edge and interior organizer
 
 Every piece retains a stable topology category in `BoardScript.PieceCategory`: `CORNER`, `EDGE` (outer border **excluding corners**) or `INTERIOR`. Categories come from the original solved grid, not current position, angle, Bézier silhouette or image color.

@@ -33,6 +33,7 @@ A resource-driven **2D puzzle runtime** for [Godot 4.7](https://godotengine.org/
 | 🖱️ | **Intuitive grouping** | Single-piece drag, Ctrl-highlighted multi-selection, compact group arrangement and exact snapping |
 | 🧮 | **Choose difficulty by count** | Manual rows × columns, or an **Auto** grid near a requested 4–4000 pieces |
 | 🔎 | **Corner and border finder** | Topology-based category browsing, cycling connected groups without moving or selecting pieces |
+| 🗂️ | **Optional holding trays** | Named visible areas with group-safe drag/drop, deterministic packing and save-state support |
 | 🧭 | **Large-puzzle navigation** | Smooth zoom, panning, edge-scroll, spatial picking, **Home** for the board, **End** for overview, **F** for selection |
 | 🪄 | **Customizable presentation** | Selection outlines, colored piece contours, style presets, materials and interchangeable motion adapters |
 | 💾 | **Resumable state** | Save/restore positions, rotations, groups and Mosaic locks in Godot Resources |
@@ -85,6 +86,7 @@ The Board exposes **one Inspector entry:** `puzzle_config`. Its sections separat
 | `JigsawAppearanceSettings` | Connector family/depth, Bézier detail, artwork filtering, **piece edge color**, material and highlights |
 | `JigsawCameraSettings` | Board/overview framing, zoom, pan, smoothing, bounds and keyboard shortcuts |
 | `JigsawDeviceInputSettings` | Opt-in tablet gestures, virtual gamepad cursor and configurable controller actions |
+| `JigsawTraySettings` | Optional named holding areas for whole connected groups, visible below the assembly board |
 | `JigsawFeedbackSettings` | Pickup/snap tints, feedback timing and optional `JigsawMotionAdapter` |
 
 A few recipes:
@@ -139,6 +141,27 @@ var focused_piece_id: int = board.focus_next_piece_by_category(
 ```
 
 The catalog is derived from the original grid, so rotation and connector appearance do not change it. **Browsing only moves the camera**; it does not choose or move pieces, change connected groups, reveal the solution or affect saved progress. In Mosaic, already locked pieces are omitted unless requested with `include_locked=true`.
+
+### P3 organizer: holding trays
+
+The demo now includes three named trays below the board. Press **End** to see the entire puzzle and its trays; move a piece or connected group into a tray and release the pointer there. Groups are packed without overlap, remain selectable, and can be dragged back to the assembly area. The same release path is used by mouse, touch and virtual controller pointer.
+
+Trays are **opt-in** for existing games:
+
+```gdscript
+config.trays.enabled = true
+config.trays.tray_names = PackedStringArray(["Corners", "Edges", "Other"])
+board.configure(config)
+
+# Host menu / touch button integrations:
+board.put_selection_in_tray(0)
+board.focus_tray(0)
+board.retrieve_group_from_tray(piece_id)
+```
+
+The first tray is 0; query `get_tray_count()`, `get_tray_name(index)`, `get_tray_rect(index)`, `get_tray_piece_ids(index)` and `get_piece_tray_index(piece_id)` for custom UIs. Listen to `trays_changed` to refresh counts/badges. Trays do **not** connect pieces or solve any part of the puzzle. Dragging back removes tray membership. **Retrieval via API places a group in a staging column next to the board rather than its former scattered coordinates.**
+
+The schema-1 `JigsawPuzzleState` has an optional `tray_indices` array; older saves continue to load. A save containing tray assignments must be restored with compatible enabled tray settings. Long-term gestures/visual comfort still require real tablet and Steam Deck checks.
 
 ### Optional input actions and reduced motion
 

@@ -99,8 +99,8 @@ Phases are **ordered by dependencies**, not promised calendar dates. Every phase
 
 **Deliverables**
 - Edge/corner/interior classification derived from grid topology, independent of current rotation or appearance. **Implemented as a pure catalog, with Board ID queries and optional C/E/I category camera browsing. Godot runtime confirmation pending.**
-- Optional **trays** or named holding areas for loose pieces, with safe group movement and drag/drop.
-- Sort actions (border, corner, similarity only if backed by reliable information); avoid automatically solving the puzzle.
+- Optional **trays** or named holding areas for loose pieces, with safe group movement and drag/drop. **First world-space named trays implemented**, with complete-group placement, drag/drop, safe retrieval and optional schema-1 membership persistence. Godot/runtime/device validation pending.
+- Sort actions (border, corner, similarity only if backed by reliable information); avoid automatically solving the puzzle. **P3.2 exposes `put_selection_in_tray()` to let host UIs sort chosen connected groups; automatic color/image sorting is not implemented.**
 - Progressive, opt-in hints with explicit difficulty levels: locate a region, highlight candidate groups, then stronger assistance only if requested. **First non-solving finding aid implemented: cycle camera focus among corners/edges/interior connected groups. Region/color hints remain future work.**
 - Undo/redo feasibility study (bounded actions or snapshots, memory and event semantics), followed by implementation if justified.
 

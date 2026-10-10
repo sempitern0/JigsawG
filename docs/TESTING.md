@@ -51,6 +51,22 @@ godot --headless --path . --script res://tests/test_device_input.gd
 - [ ] Opening a HUD must disable Board input; ensure no actions leak through to puzzles behind menus.
 - [ ] Report measured FPS, latency and memory only with reference devices and named Godot renderers.
 
+## P3.2 named trays
+
+```bash
+godot --headless --path . --script res://tests/test_tray_layout.gd
+godot --headless --path . --script res://tests/test_piece_trays.gd
+```
+
+- [ ] With trays disabled, confirm legacy Free/Mosaic input, saves and viewport are unchanged.
+- [ ] In the demo, press **End** to display all three trays. Drag a connected group into a zone with mouse, one finger and controller cursor; the group must stay rigid and no connection-failure animation should fire.
+- [ ] Store multiple groups into a tray; verify no overlapping silhouettes, stable original piece IDs and consistent labels after rotation.
+- [ ] Drag out of a tray and use `retrieve_group_from_tray()` in a host HUD; verify no automatic solve or unexpected connections.
+- [ ] Capture and restore an assigned tray in Free mode. Legacy snapshots with no `tray_indices` must restore. Truncated/mixed-group arrays must fail without changing live positions.
+- [ ] Mosaic-locked pieces cannot be stored; unplaced pieces in trays must not lock even when near the original cell.
+- [ ] Confirm paused gameplay, active drag, disabled settings and partially generated batches block direct API mutations.
+- [ ] Test with a real 500/2000-piece puzzle: tray areas can become large; check camera framing, readability and latency before advertising handheld usability.
+
 ## Optional piece organization
 
 ```bash
