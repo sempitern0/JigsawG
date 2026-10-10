@@ -19,6 +19,8 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `JigsawAppearanceSettings` | Bézier connector shape, texture sampling and piece-edge rendering |
 | `JigsawCameraSettings` | Auto-fit, pan, zoom, bounds, drag response and edge scrolling |
 | `JigsawDeviceInputSettings` | Opt-in tablet gestures and handheld/controller gameplay |
+| `JigsawTraySettings` | Optional named group holding areas and automatic shelf packing |
+| `JigsawHintSettings` | Opt-in staged visual clues; limits precision and configures optional input |
 | `JigsawFeedbackSettings` | Built-in pickup/connect/failure tint feedback |
 | `JigsawPuzzleState` | Serializable runtime progress: positions, rotations, connected groups and Mosaic locks |
 | `JigsawGroupModel` (internal) | Node-free connected groups, memberships, joins and atomic state restoration |
@@ -39,11 +41,48 @@ Everything else belongs to the configuration tree so presets can be copied, shar
 | `appearance` | `JigsawAppearanceSettings` |
 | `camera` | `JigsawCameraSettings` |
 | `device_input` | `JigsawDeviceInputSettings`, disabled by default |
+| `trays` | `JigsawTraySettings`, disabled by default |
+| `hints` | `JigsawHintSettings`, disabled by default |
 | `feedback` | `JigsawFeedbackSettings` |
 | `resume_state` | Optional `JigsawPuzzleState` applied after generation |
 | `reactions` | Array of `JigsawReaction` Resources |
 
 In **Manual**, the exact count is `columns * rows`. In **Auto**, source-image dimensions and `target_piece_count` determine a balanced grid; actual count can differ to avoid elongated pieces and respect minimum source resolution. `board.get_effective_grid()` returns resolved columns and rows; `board.get_piece_count()` returns the generated count. The board never modifies the original configuration Resource.
+
+## Progressive non-solving hints (P3.3)
+
+The optional `JigsawPuzzleConfig.hints: JigsawHintSettings` Resource controls progressive guidance. `enabled=false` by default; `maximum_level=CANDIDATE` by default prevents unintentional exposure of an exact destination. Set `maximum_level=PRECISE` only for explicit stronger help.
+
+| Level | Board enum | Reveals |
+| --- | --- | --- |
+| 0 | `OFF` | Nothing; overlay cleared |
+| 1 | `REGION` | Coarse 2–5 by 2–5 solved-image region containing a candidate piece |
+| 2 | `CANDIDATE` | Previous region + visible bounds of the candidate's **currently movable connected group**, wherever it is |
+| 3 | `PRECISE` | Previous hints + exact destination **cell** for one candidate piece (no orientation/automatic movement) |
+
+```gdscript
+const BoardScript = preload("res://addons/jigsawg/src/jigsaw_board.gd")
+config.hints.enabled = true
+config.hints.maximum_level = JigsawHintSettings.MaximumLevel.PRECISE
+config.hints.region_divisions = 3
+config.hints.focus_on_request = true
+board.configure(config)
+
+board.request_hint(BoardScript.HintLevel.REGION) # Choose deterministic loose group
+board.advance_hint() # Candidate group
+board.advance_hint() # Precise home cell (requires PRECISE max)
+var info: Dictionary = board.get_hint_info()
+# Keys: level, piece_id, region, candidate_bounds, target_slot,
+#       group_piece_ids, tray_index. Rect2 values are Board-local.
+board.focus_hint() # Camera only
+board.clear_hint()
+```
+
+`request_hint(level, piece_id=-1)` accepts an explicitly chosen unlocked piece or selects one deterministically: the player's current selection takes precedence, otherwise unplaced connected groups are cycled by representative piece ID. Mosaic-locked pieces are excluded. A candidate can be within a holding tray; level 2 highlights its current location there rather than teleporting it. `advance_hint()` cycles through the **configured maximum** and then turns hints off; the next full cycle advances to another group when no explicit selection exists. A requested hint does not expand into a more precise level automatically or when the camera moves. No hint is offered while dragging, paused, previewing, completed, or generating batches.
+
+The `hint_changed(level, piece_id)` signal is presentation-only and does not enter the `JigsawPuzzleEvent` gameplay mask, increment progress, change group connectivity, emit snap results, or appear in `JigsawPuzzleState`. On a rebuild, compatible state restoration, solved puzzle or Mosaic piece lock, an obsolete hint is cleared. New Resource settings: `enabled`, `maximum_level`, `region_divisions`, `show_overlay`, `focus_on_request`, optional `advance_key` and host-owned `advance_action`. Both inputs default to disabled. The demo alone enables the H key and level 3.
+
+The built-in overlay uses **static translucent rectangles** (no tween or screen blocking); the candidate marker follows current group bounds during movement. This is not a visual match/color classifier, automated placement or a full hint economy/cooldown framework. Game HUDs remain responsible for charging hints or showing localized copy.
 
 ## Named holding trays (P3.2)
 

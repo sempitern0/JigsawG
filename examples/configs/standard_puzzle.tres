@@ -10,6 +10,7 @@
 [ext_resource type="Script" uid="uid://c36r1nj20upok" path="res://addons/jigsawg/events/jigsaw_motion_adapter.gd" id="7"]
 [ext_resource type="Script" uid="uid://d3qleb0tpgfy5" path="res://addons/jigsawg/resources/jigsaw_device_input_settings.gd" id="8"]
 [ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_tray_settings.gd" id="9"]
+[ext_resource type="Script" path="res://addons/jigsawg/resources/jigsaw_hint_settings.gd" id="10"]
 
 [sub_resource type="Resource" id="Appearance"]
 script = ExtResource("4")
@@ -34,6 +35,12 @@ enable_controller = true
 script = ExtResource("9")
 enabled = true
 tray_names = PackedStringArray("Corners", "Borders", "Other")
+
+[sub_resource type="Resource" id="Hints"]
+script = ExtResource("10")
+enabled = true
+maximum_level = 3
+advance_key = 72
 
 [sub_resource type="Resource" id="Motion"]
 script = ExtResource("7")
@@ -68,4 +75,5 @@ appearance = SubResource("Appearance")
 camera = SubResource("Camera")
 device_input = SubResource("DeviceInput")
 trays = SubResource("Trays")
+hints = SubResource("Hints")
 feedback = SubResource("Resource_1odl7")

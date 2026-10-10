@@ -34,6 +34,7 @@ A resource-driven **2D puzzle runtime** for [Godot 4.7](https://godotengine.org/
 | 🧮 | **Choose difficulty by count** | Manual rows × columns, or an **Auto** grid near a requested 4–4000 pieces |
 | 🔎 | **Corner and border finder** | Topology-based category browsing, cycling connected groups without moving or selecting pieces |
 | 🗂️ | **Optional holding trays** | Named visible areas with group-safe drag/drop, deterministic packing and save-state support |
+| 💡 | **Progressive hints** | Opt-in three-stage clues: coarse image region, movable candidate group, then exact cell only when requested |
 | 🧭 | **Large-puzzle navigation** | Smooth zoom, panning, edge-scroll, spatial picking, **Home** for the board, **End** for overview, **F** for selection |
 | 🪄 | **Customizable presentation** | Selection outlines, colored piece contours, style presets, materials and interchangeable motion adapters |
 | 💾 | **Resumable state** | Save/restore positions, rotations, groups and Mosaic locks in Godot Resources |
@@ -87,6 +88,7 @@ The Board exposes **one Inspector entry:** `puzzle_config`. Its sections separat
 | `JigsawCameraSettings` | Board/overview framing, zoom, pan, smoothing, bounds and keyboard shortcuts |
 | `JigsawDeviceInputSettings` | Opt-in tablet gestures, virtual gamepad cursor and configurable controller actions |
 | `JigsawTraySettings` | Optional named holding areas for whole connected groups, visible below the assembly board |
+| `JigsawHintSettings` | Opt-in staged clues with configurable maximum detail, region granularity and shortcut |
 | `JigsawFeedbackSettings` | Pickup/snap tints, feedback timing and optional `JigsawMotionAdapter` |
 
 A few recipes:
@@ -123,6 +125,7 @@ Be mindful of VRAM and maximum texture sizes when choosing ultra-high-resolution
 | **F** | Return to the last clicked piece or frame all Ctrl-selected groups |
 | **P** | Toggle the full-image reference preview |
 | **C / E / I (demo)** | Browse corners / borders / interior pieces; camera visits one connected group at a time |
+| **H (demo)** | Reveal coarse solved region → highlight a loose group → exact slot → clear hint |
 
 All relevant controls are configurable through the Gameplay and Camera Resources. A normal single click leaves no persistent highlight; Ctrl selections stay visibly outlined. The optional Gameplay → Accessibility pointer radius is measured in **screen pixels**, so assistance feels consistent when zooming.
 
@@ -162,6 +165,27 @@ board.retrieve_group_from_tray(piece_id)
 The first tray is 0; query `get_tray_count()`, `get_tray_name(index)`, `get_tray_rect(index)`, `get_tray_piece_ids(index)` and `get_piece_tray_index(piece_id)` for custom UIs. Listen to `trays_changed` to refresh counts/badges. Trays do **not** connect pieces or solve any part of the puzzle. Dragging back removes tray membership. **Retrieval via API places a group in a staging column next to the board rather than its former scattered coordinates.**
 
 The schema-1 `JigsawPuzzleState` has an optional `tray_indices` array; older saves continue to load. A save containing tray assignments must be restored with compatible enabled tray settings. Long-term gestures/visual comfort still require real tablet and Steam Deck checks.
+
+### P3.3 — progressive hints, not auto-solving
+
+The demo enables the **H** key to cycle through three explicitly requested help levels. First JigsawG marks a **coarse area on the assembly image**; press again to also outline the **movable candidate group** wherever the player left it. Only a third press reveals the exact **destination cell** for one representative piece. The next press clears the hint. The hint never snaps, rotates or moves a piece and works in both Free and Mosaic.
+
+For games, these are opt-in and **level 3 is restricted by default**:
+
+```gdscript
+const BoardScript = preload("res://addons/jigsawg/src/jigsaw_board.gd")
+config.hints.enabled = true
+config.hints.maximum_level = JigsawHintSettings.MaximumLevel.CANDIDATE
+board.configure(config)
+board.request_hint(BoardScript.HintLevel.REGION)
+board.advance_hint() # CANDIDATE; next press clears with default settings
+
+# To offer optional precise help, explicitly permit:
+config.hints.maximum_level = JigsawHintSettings.MaximumLevel.PRECISE
+# Reapply configuration when using a different Resource preset.
+```
+
+The temporary `hint_changed(level, piece_id)` signal can drive a game's hint HUD; `get_hint_info()` exposes only the information appropriate to the **current level**, and `focus_hint()` frames it using the camera. `clear_hint()` removes markers. Requested regions/candidates are drawn in a static, reduced-motion-friendly overlay; zoom/camera framing can be disabled through `hints.focus_on_request`. Existing save files and scene configurations remain compatible. No arbitrary puzzle solving or automatic color/shape classification is introduced.
 
 ### Optional input actions and reduced motion
 

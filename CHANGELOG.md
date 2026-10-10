@@ -14,6 +14,7 @@ JigsawG is currently in preview; public API may still evolve before 1.0, but bre
 - Public API smoke test and host-game integration guidance (consolidated into the Resource API and Events references).
 
 ### Notes
+- P3.3: optional coarse-region, loose-group and precise-cell hint levels, progressive H-key demo, static overlay, deterministic candidate rotation and `hint_changed` HUD signal. Hints never change gameplay state or saved data; pure 2000-piece and Board-level regression scripts added (engine validation pending).
 - P3.2: optional named world-space trays with whole-group packing, drag/drop from mouse/touch/gamepad, camera focus, staging-column retrieval and backward-compatible optional `JigsawPuzzleState.tray_indices`. Regression tests cover group integrity and restore validation; engine execution pending.
 - Organizer: immutable topology-based corner/edge/interior catalog, optional C/E/I demo shortcuts, sorted public ID queries and non-destructive category camera browsing with Mosaic lock filtering and connected-group deduplication. Added pure and Board-level tests; Godot execution pending.
 - Handheld input: opt-in `JigsawDeviceInputSettings` for one-finger piece drag, two-finger pan/pinch and a virtual gamepad cursor with default Godot/SDL buttons. The input adapter never modifies saved puzzle state; real device testing remains pending.

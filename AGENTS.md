@@ -155,6 +155,7 @@ docs/                                      # User API, events, testing, roadmap
 - Optional InputMap aliases remain host-owned and supplement legacy shortcuts; reduced motion must preserve logical transforms and motion/event signals. Custom host reactions need to honor is_reduced_motion() themselves.
 - For new GDScript tests, annotate locals explicitly. In particular, use typed preloaded scripts (BoardScript, HitIndex) rather than inferring variables from Variant-returning Board/Resource expressions; verify imports with warnings treated as errors.
 - The P3 piece organizer classifies original grid topology without inspecting shapes, and category camera browsing must **never** move puzzle pieces, alter selection or mutate serialized state.
+- P3.3 hints are opt-in under `puzzle_config.hints`. Coarse regions must not leak exact cells, and candidate lookup must respect Mosaic locks and real group membership. More precise tiers require a **separate user request**. Presentation-only hints never move pieces, alter selection, mutate `JigsawPuzzleState`, emit gameplay join/failure events, or run during drag/preview/pause/batching. Rebuild and restore clear stale hints.
 - Named trays are opt-in under `puzzle_config.trays`; their membership is keyed by authoritative connected-group root, never a second connection graph. Shelf packing must retain rigid relative transforms and never fire snap failures. Old snapshots have empty `tray_indices`; validate new membership atomically before restore. Keep drag/drop shared across mouse, touch and controller. Search/focus actions are opt-in and are suppressed while preview/drag/pause/generation is active.
 - A normal click does not leave a persistent selection outline; a real drag highlights the single piece. **Ctrl+click must immediately highlight or toggle a whole connected group**, including after a plain click.
 - Compact multi-selection must not overlap groups, disassemble connected groups, unexpectedly teleport on click-without-drag or corrupt rotation.
@@ -210,6 +211,8 @@ godot --headless --path . --script res://tests/test_piece_catalog.gd
 godot --headless --path . --script res://tests/test_piece_organizer.gd
 godot --headless --path . --script res://tests/test_tray_layout.gd
 godot --headless --path . --script res://tests/test_piece_trays.gd
+godot --headless --path . --script res://tests/test_hint_resolver.gd
+godot --headless --path . --script res://tests/test_progressive_hints.gd
 godot --headless --path . --script res://tests/test_camera_selection_focus.gd
 godot --headless --path . --script res://tests/test_motion_adapter.gd
 godot --headless --path . --script res://tests/test_generation_batching.gd

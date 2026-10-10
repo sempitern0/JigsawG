@@ -51,6 +51,21 @@ godot --headless --path . --script res://tests/test_device_input.gd
 - [ ] Opening a HUD must disable Board input; ensure no actions leak through to puzzles behind menus.
 - [ ] Report measured FPS, latency and memory only with reference devices and named Godot renderers.
 
+## P3.3 progressive hint acceptance
+
+```bash
+godot --headless --path . --script res://tests/test_hint_resolver.gd
+godot --headless --path . --script res://tests/test_progressive_hints.gd
+```
+
+- [ ] New preset defaults to hints **off**, maximum detail **CANDIDATE**. The demo alone enables **H** and level PRECISE.
+- [ ] Run 2000-piece pure resolver (deterministic candidate selection, locked filters and coarse regions); verify explicit typing and warnings-as-errors import.
+- [ ] Press H in demo: show broad zone, then loose-group marker, then exact cell, then clear. No snap, piece rotation or change to saved positions/groups/tray indices.
+- [ ] Use selected group, locked Mosaic piece, stored tray group, and rotation/movement in Free. Overlay must follow the actual candidate and never show old markers after Mosaic locks.
+- [ ] Check `focus_hint()` and optional auto-focus with restricted/unrestricted Camera2D, zoom limits, and host-owned UI action consumption.
+- [ ] Confirm pause, drag, reference preview, fully solved board and partially generated batches reject hint changes; rebuild and restore clear temporary hints.
+- [ ] On real tablets and Steam Deck, verify clue visibility/contrast and navigation at 500–2000 pieces before claiming accessibility acceptance.
+
 ## P3.2 named trays
 
 ```bash
