@@ -2038,6 +2038,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		var undo_pressed: bool = _matches_input_action(event, _history_settings.undo_action)
 		var redo_pressed: bool = _matches_input_action(event, _history_settings.redo_action)
 		if event is InputEventKey and event.pressed and not event.echo:
+			if _history_settings.standard_keyboard_shortcuts and event.ctrl_pressed:
+				if event.keycode == KEY_Z:
+					if event.shift_pressed:
+						redo_pressed = true
+					else:
+						undo_pressed = true
+				elif event.keycode == KEY_Y:
+					redo_pressed = true
 			if _history_settings.undo_key != KEY_NONE and event.keycode == _history_settings.undo_key:
 				undo_pressed = true
 			if _history_settings.redo_key != KEY_NONE and event.keycode == _history_settings.redo_key:

@@ -14,12 +14,12 @@ func _initialize() -> void:
 	call_deferred("_verify")
 
 
-func _config(mode: JigsawGameplaySettings.Mode = JigsawGameplaySettings.Mode.FREE,
+func _config(mosaic: bool = false,
 		pieces: int = 3, trays_enabled: bool = false) -> JigsawPuzzleConfig:
 	var cfg: JigsawPuzzleConfig = JigsawPuzzleConfig.new()
 	cfg.columns = pieces
 	cfg.rows = pieces
-	cfg.gameplay.game_mode = mode
+	cfg.gameplay.game_mode = JigsawGameplaySettings.Mode.MOSAIC if mosaic else JigsawGameplaySettings.Mode.FREE
 	cfg.gameplay.initial_scatter = false
 	cfg.gameplay.allow_piece_rotation = true
 	cfg.history.enabled = true
@@ -33,6 +33,15 @@ func _config(mode: JigsawGameplaySettings.Mode = JigsawGameplaySettings.Mode.FRE
 func _event(name: StringName) -> InputEventAction:
 	var ev: InputEventAction = InputEventAction.new()
 	ev.action = name
+	ev.pressed = true
+	return ev
+
+
+func _keyboard(key_code: Key, shifted: bool = false) -> InputEventKey:
+	var ev: InputEventKey = InputEventKey.new()
+	ev.keycode = key_code
+	ev.ctrl_pressed = true
+	ev.shift_pressed = shifted
 	ev.pressed = true
 	return ev
 
@@ -82,6 +91,11 @@ func _verify() -> void:
 	board._unhandled_input(_event(REDO_ACTION))
 	assert(_same(rotated, board.capture_state()))
 	assert(board.get_history_counts() == Vector2i(1, 0))
+	# Standard shortcuts work only while history is enabled.
+	board._unhandled_input(_keyboard(KEY_Z))
+	assert(_same(before_rotate, board.capture_state()))
+	board._unhandled_input(_keyboard(KEY_Z, true))
+	assert(_same(rotated, board.capture_state()))
 
 	# Direct second rotation creates a second transaction. Third evicts first.
 	board.rotate_piece(1)
@@ -149,7 +163,7 @@ func _verify() -> void:
 	assert(board.get_history_counts() == Vector2i.ZERO)
 
 	# Tray API operations include membership, shelf repacking and retrieval.
-	var with_trays: JigsawPuzzleConfig = _config(JigsawGameplaySettings.Mode.FREE, 3, true)
+	var with_trays: JigsawPuzzleConfig = _config(false, 3, true)
 	board.configure(with_trays)
 	assert(board.get_history_counts() == Vector2i.ZERO)
 	var outside: JigsawPuzzleState = board.capture_state()
@@ -196,7 +210,7 @@ func _verify() -> void:
 	assert(board.redo() and board.get_locked_piece_count() == 1)
 
 	# Completed puzzles reopen on undo; redo does not re-emit completion.
-	board.configure(_config(JigsawGameplaySettings.Mode.FREE, 2))
+	board.configure(_config(false, 2))
 	first = board.get_piece_node(0) as JigsawPiece
 	board._begin_piece_drag(0, first.global_position)
 	board._activate_drag()
