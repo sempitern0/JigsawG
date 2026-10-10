@@ -5,7 +5,8 @@ extends Resource
 
 @export_group("Undo / Redo")
 @export var enabled := false
-## 20 actions usually cost only a few MB even for ~2000 pieces.
+## Full snapshots cost memory proportional to piece count and history depth.
+## Profile on target hardware before increasing this budget.
 @export_range(1, 64, 1) var maximum_actions := 20
 ## When history is enabled: Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo.
 @export var standard_keyboard_shortcuts := true
