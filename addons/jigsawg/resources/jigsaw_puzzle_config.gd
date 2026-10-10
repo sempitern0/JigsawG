@@ -29,6 +29,8 @@ enum GridMode { MANUAL, AUTO }
 @export var camera: JigsawCameraSettings = JigsawCameraSettings.new()
 ## Optional touch and gamepad input; entirely inactive in existing presets.
 @export var device_input: JigsawDeviceInputSettings = JigsawDeviceInputSettings.new()
+## Optional named areas for connected groups. Disabled unless opted in.
+@export var trays: JigsawTraySettings = JigsawTraySettings.new()
 ## Selection, successful connection and failed-connection feedback.
 @export var feedback: JigsawFeedbackSettings = JigsawFeedbackSettings.new()
 

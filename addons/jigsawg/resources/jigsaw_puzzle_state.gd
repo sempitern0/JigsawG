@@ -33,6 +33,9 @@ const SCHEMA_VERSION := 1
 @export var piece_rotations := PackedInt32Array()
 ## Logical group id per piece. Equal ids belong to one connected group.
 @export var piece_group_ids := PackedInt32Array()
+## Optional schema-1 addition: -1 outside trays, otherwise the tray index.
+## Empty preserves legacy saves. One value per piece when trays are in use.
+@export var tray_indices := PackedInt32Array()
 ## Mosaic pieces already locked to their solved positions.
 @export var locked_piece_ids := PackedInt32Array()
 ## Whether the snapshot was already completed.

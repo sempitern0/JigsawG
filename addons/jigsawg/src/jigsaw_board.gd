@@ -44,6 +44,8 @@ const GridResolver = preload("res://addons/jigsawg/src/jigsaw_grid_resolver.gd")
 const SelectionLayout = preload("res://addons/jigsawg/src/jigsaw_selection_layout.gd")
 const HitIndex = preload("res://addons/jigsawg/src/jigsaw_hit_index.gd")
 const PieceCatalog = preload("res://addons/jigsawg/src/jigsaw_piece_catalog.gd")
+const TrayLayout = preload("res://addons/jigsawg/src/jigsaw_tray_layout.gd")
+const TrayOverlay = preload("res://addons/jigsawg/src/jigsaw_tray_overlay.gd")
 const VirtualCursor = preload("res://addons/jigsawg/src/jigsaw_virtual_cursor.gd")
 const ScatterLayout = preload("res://addons/jigsawg/src/jigsaw_scatter_layout.gd")
 const GroupModel = preload("res://addons/jigsawg/src/jigsaw_group_model.gd")
@@ -164,6 +166,14 @@ var _organizer_interior_action: StringName = &""
 var _organizer_corner_key: Key = KEY_NONE
 var _organizer_edge_key: Key = KEY_NONE
 var _organizer_interior_key: Key = KEY_NONE
+
+## Group-root -> tray ID. The group graph remains authoritative.
+var _tray_settings: JigsawTraySettings
+var _tray_names: PackedStringArray = PackedStringArray()
+var _tray_roots: Dictionary = {}
+var _tray_rects: Array[Rect2] = []
+var _tray_overlay: Node2D
+var _tray_retrieve_y := 0.0
 var _multi_selection_mode := false
 var _drag_visual_active := false
 var _drag_start_screen := Vector2.ZERO
@@ -652,6 +662,173 @@ func focus_next_piece_by_category(category: PieceCategory) -> int:
 	return focused_id
 
 
+## Named world-space trays remain opt-in. Each stored entity is a complete
+## connected group; no group identities or saved rotations are modified.
+func get_tray_count() -> int:
+	return _tray_names.size()
+
+
+func get_tray_name(tray_index: int) -> String:
+	if tray_index < 0 or tray_index >= get_tray_count():
+		return ""
+	return _tray_names[tray_index]
+
+
+func get_tray_rect(tray_index: int) -> Rect2:
+	if tray_index < 0 or tray_index >= _tray_rects.size():
+		return Rect2()
+	return _tray_rects[tray_index]
+
+
+func get_piece_tray_index(piece_id: int) -> int:
+	if _generating or piece_id < 0 or piece_id >= _pieces.size():
+		return -1
+	return int(_tray_roots.get(_groups.root_of(piece_id), -1))
+
+
+func get_tray_piece_ids(tray_index: int) -> PackedInt32Array:
+	var ids := PackedInt32Array()
+	if _generating or tray_index < 0 or tray_index >= get_tray_count():
+		return ids
+	for id: int in range(_pieces.size()):
+		if get_piece_tray_index(id) == tray_index:
+			ids.append(id)
+	return ids
+
+
+func _tray_can_move() -> bool:
+	return _tray_names.size() > 0 and not _generating and _interaction_enabled and _drag_root < 0 and not is_reference_preview_visible()
+
+
+## Put one whole connected group in a named tray; also callable from host HUDs.
+func put_group_in_tray(piece_id: int, tray_index: int) -> bool:
+	if not _tray_can_move() or tray_index < 0 or tray_index >= get_tray_count():
+		return false
+	if piece_id < 0 or piece_id >= _pieces.size() or _locked_pieces.has(piece_id):
+		return false
+	var root: int = _groups.root_of(piece_id)
+	for member: int in _groups.members_of_root(root):
+		if _locked_pieces.has(member):
+			return false
+	_tray_roots[root] = tray_index
+	_reflow_trays(true)
+	return true
+
+
+## Move every selected detached/connected group together, without changing
+## their membership. Returns the number of distinct stored groups.
+func put_selection_in_tray(tray_index: int) -> int:
+	if not _tray_can_move() or tray_index < 0 or tray_index >= get_tray_count():
+		return 0
+	var roots: Dictionary = {}
+	for id_variant in _selected_piece_ids.keys():
+		var piece_id: int = int(id_variant)
+		if piece_id >= 0 and piece_id < _pieces.size() and not _locked_pieces.has(piece_id):
+			roots[_groups.root_of(piece_id)] = true
+	var moved: int = 0
+	for root_variant in roots.keys():
+		var root: int = int(root_variant)
+		if root >= 0:
+			_tray_roots[root] = tray_index
+			moved += 1
+	if moved > 0:
+		_reflow_trays(true)
+	return moved
+
+
+## Return a stored group to an open staging column left of the assembly board.
+## This operation does not reconnect pieces or claim to restore their old
+## scattered coordinates; dragging back is always available.
+func retrieve_group_from_tray(piece_id: int) -> bool:
+	if not _tray_can_move() or piece_id < 0 or piece_id >= _pieces.size():
+		return false
+	var root: int = _groups.root_of(piece_id)
+	if not _tray_roots.has(root):
+		return false
+	var bounds: Rect2 = _group_bounds_local(root)
+	_tray_roots.erase(root)
+	var destination: Vector2 = Vector2(-bounds.size.x - _piece_size.x * 1.5, _tray_retrieve_y)
+	_tray_retrieve_y += bounds.size.y + maxf(_piece_size.x, _piece_size.y) * 0.35
+	_move_root(root, to_global(destination) - to_global(bounds.position))
+	_reflow_trays(true)
+	return true
+
+
+## Rebuild all tray positions in deterministic root order; the group model
+## continues owning all connectivity. During snapshot restore, layout is
+## reconstructed without shifting the authoritative saved piece positions.
+func _reflow_trays(reposition: bool) -> void:
+	_tray_rects.clear()
+	if get_tray_count() == 0 or _piece_size == Vector2.ZERO:
+		return
+	var base: float = maxf(_piece_size.x, _piece_size.y)
+	var gap: float = base * 0.34
+	var x: float = 0.0
+	var y: float = _piece_size.y * float(rows) + base * 1.5
+	var min_width: float = maxf(_piece_size.x * 4.0, base * 3.0)
+	for tray_index: int in range(get_tray_count()):
+		var roots: Array[int] = []
+		for root_variant in _tray_roots.keys():
+			var root: int = int(root_variant)
+			if int(_tray_roots[root]) == tray_index and root >= 0 and not _groups.members_of_root(root).is_empty():
+				roots.append(root)
+		roots.sort()
+		var bounds: Array[Rect2] = []
+		for root: int in roots:
+			bounds.append(_group_bounds_local(root))
+		var plan: Dictionary = TrayLayout.arrange(bounds, Vector2(x, y), min_width, gap, base * 3.0)
+		var rect: Rect2 = plan["rect"]
+		_tray_rects.append(rect)
+		if reposition:
+			var offsets: Array[Vector2] = plan["offsets"]
+			for j: int in range(roots.size()):
+				if offsets[j] != Vector2.ZERO:
+					_move_root(roots[j], to_global(offsets[j]) - to_global(Vector2.ZERO))
+		x += rect.size.x + gap
+	if is_instance_valid(_tray_overlay):
+		_tray_overlay.update_trays(_tray_rects, _tray_names)
+	if _camera != null and restrict_camera:
+		_update_camera_bounds()
+
+
+func _initialize_trays() -> void:
+	if is_instance_valid(_tray_overlay):
+		_tray_overlay.queue_free()
+	_tray_overlay = null
+	_tray_roots.clear()
+	_tray_rects.clear()
+	_tray_retrieve_y = 0.0
+	if _tray_settings == null or not _tray_settings.enabled:
+		_tray_names.clear()
+		return
+	_tray_names = _tray_settings.tray_names.slice(0, 4)
+	for i: int in range(_tray_names.size()):
+		if _tray_names[i].strip_edges().is_empty():
+			_tray_names[i] = "Tray %d" % (i + 1)
+	if _tray_names.is_empty():
+		return
+	if _tray_settings.show_background:
+		_tray_overlay = TrayOverlay.new()
+		_tray_overlay.name = "JigsawTrays"
+		_tray_overlay.z_index = -9
+		add_child(_tray_overlay)
+	_reflow_trays(false)
+
+
+func _tray_at_world(world_position: Vector2) -> int:
+	return TrayLayout.contains_world_point(world_position, global_transform, _tray_rects)
+
+
+func _tray_remove_selected_roots() -> bool:
+	var changed := false
+	for piece_id_variant in _selected_piece_ids.keys():
+		var root: int = _groups.root_of(int(piece_id_variant))
+		if _tray_roots.has(root):
+			_tray_roots.erase(root)
+			changed = true
+	return changed
+
+
 ## Current multi-selection. Connected groups are always selected/deselected as a unit.
 func get_selected_piece_ids() -> PackedInt32Array:
 	var result := PackedInt32Array()
@@ -911,6 +1088,8 @@ func rebuild() -> void:
 	_rotations.clear()
 	_selected_piece_ids.clear()
 	_organizer_last_focused.clear()
+	_tray_roots.clear()
+	_tray_rects.clear()
 	_multi_selection_mode = false
 	_drag_visual_active = false
 	_drag_root = -1
@@ -955,6 +1134,7 @@ func rebuild() -> void:
 		artwork_detail_warning.emit(info)
 	var shared_texture := ImageTexture.create_from_image(source)
 	_piece_size = Vector2(source.get_size()) / Vector2(columns, rows)
+	_initialize_trays()
 	if not is_instance_valid(_preview_overlay):
 		_preview_overlay = PreviewOverlay.new()
 		_preview_overlay.name = "JigsawReferencePreview"
@@ -2102,6 +2282,10 @@ func _apply_resource_presets() -> void:
 	preview_key = gameplay.preview_key
 	preview_action = gameplay.preview_action
 	preview_dim = gameplay.preview_dim
+
+	_tray_settings = config.trays
+	if _tray_settings == null:
+		_tray_settings = JigsawTraySettings.new()
 
 	var appearance := config.appearance
 	if appearance == null:
