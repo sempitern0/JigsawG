@@ -1253,7 +1253,7 @@ func _process_controller(delta: float) -> void:
 		var zoom_input: float = right_trigger - left_trigger
 		if absf(zoom_input) > _device_input.stick_deadzone:
 			_activate_controller_cursor()
-			_zoom_at_screen(powf(wheel_zoom_factor, zoom_input * delta * 5.0), _device_pointer_screen)
+			_zoom_at_screen(pow(wheel_zoom_factor, zoom_input * delta * 5.0), _device_pointer_screen)
 
 
 ## Standard joypad: A grab, B cancel, X group toggle, Y preview, shoulders rotate,
