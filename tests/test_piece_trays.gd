@@ -107,12 +107,16 @@ func _verify() -> void:
 
 	# Corrupt membership must be rejected before any live puzzle mutation.
 	var corrupt: JigsawPuzzleState = snapshot.duplicate(true) as JigsawPuzzleState
-	corrupt.tray_indices[1] = 2  # Same connected group as piece 0.
+	var corrupt_ids: PackedInt32Array = corrupt.tray_indices
+	corrupt_ids[1] = 2  # Same connected group as piece 0.
+	corrupt.tray_indices = corrupt_ids
 	assert(not board.restore_state(corrupt))
 	assert(board.capture_state().piece_positions == positions_before)
 	assert(board.get_piece_tray_index(0) == 1)
 	var truncated: JigsawPuzzleState = snapshot.duplicate(true) as JigsawPuzzleState
-	truncated.tray_indices.resize(3)
+	var truncated_ids: PackedInt32Array = truncated.tray_indices
+	truncated_ids.resize(3)
+	truncated.tray_indices = truncated_ids
 	assert(not board.restore_state(truncated))
 	assert(board.capture_state().piece_positions == positions_before)
 

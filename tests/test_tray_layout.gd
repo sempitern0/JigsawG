@@ -23,11 +23,13 @@ func _initialize() -> void:
 		placed.append(next_rect)
 	var another: Dictionary = TrayLayout.arrange(rects, Vector2(100, 500), 210.0, 15.0, 100.0)
 	assert(another["rect"] == tray and another["offsets"] == slots)
-	var empty: Dictionary = TrayLayout.arrange([], Vector2.ZERO, 120.0, 10.0, 80.0)
+	var none: Array[Rect2] = []
+	var empty: Dictionary = TrayLayout.arrange(none, Vector2.ZERO, 120.0, 10.0, 80.0)
 	assert(empty["rect"] == Rect2(Vector2.ZERO, Vector2(120, 80)))
 	var rotated: Transform2D = Transform2D(PI * 0.5, Vector2(30, 40))
 	var world_point: Vector2 = rotated * tray.get_center()
-	assert(TrayLayout.contains_world_point(world_point, rotated, [tray]) == 0)
-	assert(TrayLayout.contains_world_point(Vector2(-1000, -1000), rotated, [tray]) == -1)
+	var regions: Array[Rect2] = [tray]
+	assert(TrayLayout.contains_world_point(world_point, rotated, regions) == 0)
+	assert(TrayLayout.contains_world_point(Vector2(-1000, -1000), rotated, regions) == -1)
 	print("JigsawG tray shelf layout: PASS")
 	quit()
