@@ -56,7 +56,7 @@ The optional `JigsawPuzzleConfig.hints: JigsawHintSettings` Resource controls pr
 | Level | Board enum | Reveals |
 | --- | --- | --- |
 | 0 | `OFF` | Nothing; overlay cleared |
-| 1 | `REGION` | Coarse 2–5 by 2–5 solved-image region containing a candidate piece |
+| 1 | `REGION` | Coarse solved-image region containing a candidate piece (configured 2–5 bands/axis; automatically merged on small grids so a region cannot pinpoint one cell) |
 | 2 | `CANDIDATE` | Previous region + visible bounds of the candidate's **currently movable connected group**, wherever it is |
 | 3 | `PRECISE` | Previous hints + exact destination **cell** for one candidate piece (no orientation/automatic movement) |
 

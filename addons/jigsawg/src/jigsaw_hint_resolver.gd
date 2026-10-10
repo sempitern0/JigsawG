@@ -36,7 +36,12 @@ static func coarse_region(home: Vector2, cell_size: Vector2, grid: Vector2i,
 		return Rect2()
 	var board_size: Vector2 = cell_size * Vector2(grid)
 	var center: Vector2 = home + cell_size * 0.5
-	var col: int = clampi(floori(center.x / board_size.x * divisions), 0, divisions - 1)
-	var row: int = clampi(floori(center.y / board_size.y * divisions), 0, divisions - 1)
-	return Rect2(board_size * Vector2(col, row) / float(divisions),
-		board_size / float(divisions))
+	# A coarse hint cannot be smaller than a real solved piece: on a tiny
+	# 2x2/3x3 board, automatically merge the requested regions to avoid
+	# revealing the exact destination in the supposedly weakest tier.
+	var dx: int = mini(divisions, maxi(1, floori(float(grid.x) * 0.5)))
+	var dy: int = mini(divisions, maxi(1, floori(float(grid.y) * 0.5)))
+	var bands: Vector2 = Vector2(dx, dy)
+	var col: int = clampi(floori(center.x / board_size.x * dx), 0, dx - 1)
+	var row: int = clampi(floori(center.y / board_size.y * dy), 0, dy - 1)
+	return Rect2(board_size * Vector2(col, row) / bands, board_size / bands)

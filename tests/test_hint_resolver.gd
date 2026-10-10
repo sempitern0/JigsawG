@@ -34,6 +34,12 @@ func _initialize() -> void:
 			assert(region.position.x >= 0.0 and region.position.y >= 0.0)
 			assert(region.end.x <= width.x + 0.01 and region.end.y <= width.y + 0.01)
 			assert(is_equal_approx(region.size.x, width.x / 3.0))
+	# On small grids, level-one clues must NOT be narrower than a piece:
+	# a 2x2 puzzle has one whole-board region rather than four exact cells.
+	var tiny: Rect2 = Resolver.coarse_region(Vector2.ZERO, cell, Vector2i(2, 2), 3)
+	assert(tiny == Rect2(Vector2.ZERO, cell * 2.0))
+	var small: Rect2 = Resolver.coarse_region(Vector2.ZERO, cell, Vector2i(4, 3), 3)
+	assert(small.size.x >= cell.x * 2.0 and small.size.y >= cell.y * 2.0)
 	assert(Resolver.coarse_region(Vector2.ZERO, Vector2.ONE, Vector2i.ZERO, 3) == Rect2())
 	assert(Resolver.coarse_region(Vector2.ZERO, Vector2.ONE, Vector2i(3, 3), 1) == Rect2())
 	print("JigsawG pure progressive hint resolver (2000 pieces): PASS")
