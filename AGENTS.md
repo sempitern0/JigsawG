@@ -15,6 +15,12 @@ remain authoritative.
 | **S — Standards** | Keep one canonical complementary Bézier seam per neighboring edge; exact connected-group ownership and quarter-turn state; presentation-only motion adapters; opt-in controls through \`JigsawPuzzleConfig\`; deterministic generation; compatible saves, signals and event-mask IDs; no hidden host-game or network dependencies. Make assistance optional and never sacrifice correctness to cosmetic changes. |
 | **P — Proof** | Run matching headless regressions and **real Godot 2D visual/input checks**. For 200/500/2000 pieces, measure actual scene frame-time, input latency, camera usability and memory on named hardware before claiming performance. Report exact executed tests, observed results, unverified claims, changed API and the published commit. |
 
+### Explicit assumptions, bounded changes and acceptance
+
+- Before coding, identify the player/developer outcome, existing owner, relevant defaults and save/API compatibility; state material assumptions. Surface genuine alternatives when a choice changes public contracts or puzzle semantics. For reversible low-risk gaps, choose and record an assumption rather than asking about every detail.
+- Prefer a smaller solution inside the existing Board/helper/Resource boundaries. Do not add settings, abstraction layers or host-game responsibilities without demonstrated need. Restrict changes to the requested behavior and necessary tests/docs/callers; preserve surrounding formatting, remove only patch-created orphans and report unrelated cleanup separately.
+- For bug fixes, capture a failing targeted regression when practical; for refactors, compare before/after baseline checks. Define acceptance in terms of actual piece interaction, canonical seam/group behavior, save compatibility and visible UX where relevant. A headless green test cannot substitute for a visual or device check; disclose exactly what remains unverified.
+
 ### Task router: find the owner before writing code
 
 | Player/developer problem | Inspect first | Evidence |
