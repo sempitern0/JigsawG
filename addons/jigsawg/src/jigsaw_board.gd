@@ -729,6 +729,21 @@ func get_tray_piece_ids(tray_index: int) -> PackedInt32Array:
 	return ids
 
 
+## Frame a named holding tray from a host UI, keyboard shortcut or button.
+## Like all organizer navigation, this operation is presentation-only.
+func focus_tray(tray_index: int) -> bool:
+	if _camera == null or not _interaction_enabled or _generating or _drag_root >= 0 or is_reference_preview_visible():
+		return false
+	if tray_index < 0 or tray_index >= _tray_rects.size():
+		return false
+	if restrict_camera:
+		_update_camera_bounds()
+	_fit_camera_to(_tray_rects[tray_index].grow(maxf(_piece_size.x, _piece_size.y) * 0.3))
+	_limit_camera()
+	_finish_camera_framing()
+	return true
+
+
 func _tray_can_move() -> bool:
 	return _tray_names.size() > 0 and not _generating and _interaction_enabled and _drag_root < 0 and not is_reference_preview_visible()
 
@@ -2485,6 +2500,10 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 		_pointer_offset = _pieces[_dragged_piece].global_position - _get_pointer_world()
 		_desired_position = _pieces[_dragged_piece].global_position
 	_emit_motion(JigsawMotionContext.Kind.ROTATION, motion_ids, previous)
+	# A stored group may have a larger footprint after a quarter-turn.
+	if _tray_roots.has(group_id) and _drag_root < 0:
+		_reflow_trays(true)
+		trays_changed.emit()
 	group_rotated.emit(piece_index, _rotations[piece_index], members.size())
 	_dispatch_event(_make_event(JigsawPuzzleEvent.Type.GROUP_ROTATED, piece_index, true, JigsawPuzzleEvent.REASON_CLOCKWISE if clockwise else JigsawPuzzleEvent.REASON_COUNTER_CLOCKWISE, {
 		"quarter_turns": _rotations[piece_index],
