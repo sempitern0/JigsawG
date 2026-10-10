@@ -999,9 +999,11 @@ func put_group_in_tray(piece_id: int, tray_index: int) -> bool:
 	for member: int in _groups.members_of_root(root):
 		if _locked_pieces.has(member):
 			return false
+	_history_begin(&"tray_store")
 	_tray_roots[root] = tray_index
 	_reflow_trays(true)
 	trays_changed.emit()
+	_history_commit()
 	return true
 
 
@@ -1016,6 +1018,8 @@ func put_selection_in_tray(tray_index: int) -> int:
 		if piece_id >= 0 and piece_id < _pieces.size() and not _locked_pieces.has(piece_id):
 			roots[_groups.root_of(piece_id)] = true
 	var moved: int = 0
+	if not roots.is_empty():
+		_history_begin(&"tray_store")
 	for root_variant in roots.keys():
 		var root: int = int(root_variant)
 		if root >= 0:
@@ -1024,6 +1028,7 @@ func put_selection_in_tray(tray_index: int) -> int:
 	if moved > 0:
 		_reflow_trays(true)
 		trays_changed.emit()
+		_history_commit()
 	return moved
 
 
@@ -1036,6 +1041,7 @@ func retrieve_group_from_tray(piece_id: int) -> bool:
 	var root: int = _groups.root_of(piece_id)
 	if not _tray_roots.has(root):
 		return false
+	_history_begin(&"tray_retrieve")
 	var bounds: Rect2 = _group_bounds_local(root)
 	_tray_roots.erase(root)
 	var destination: Vector2 = Vector2(-bounds.size.x - _piece_size.x * 1.5, _tray_retrieve_y)
@@ -1043,6 +1049,7 @@ func retrieve_group_from_tray(piece_id: int) -> bool:
 	_move_root(root, to_global(destination) - to_global(bounds.position))
 	_reflow_trays(true)
 	trays_changed.emit()
+	_history_commit()
 	return true
 
 
@@ -1244,6 +1251,7 @@ func _find_piece_at(world_position: Vector2) -> int:
 	return nearest_id
 
 func _begin_piece_drag(piece_id: int, mouse_position: Vector2) -> void:
+	_history_begin(&"drag")
 	if not _selected_piece_ids.has(piece_id):
 		select_piece(piece_id, false)
 	_dragged_piece = piece_id
@@ -1860,6 +1868,7 @@ func _finish_pointer_drag(pointer_screen: Vector2, pointer_world: Vector2) -> vo
 			_drag_root = -1
 			_dragged_piece = -1
 			_drag_visual_active = false
+			_history_commit()
 			return
 		_animate_pickup(_selected_piece_ids.keys(), false)
 	_refresh_selection_visuals(false)
@@ -1876,6 +1885,7 @@ func _finish_pointer_drag(pointer_screen: Vector2, pointer_world: Vector2) -> vo
 	_drag_root = -1
 	_dragged_piece = -1
 	_drag_visual_active = false
+	_history_commit()
 
 
 ## Touch input uses the same Board pointer operations as mouse/controller.
@@ -2256,6 +2266,7 @@ func _cancel_drag(reason: StringName = JigsawPuzzleEvent.REASON_CANCELLED) -> vo
 	_camera_pan = false
 	_camera_pan_button = 0
 	_refresh_selection_visuals(false)
+	_history_commit()
 
 ## Translate the current multi-selection during pointer dragging.
 func _move_group(offset: Vector2) -> void:
@@ -2772,6 +2783,7 @@ func _rotate_under_cursor() -> bool:
 func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 	if not allow_piece_rotation or piece_index < 0 or piece_index >= _pieces.size() or _locked_pieces.has(piece_index):
 		return
+	_history_begin(&"rotate")
 	var turn := 1 if clockwise else -1
 	var pivot := _pieces[piece_index].global_position + Vector2(_piece_size.x * 0.5, _piece_size.y * 0.5).rotated(_pieces[piece_index].global_rotation)
 	var group_id := _groups.root_of(piece_index)
@@ -2800,6 +2812,9 @@ func rotate_piece(piece_index: int, clockwise: bool = true) -> void:
 		"quarter_turns": _rotations[piece_index],
 		"group_size": members.size()
 	}))
+	# A rotation performed mid-drag belongs to that single drag operation.
+	if _drag_root < 0:
+		_history_commit()
 
 
 ## Build a stable event context from current board state.
