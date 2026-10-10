@@ -37,6 +37,8 @@ signal progress_changed(progress: float)
 signal interaction_enabled_changed(enabled: bool)
 ## One typed snapshot for each animated gameplay movement (rotation/arrangement).
 signal motion_requested(motion: JigsawMotionContext)
+## Emitted after named-tray membership/layout changes. Host HUDs can query IDs.
+signal trays_changed
 
 const PieceScript = preload("res://addons/jigsawg/src/jigsaw_piece.gd")
 const Geometry = preload("res://addons/jigsawg/src/jigsaw_geometry.gd")
@@ -172,7 +174,7 @@ var _tray_settings: JigsawTraySettings
 var _tray_names: PackedStringArray = PackedStringArray()
 var _tray_roots: Dictionary = {}
 var _tray_rects: Array[Rect2] = []
-var _tray_overlay: Node2D
+var _tray_overlay: TrayOverlay
 var _tray_retrieve_y := 0.0
 var _multi_selection_mode := false
 var _drag_visual_active := false
@@ -536,8 +538,11 @@ func capture_state() -> JigsawPuzzleState:
 		state.piece_positions.append(_pieces[i].position)
 		state.piece_rotations.append(_rotations[i])
 	# Group IDs are captured atomically from the node-free model.
-
 	state.piece_group_ids = _groups.group_ids()
+	# Optional schema-1 field; empty for legacy puzzles without tray members.
+	if not _tray_roots.is_empty():
+		for i: int in range(_pieces.size()):
+			state.tray_indices.append(int(_tray_roots.get(_groups.root_of(i), -1)))
 
 	var locked_ids: Array = _locked_pieces.keys()
 	locked_ids.sort()
@@ -566,12 +571,37 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 	if not restored_groups.restore(state.piece_group_ids):
 		push_warning("JigsawG: invalid group graph in saved state.")
 		return false
+	# Validate every saved tray member against the already validated group
+	# graph BEFORE touching live pieces. Empty arrays are old saved games.
+	var restored_trays: Dictionary = {}
+	if not state.tray_indices.is_empty():
+		if state.tray_indices.size() != count or get_tray_count() == 0:
+			push_warning("JigsawG: saved tray state needs an enabled, compatible tray setup.")
+			return false
+		for piece_id: int in range(count):
+			var slot: int = state.tray_indices[piece_id]
+			if slot < -1 or slot >= get_tray_count():
+				return false
+			var root: int = restored_groups.root_of(piece_id)
+			if restored_trays.has(root):
+				if int(restored_trays[root]) != slot:
+					return false
+			else:
+				restored_trays[root] = slot
+		for locked_id: int in state.locked_piece_ids:
+			if int(restored_trays.get(restored_groups.root_of(locked_id), -1)) >= 0:
+				return false
 
 	if _dragged_piece >= 0:
 		_cancel_drag(JigsawPuzzleEvent.REASON_CANCELLED)
 	clear_selection()
 	_organizer_last_focused.clear()
 	_groups = restored_groups
+	_tray_roots.clear()
+	for root_variant in restored_trays.keys():
+		var tray_id: int = int(restored_trays[root_variant])
+		if tray_id >= 0:
+			_tray_roots[int(root_variant)] = tray_id
 	_hit_index.invalidate()
 	_locked_pieces.clear()
 
@@ -582,7 +612,10 @@ func restore_state(state: JigsawPuzzleState, update_camera: bool = true, emit_ev
 	for locked_id in state.locked_piece_ids:
 		_locked_pieces[int(locked_id)] = true
 	_finished = state.completed
+	_reflow_trays(false)
 	_refresh_selection_visuals(false)
+	if not _tray_names.is_empty():
+		trays_changed.emit()
 
 	if update_camera and _camera != null:
 		_update_camera_bounds()
@@ -712,6 +745,7 @@ func put_group_in_tray(piece_id: int, tray_index: int) -> bool:
 			return false
 	_tray_roots[root] = tray_index
 	_reflow_trays(true)
+	trays_changed.emit()
 	return true
 
 
@@ -733,6 +767,7 @@ func put_selection_in_tray(tray_index: int) -> int:
 			moved += 1
 	if moved > 0:
 		_reflow_trays(true)
+		trays_changed.emit()
 	return moved
 
 
@@ -751,6 +786,7 @@ func retrieve_group_from_tray(piece_id: int) -> bool:
 	_tray_retrieve_y += bounds.size.y + maxf(_piece_size.x, _piece_size.y) * 0.35
 	_move_root(root, to_global(destination) - to_global(bounds.position))
 	_reflow_trays(true)
+	trays_changed.emit()
 	return true
 
 
@@ -1531,7 +1567,35 @@ func _finish_pointer_drag(pointer_screen: Vector2, pointer_world: Vector2) -> vo
 	if _drag_visual_active:
 		_desired_position = pointer_world + _pointer_offset
 		_move_group(_desired_position - _pieces[_dragged_piece].global_position)
-		connected = _place_selected_in_mosaic() if game_mode == GameMode.MOSAIC else _connect_selected_groups()
+		var dropped_in_tray := false
+		if _tray_settings != null and _tray_settings.allow_drop:
+			var tray_id: int = _tray_at_world(pointer_world)
+			if tray_id >= 0:
+				for id_variant in _selected_piece_ids.keys():
+					var root: int = _groups.root_of(int(id_variant))
+					if root >= 0:
+						_tray_roots[root] = tray_id
+				_reflow_trays(true)
+				trays_changed.emit()
+				dropped_in_tray = true
+		if not dropped_in_tray:
+			if _tray_remove_selected_roots():
+				_reflow_trays(true)
+				trays_changed.emit()
+			connected = _place_selected_in_mosaic() if game_mode == GameMode.MOSAIC else _connect_selected_groups()
+		# Storing is not a failed connection; no failure feedback or event.
+		if dropped_in_tray:
+			_animate_pickup(_selected_piece_ids.keys(), false)
+			_refresh_selection_visuals(false)
+			var stored_piece_id: int = _dragged_piece
+			piece_released.emit(stored_piece_id, false)
+			_dispatch_event(_make_event(JigsawPuzzleEvent.Type.PIECE_DRAG_FINISHED, stored_piece_id, false, JigsawPuzzleEvent.REASON_RELEASED, {
+				"selected_piece_ids": get_selected_piece_ids()
+			}))
+			_drag_root = -1
+			_dragged_piece = -1
+			_drag_visual_active = false
+			return
 		_animate_pickup(_selected_piece_ids.keys(), false)
 	_refresh_selection_visuals(false)
 	var released_piece_id := _dragged_piece
@@ -1950,6 +2014,10 @@ func _connect_group_from(anchor_piece_id: int) -> bool:
 			for neighbor in ConnectionResolver.neighbor_ids(index, columns, rows):
 				if _groups.same_group(index, neighbor):
 					continue
+				# Groups resting in holding trays never join or lock until
+				# the player actually retrieves/drags them out.
+				if _tray_roots.has(_groups.root_of(index)) or _tray_roots.has(_groups.root_of(neighbor)):
+					continue
 				var shift: Vector2 = ConnectionResolver.snap_offset(
 					_pieces[index].home,
 					_pieces[neighbor].home,
@@ -1988,6 +2056,8 @@ func _connect_group_from(anchor_piece_id: int) -> bool:
 
 func _update_camera_bounds() -> void:
 	_fit_bounds = Rect2(Vector2.ZERO, _piece_size * Vector2(columns, rows))
+	for tray_rect: Rect2 in _tray_rects:
+		_fit_bounds = _fit_bounds.merge(tray_rect)
 	for piece in _pieces:
 		# The first/last rectangle corners are insufficient after quarter turns.
 		# Include all rotated contour bounds so the overview never crops pieces.
@@ -2181,7 +2251,7 @@ func _place_selected_in_mosaic() -> bool:
 	var selected_snapshot: Array = _selected_piece_ids.keys()
 	for piece_variant in selected_snapshot:
 		var piece_id := int(piece_variant)
-		if _locked_pieces.has(piece_id):
+		if _locked_pieces.has(piece_id) or _tray_roots.has(_groups.root_of(piece_id)):
 			continue
 		var piece := _pieces[piece_id]
 		var valid := _rotations[piece_id] == 0 and piece.position.distance_to(piece.home) <= _effective_snap_tolerance_pixels()
