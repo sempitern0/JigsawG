@@ -66,7 +66,8 @@ func _verify() -> void:
 	# Tier 1 reveals ONLY the broad source-image area.
 	assert(board.request_hint(BoardScript.HintLevel.REGION))
 	var first: Dictionary = board.get_hint_info()
-	assert(first["piece_id"] == 3)
+	assert(first["piece_id"] == -1, "Region tier must not expose the candidate ID.")
+	assert(board._hint_piece_id == 3)
 	assert(first["region"].size.x > board._piece_size.x)
 	assert(first["candidate_bounds"] == Rect2())
 	assert(first["target_slot"] == Rect2())
@@ -77,7 +78,7 @@ func _verify() -> void:
 	# Tier 2 adds a real movable candidate group without revealing its slot.
 	assert(board.advance_hint() == BoardScript.HintLevel.CANDIDATE)
 	var second: Dictionary = board.get_hint_info()
-	assert(second["piece_id"] == first["piece_id"])
+	assert(second["piece_id"] == 3)
 	assert(second["region"] == first["region"])
 	assert(second["group_piece_ids"] == PackedInt32Array([3]))
 	assert(second["candidate_bounds"] == board._group_bounds_local(3))
@@ -113,9 +114,10 @@ func _verify() -> void:
 	board.clear_selection()
 	board._unhandled_input(_key())
 	assert(board.get_hint_info()["level"] == BoardScript.HintLevel.REGION)
-	assert(board.get_hint_info()["piece_id"] != 3)
+	assert(board.get_hint_info()["piece_id"] == -1)
 	board._unhandled_input(_action())
 	assert(board.get_hint_info()["level"] == BoardScript.HintLevel.CANDIDATE)
+	assert(board.get_hint_info()["piece_id"] != 3)
 	assert(_notifications.size() >= 6)
 
 	# Invalid contexts do not change an existing hint.
@@ -153,7 +155,8 @@ func _verify() -> void:
 	assert(board.get_hint_info()["level"] == 0)
 	assert(not board.request_hint(BoardScript.HintLevel.REGION, 0))
 	assert(board.request_hint(BoardScript.HintLevel.REGION))
-	assert(board.get_hint_info()["piece_id"] != 0)
+	assert(board.get_hint_info()["piece_id"] == -1)
+	assert(board._hint_piece_id != 0)
 
 	# Generation batches must never leak partial candidate / image regions.
 	var pending: JigsawPuzzleConfig = _config()

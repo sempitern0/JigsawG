@@ -714,7 +714,8 @@ func focus_next_piece_by_category(category: PieceCategory) -> int:
 func get_hint_info() -> Dictionary:
 	var info: Dictionary = {
 		"level": _hint_level,
-		"piece_id": _hint_piece_id,
+		# Never leak the candidate identity from the lowest hint tier.
+		"piece_id": _hint_piece_id if _hint_level >= HintLevel.CANDIDATE else -1,
 		"region": Rect2(),
 		"candidate_bounds": Rect2(),
 		"target_slot": Rect2(),
@@ -776,7 +777,7 @@ func request_hint(level: int, piece_id: int = -1) -> bool:
 	_hint_level = level
 	_hint_piece_id = piece_id
 	_refresh_hint_overlay()
-	hint_changed.emit(_hint_level, _hint_piece_id)
+	hint_changed.emit(_hint_level, _hint_piece_id if _hint_level >= HintLevel.CANDIDATE else -1)
 	if _hint_settings.focus_on_request:
 		focus_hint()
 	return true
